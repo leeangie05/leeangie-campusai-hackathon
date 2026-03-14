@@ -923,6 +923,106 @@ def view_uploaded_file(user_id, filename):
     return send_file(str(fpath), mimetype=mime, as_attachment=False)
 
 
+
+# ══════════════════════════════════════════════════════════════════
+# SOCIAL
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/social/leaderboard")
+def social_leaderboard():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+
+    friends_emails = u.get("friends", [])
+    all_sessions   = load_sessions()
+    all_users      = load_users()
+
+    # Include self + friends
+    participants = [u["email"]] + friends_emails
+    leaderboard  = []
+
+    for email in participants:
+        user_obj  = next((x for x in all_users if x["email"] == email), None)
+        user_sess = [s for s in all_sessions if s.get("email") == email and s.get("actual_minutes")]
+        streak    = _calc_streak(user_sess)
+        week_ago  = datetime.utcnow() - timedelta(days=7)
+        sess_week = len([s for s in user_sess if s.get("timestamp") and
+                         datetime.fromisoformat(s["timestamp"]) >= week_ago])
+        total_hrs = round(sum(s["actual_minutes"] for s in user_sess) / 60, 1)
+        last_sess = user_sess[-1].get("timestamp","") if user_sess else ""
+
+        # Status
+        if user_sess and last_sess:
+            try:
+                last_dt = datetime.fromisoformat(last_sess)
+                mins_ago = (datetime.utcnow() - last_dt).total_seconds() / 60
+                if mins_ago < 30:   status = "Studying now 🟢"
+                elif mins_ago < 120: status = "Just finished"
+                else:
+                    status = f"Last active {last_dt.strftime('%b %d')}"
+            except:
+                status = ""
+        else:
+            status = "No sessions yet"
+
+        leaderboard.append({
+            "email":         email,
+            "name":          (user_obj or {}).get("name", email.split("@")[0]),
+            "streak":        streak,
+            "sessions_week": sess_week,
+            "total_hours":   total_hrs,
+            "status":        status,
+            "is_self":       email == u["email"],
+        })
+
+    leaderboard.sort(key=lambda x: (-x["streak"], -x["sessions_week"]))
+    return jsonify({"friends": leaderboard})
+
+
+@app.route("/api/social/friends", methods=["POST"])
+def add_friend():
+    err = require_auth()
+    if err: return err
+    u    = current_user()
+    d    = request.get_json()
+    email = d.get("email","").strip().lower()
+
+    if not email:
+        return jsonify({"error": "Email required"}), 400
+    if email == u["email"]:
+        return jsonify({"error": "You can't add yourself"}), 400
+
+    # Check if user exists
+    all_users = load_users()
+    if not any(x["email"] == email for x in all_users):
+        return jsonify({"error": f"No Syllabot account found for {email}"}), 404
+
+    users = load_users()
+    for user in users:
+        if user["id"] == u["id"]:
+            friends = user.setdefault("friends", [])
+            if email in friends:
+                return jsonify({"error": "Already friends"}), 409
+            friends.append(email)
+            break
+    save_users(users)
+    return jsonify({"ok": True})
+
+
+def _calc_streak(sessions: list) -> int:
+    if not sessions: return 0
+    days = set()
+    for s in sessions:
+        ts = s.get("timestamp","")
+        if ts: days.add(ts[:10])
+    streak = 0
+    cur    = datetime.utcnow().date()
+    while str(cur) in days:
+        streak += 1
+        cur = cur - timedelta(days=1)
+    return streak
+
 # ── Canvas debug endpoint ─────────────────────────────────────────────────────
 @app.route("/api/canvas/debug", methods=["POST"])
 def canvas_debug():
