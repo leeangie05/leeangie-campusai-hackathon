@@ -1,4 +1,5 @@
 import { StudySession } from "@/lib/data";
+import Link from "next/link";
 
 type TodayPlanProps = {
   time: string;
@@ -47,9 +48,11 @@ export function WeeklyScheduleCard({ sessions }: WeeklyProps) {
         ))}
       </div>
 
-      <button className="mt-5 w-full rounded-2xl bg-blue-600 px-4 py-4 text-lg font-semibold text-white transition hover:bg-blue-700">
-        Start Next Session
-      </button>
+      <Link href="/timer" className="block">
+        <div className="w-full rounded-2xl bg-blue-600 px-6 py-5 text-center text-lg font-semibold text-white transition hover:bg-blue-700">
+          Start Next Session
+        </div>
+      </Link>
     </div>
   );
 }

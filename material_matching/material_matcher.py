@@ -1,21 +1,16 @@
 import google.generativeai as genai
 import json
 import os
+import time
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 # Get a FREE API key at: https://aistudio.google.com/app/apikey
-API_KEY = "AIzaSyD4iqAQK3gMKQRPkPXOSlANK96IePgi_80"
+API_KEY = ""
 
 # Folder containing your course files (lectures, notes, slides, etc.)
-# Examples:
-#   Windows: r"C:\Users\YourName\Downloads\CS280 Files"
-#   Mac/Linux: "/Users/yourname/Downloads/CS280 Files"
 FILES_FOLDER = "/Users/yichenghuang/hackathon/material_matching/course_files/Lecture notes"
 
-# Folder containing your assignment PDFs (one PDF per assignment)
-# Examples:
-#   Windows: r"C:\Users\YourName\Downloads\Assignments"
-#   Mac/Linux: "/Users/yourname/Downloads/Assignments"
+# Folder containing your assignment PDFs
 ASSIGNMENTS_FOLDER = "/Users/yichenghuang/hackathon/material_matching/course_files/Assignments"
 
 # Only include these course file types
@@ -39,41 +34,70 @@ def read_assignments_from_folder(folder: str) -> list[str]:
     if not os.path.exists(folder):
         print(f"❌ Assignments folder not found: {os.path.abspath(folder)}")
         return []
-    pdfs = []
-    for fname in sorted(os.listdir(folder)):
-        if fname.lower().endswith(".pdf"):
-            pdfs.append(os.path.join(folder, fname))
-    return pdfs
+    return sorted([
+        os.path.join(folder, f)
+        for f in os.listdir(folder)
+        if f.lower().endswith(".pdf")
+    ])
 
 
-def match_one_assignment(model, files: list[str], assignment_path: str) -> dict:
-    assignment_name = os.path.basename(assignment_path)
+def upload_files(file_paths: list[str]) -> dict[str, any]:
+    """Upload all files to Gemini and return a dict of filename -> uploaded file object."""
+    uploaded = {}
+    for path in file_paths:
+        fname = os.path.basename(path)
+        print(f"    Uploading {fname}...")
+        try:
+            uploaded[fname] = genai.upload_file(path)
+            time.sleep(0.5)  # avoid rate limiting
+        except Exception as e:
+            print(f"    ⚠️  Could not upload {fname}: {e}")
+    return uploaded
 
-    print(f"  Uploading {assignment_name}...")
-    uploaded = genai.upload_file(assignment_path)
 
-    file_list = "\n".join(f"{i+1}. {f}" for i, f in enumerate(files))
+def match_one_assignment(
+    model,
+    course_uploads: dict[str, any],
+    assignment_upload,
+    assignment_name: str
+) -> dict:
 
-    prompt = f"""You are a study assistant. A student has uploaded an assignment PDF.
-Read the assignment carefully and identify all the topics, concepts, and subject areas it covers.
+    # Build the content list: assignment PDF first, then all course files
+    content = [assignment_upload]
+    file_list_lines = []
+    for i, (fname, uploaded) in enumerate(course_uploads.items(), 1):
+        content.append(uploaded)
+        file_list_lines.append(f"{i}. {fname}")
 
-Then, from the following list of course files, identify which ones are most relevant to study for this assignment:
+    file_list = "\n".join(file_list_lines)
+
+    prompt = f"""You are a study assistant. The first document is a student's assignment.
+The remaining documents are their course lecture files — you have access to the full text of each one.
+
+Course files provided:
 {file_list}
+
+Instructions:
+- Read the assignment carefully and identify each topic or problem it covers.
+- Read the actual content of each course file.
+- Match each assignment topic to the course files whose content is genuinely relevant.
+- Do NOT guess based on file names — base your answer only on what is actually written in each file.
 
 Return ONLY valid JSON — no markdown fences, no explanation — in this exact format:
 [
   {{
     "topic": "brief topic or problem from the assignment",
     "matches": [
-      {{ "filename": "exact filename from list", "reason": "one sentence why relevant", "relevance": "high" | "medium" | "low" }}
+      {{ "filename": "exact filename from list", "reason": "one sentence citing specific content from that file that is relevant", "relevance": "high" | "medium" | "low" }}
     ]
   }}
 ]
 
-Group matches by topic or problem from the assignment. Only include files that are genuinely relevant.
-Order matches by relevance descending. If nothing matches a topic, return an empty matches array."""
+Only include files whose actual content is relevant. Order by relevance descending.
+If nothing matches a topic, return an empty matches array."""
 
-    response = model.generate_content([uploaded, prompt])
+    content.append(prompt)
+    response = model.generate_content(content)
     raw = response.text.strip()
 
     if raw.startswith("```"):
@@ -120,40 +144,49 @@ def main():
         print("   Get one at: https://aistudio.google.com/app/apikey\n")
         return
 
-    # Read course files
-    print(f"\n📂 Course files: {os.path.abspath(FILES_FOLDER)}")
-    files = read_files_from_folder(FILES_FOLDER)
-    if not files:
-        print("  No supported course files found. Check FILES_FOLDER.")
-        return
-    print(f"  ✓ Found {len(files)} course file(s):")
-    for f in files:
-        print(f"    • {f}")
-
-    # Read assignment PDFs
-    print(f"\n📁 Assignments folder: {os.path.abspath(ASSIGNMENTS_FOLDER)}")
-    assignment_pdfs = read_assignments_from_folder(ASSIGNMENTS_FOLDER)
-    if not assignment_pdfs:
-        print("  No PDF assignments found. Check ASSIGNMENTS_FOLDER.")
-        return
-    print(f"  ✓ Found {len(assignment_pdfs)} assignment(s):")
-    for a in assignment_pdfs:
-        print(f"    • {os.path.basename(a)}")
-
-    # Process each assignment
     genai.configure(api_key=API_KEY)
     model = genai.GenerativeModel("gemini-3.1-flash-lite-preview")
 
+    # Read course file names
+    print(f"\n📂 Course files: {os.path.abspath(FILES_FOLDER)}")
+    course_fnames = read_files_from_folder(FILES_FOLDER)
+    if not course_fnames:
+        print("  No supported course files found. Check FILES_FOLDER.")
+        return
+    print(f"  ✓ Found {len(course_fnames)} course file(s):")
+    for f in course_fnames:
+        print(f"    • {f}")
+
+    # Read assignment paths
+    print(f"\n📁 Assignments: {os.path.abspath(ASSIGNMENTS_FOLDER)}")
+    assignment_paths = read_assignments_from_folder(ASSIGNMENTS_FOLDER)
+    if not assignment_paths:
+        print("  No PDF assignments found. Check ASSIGNMENTS_FOLDER.")
+        return
+    print(f"  ✓ Found {len(assignment_paths)} assignment(s):")
+    for a in assignment_paths:
+        print(f"    • {os.path.basename(a)}")
+
+    # Upload all course files once (reused across all assignments)
+    print(f"\n⬆️  Uploading {len(course_fnames)} course file(s) to Gemini...")
+    course_paths = [os.path.join(FILES_FOLDER, f) for f in course_fnames]
+    course_uploads = upload_files(course_paths)
+    print(f"  ✓ Done uploading course files.")
+
+    # Process each assignment
     all_results = []
-    for i, pdf_path in enumerate(assignment_pdfs, 1):
-        print(f"\n⏳ Processing assignment {i}/{len(assignment_pdfs)}: {os.path.basename(pdf_path)}")
+    for i, pdf_path in enumerate(assignment_paths, 1):
+        aname = os.path.basename(pdf_path)
+        print(f"\n⏳ Processing assignment {i}/{len(assignment_paths)}: {aname}")
         try:
-            result = match_one_assignment(model, files, pdf_path)
+            print(f"    Uploading {aname}...")
+            asgn_upload = genai.upload_file(pdf_path)
+            result = match_one_assignment(model, course_uploads, asgn_upload, aname)
             all_results.append(result)
         except json.JSONDecodeError:
-            print(f"  ❌ Could not parse response for {os.path.basename(pdf_path)}. Skipping.")
+            print(f"  ❌ Could not parse response for {aname}. Skipping.")
         except Exception as e:
-            print(f"  ❌ Error processing {os.path.basename(pdf_path)}: {e}")
+            print(f"  ❌ Error processing {aname}: {e}")
 
     if all_results:
         print_results(all_results)
