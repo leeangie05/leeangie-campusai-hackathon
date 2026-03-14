@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>StudyClock</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --maize: #FFCB05;
+  --maize-dim: rgba(255,203,5,0.12);
+  --blue: #00274C;
+  --blue-mid: #0a3260;
+  --blue-light: #1a4f8a;
+  --cream: #f5f0e8;
+  --muted: #7a90aa;
+  --danger: #ff6b6b;
+  --success: #5edd8e;
+  --border: rgba(255,203,5,0.18);
+  --card: rgba(255,255,255,0.04);
+  --radius: 10px;
+  --transition: 0.2s ease;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Mono', monospace;
+  background: var(--blue);
+  color: var(--cream);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* grain texture */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 0;
+}
+
+.wrap {
+  position: relative; z-index: 1;
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 44px 24px 100px;
+}
+
+/* ── Header ── */
+header {
+  margin-bottom: 48px;
+  animation: fadeUp 0.5s ease both;
+}
+.wordmark {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 6px;
+}
+.wordmark-icon {
+  width: 36px; height: 36px;
+  border: 2px solid var(--maize);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+h1 {
+  font-family: 'Instrument Serif', serif;
+  font-size: 1.9rem;
+  color: var(--maize);
+  letter-spacing: -0.3px;
+}
+h1 em { font-style: italic; }
+.tagline {
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-left: 48px;
+}
+
+/* ── Cards ── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  margin-bottom: 20px;
+  animation: fadeUp 0.5s ease both;
+}
+.card-title {
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--maize);
+  margin-bottom: 20px;
+  display: flex; align-items: center; gap-8px;
+}
+.card-title::before {
+  content: ''; display: inline-block;
+  width: 20px; height: 1px;
+  background: var(--maize);
+  margin-right: 8px;
+}
+
+/* ── Form elements ── */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.form-row.single { grid-template-columns: 1fr; }
+
+label {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 7px;
+}
+
+input[type="text"] {
+  width: 100%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--cream);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.85rem;
+  padding: 10px 14px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+input[type="text"]:focus {
+  border-color: rgba(255,203,5,0.5);
+}
+input[type="text"]::placeholder { color: var(--muted); }
+
+/* ── File upload ── */
+.upload-zone {
+  border: 1.5px dashed var(--border);
+  border-radius: 8px;
+  padding: 22px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition);
+  position: relative;
+}
+.upload-zone:hover, .upload-zone.dragover {
+  border-color: rgba(255,203,5,0.5);
+  background: var(--maize-dim);
+}
+.upload-zone input[type="file"] {
+  position: absolute; inset: 0;
+  opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.upload-icon { font-size: 1.4rem; margin-bottom: 6px; }
+.upload-label {
+  font-size: 0.75rem; color: var(--muted);
+}
+.upload-label strong { color: var(--cream); }
+.upload-zone.has-file {
+  border-color: rgba(94,221,142,0.4);
+  background: rgba(94,221,142,0.05);
+}
+.upload-zone.has-file .upload-icon::after { content: ' ✓'; color: var(--success); }
+.filename {
+  font-size: 0.7rem;
+  color: var(--success);
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Button ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--maize);
+  color: var(--blue);
+  border: none; border-radius: 6px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: all var(--transition);
+  letter-spacing: 0.04em;
+}
+.btn:hover { background: #ffe040; transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--cream);
+}
+.btn-ghost:hover { background: var(--card); border-color: rgba(255,203,5,0.4); }
+.btn-danger {
+  background: transparent;
+  border: 1px solid rgba(255,107,107,0.4);
+  color: var(--danger);
+}
+.btn-danger:hover { background: rgba(255,107,107,0.1); }
+
+/* ── Estimate result ── */
+.estimate-block {
+  display: none;
+  animation: fadeUp 0.4s ease both;
+}
+.estimate-block.visible { display: block; }
+
+.time-range {
+  display: flex; align-items: baseline; gap: 8px;
+  margin-bottom: 12px;
+}
+.time-main {
+  font-family: 'Instrument Serif', serif;
+  font-size: 3.2rem;
+  color: var(--maize);
+  line-height: 1;
+}
+.time-unit {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.time-range-sub {
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+.concept-tag {
+  display: inline-block;
+  background: var(--maize-dim);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 3px 12px;
+  font-size: 0.68rem;
+  color: var(--maize);
+  letter-spacing: 0.06em;
+  margin-bottom: 14px;
+}
+.reasoning {
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.7;
+  border-left: 2px solid var(--border);
+  padding-left: 14px;
+  font-style: italic;
+}
+.confidence-row {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 14px;
+  font-size: 0.68rem; color: var(--muted);
+}
+.confidence-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--muted);
+}
+.confidence-dot.high { background: var(--success); }
+.confidence-dot.medium { background: var(--maize); }
+.confidence-dot.low { background: var(--danger); }
+
+/* ── Timer ── */
+.timer-display {
+  text-align: center;
+  padding: 10px 0 6px;
+}
+.timer-digits {
+  font-family: 'Instrument Serif', serif;
+  font-size: 4.5rem;
+  color: var(--cream);
+  letter-spacing: 0.02em;
+  line-height: 1;
+  transition: color 0.3s ease;
+}
+.timer-digits.over-estimate { color: var(--danger); }
+.timer-digits.near-estimate { color: var(--maize); }
+
+.timer-bar-wrap {
+  margin: 16px 0;
+  height: 4px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.timer-bar {
+  height: 100%;
+  background: var(--maize);
+  border-radius: 2px;
+  transition: width 1s linear, background 0.3s ease;
+  width: 0%;
+}
+.timer-bar.over { background: var(--danger); }
+
+.timer-status {
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: 20px;
+  min-height: 18px;
+}
+
+.timer-controls {
+  display: flex; gap: 12px; justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── History table ── */
+.history-wrap {
+  margin-top: 4px;
+  overflow-x: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+}
+th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+td {
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  color: var(--cream);
+}
+tr:last-child td { border-bottom: none; }
+.diff-positive { color: var(--danger); }
+.diff-negative { color: var(--success); }
+.empty-state {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.75rem;
+  padding: 28px;
+  font-style: italic;
+}
+
+/* ── Loading spinner ── */
+.spinner {
+  display: inline-block;
+  width: 16px; height: 16px;
+  border: 2px solid rgba(0,39,76,0.3);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ── Error ── */
+.error-msg {
+  background: rgba(255,107,107,0.1);
+  border: 1px solid rgba(255,107,107,0.3);
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-size: 0.75rem;
+  color: var(--danger);
+  margin-top: 12px;
+  display: none;
+}
+.error-msg.visible { display: block; }
+
+/* ── Animations ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Responsive ── */
+@media (max-width: 560px) {
+  .form-row { grid-template-columns: 1fr; }
+  .timer-digits { font-size: 3.2rem; }
+  .time-main { font-size: 2.4rem; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Header -->
+  <header>
+    <div class="wordmark">
+      <div class="wordmark-icon">⏱</div>
+      <h1>Study<em>Clock</em></h1>
+    </div>
+    <div class="tagline">UMich Assignment Time Estimator</div>
+  </header>
+
+  <!-- Step 1: Upload & Info -->
+  <div class="card" style="animation-delay:0.05s">
+    <div class="card-title">Assignment Info</div>
+    <div class="form-row">
+      <div>
+        <label>Your Uniqname</label>
+        <input type="text" id="uniqname" placeholder="e.g. albychen"/>
+      </div>
+      <div>
+        <label>Course</label>
+        <input type="text" id="course" placeholder="e.g. EECS 281"/>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div>
+        <label>Assignment PDF</label>
+        <div class="upload-zone" id="assignmentZone">
+          <input type="file" id="assignmentFile" accept=".pdf"/>
+          <div class="upload-icon">📄</div>
+          <div class="upload-label"><strong>Click or drop</strong> your assignment PDF</div>
+          <div class="filename" id="assignmentName"></div>
+        </div>
+      </div>
+      <div>
+        <label>Notes / Course Materials PDF <span style="color:var(--muted)">(optional)</span></label>
+        <div class="upload-zone" id="notesZone">
+          <input type="file" id="notesFile" accept=".pdf" multiple/>
+          <div class="upload-icon">📝</div>
+          <div class="upload-label"><strong>Click or drop</strong> one or more notes PDFs</div>
+          <div class="filename" id="notesName"></div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn" id="estimateBtn" onclick="getEstimate()">
+      ✦ Get Time Estimate
+    </button>
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
+
+  <!-- Step 2: Estimate Result -->
+  <div class="card estimate-block" id="estimateCard" style="animation-delay:0.1s">
+    <div class="card-title">AI Estimate</div>
+    <div class="time-range">
+      <div class="time-main" id="estMinutes">—</div>
+      <div class="time-unit">minutes</div>
+    </div>
+    <div class="time-range-sub" id="estRange"></div>
+    <div class="concept-tag" id="conceptTag"></div>
+    <div class="reasoning" id="estReasoning"></div>
+    <div class="confidence-row">
+      <div class="confidence-dot" id="confidenceDot"></div>
+      <span id="confidenceText"></span>
+    </div>
+  </div>
+
+  <!-- Step 3: Timer -->
+  <div class="card estimate-block" id="timerCard" style="animation-delay:0.15s">
+    <div class="card-title">Timer</div>
+    <div class="timer-display">
+      <div class="timer-digits" id="timerDisplay">00:00</div>
+    </div>
+    <div class="timer-bar-wrap">
+      <div class="timer-bar" id="timerBar"></div>
+    </div>
+    <div class="timer-status" id="timerStatus">Ready to start</div>
+    <div class="timer-controls">
+      <button class="btn" id="startBtn" onclick="startTimer()">▶ Start</button>
+      <button class="btn btn-ghost" id="pauseBtn" onclick="pauseTimer()" disabled>⏸ Pause</button>
+      <button class="btn btn-danger" id="doneBtn" onclick="finishSession()" disabled>✓ Done</button>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="card" style="animation-delay:0.2s">
+    <div class="card-title">Your Past Sessions</div>
+    <div class="history-wrap">
+      <div class="empty-state" id="historyEmpty">Enter your uniqname above and submit to see your history.</div>
+      <table id="historyTable" style="display:none">
+        <thead>
+          <tr>
+            <th>Course</th>
+            <th>Topic</th>
+            <th>Est.</th>
+            <th>Actual</th>
+            <th>Diff</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let timerInterval = null;
+let elapsedSeconds = 0;
+let isRunning = false;
+let estimatedMinutes = null;
+let currentEstimate = null;
+
+const API = "http://localhost:5000/api";
+
+// ── File upload UX ────────────────────────────────────────────────────────────
+function setupUploadZone(zoneId, inputId, nameId) {
+  const zone  = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+  const name  = document.getElementById(nameId);
+
+  input.addEventListener("change", () => {
+    if (input.files.length > 0) {
+      zone.classList.add("has-file");
+      name.textContent = input.files.length === 1
+        ? input.files[0].name
+        : `${input.files.length} files selected`;
+    }
+  });
+
+  zone.addEventListener("dragover", e => { e.preventDefault(); zone.classList.add("dragover"); });
+  zone.addEventListener("dragleave", () => zone.classList.remove("dragover"));
+  zone.addEventListener("drop", e => {
+    e.preventDefault();
+    zone.classList.remove("dragover");
+    if (e.dataTransfer.files[0]) {
+      input.files = e.dataTransfer.files;
+      zone.classList.add("has-file");
+      name.textContent = e.dataTransfer.files[0].name;
+    }
+  });
+}
+
+setupUploadZone("assignmentZone", "assignmentFile", "assignmentName");
+setupUploadZone("notesZone", "notesFile", "notesName");
+
+// ── Estimate ──────────────────────────────────────────────────────────────────
+async function getEstimate() {
+  const uniqname = document.getElementById("uniqname").value.trim();
+  const course   = document.getElementById("course").value.trim();
+  const assignment = document.getElementById("assignmentFile").files[0];
+  const notes      = document.getElementById("notesFile").files[0];
+  const btn        = document.getElementById("estimateBtn");
+  const errEl      = document.getElementById("errorMsg");
+
+  errEl.classList.remove("visible");
+
+  if (!assignment) {
+    showError("Please upload your assignment PDF."); return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Analyzing...';
+
+  const form = new FormData();
+  form.append("uniqname", uniqname || "anonymous");
+  form.append("course", course);
+  form.append("assignment", assignment);
+  const notesInput = document.getElementById("notesFile");
+  for (const file of notesInput.files) {
+    form.append("notes", file);
+  }
+
+  try {
+    const res  = await fetch(`${API}/estimate`, { method: "POST", body: form });
+    const data = await res.json();
+
+    if (data.error) { showError(data.error); return; }
+
+    currentEstimate = data;
+    estimatedMinutes = data.estimated_minutes;
+
+    // Populate estimate card
+    document.getElementById("estMinutes").textContent = data.estimated_minutes;
+    document.getElementById("estRange").textContent =
+      `Range: ${data.low_minutes}–${data.high_minutes} min`;
+    document.getElementById("conceptTag").textContent = data.primary_concept || course;
+    document.getElementById("estReasoning").textContent = data.reasoning;
+
+    const dot  = document.getElementById("confidenceDot");
+    const conf = (data.confidence || "medium").toLowerCase();
+    dot.className = `confidence-dot ${conf}`;
+    document.getElementById("confidenceText").textContent =
+      `${conf.charAt(0).toUpperCase() + conf.slice(1)} confidence`;
+
+    // Show estimate + timer cards
+    document.getElementById("estimateCard").classList.add("visible");
+    document.getElementById("timerCard").classList.add("visible");
+    document.getElementById("estimateCard").scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+    // Load history
+    if (uniqname) loadHistory(uniqname);
+
+  } catch (e) {
+    showError("Could not reach the server. Make sure server.py is running.");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '✦ Get Time Estimate';
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById("errorMsg");
+  el.textContent = msg;
+  el.classList.add("visible");
+  document.getElementById("estimateBtn").disabled = false;
+  document.getElementById("estimateBtn").innerHTML = '✦ Get Time Estimate';
+}
+
+// ── Timer ─────────────────────────────────────────────────────────────────────
+function formatTime(secs) {
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+  return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+}
+
+function updateTimerUI() {
+  const display = document.getElementById("timerDisplay");
+  const bar     = document.getElementById("timerBar");
+  const status  = document.getElementById("timerStatus");
+
+  display.textContent = formatTime(elapsedSeconds);
+
+  const pct = estimatedMinutes
+    ? Math.min((elapsedSeconds / (estimatedMinutes * 60)) * 100, 100)
+    : 0;
+  bar.style.width = pct + "%";
+
+  if (estimatedMinutes) {
+    const remaining = (estimatedMinutes * 60) - elapsedSeconds;
+    if (remaining > 0) {
+      display.className = remaining < 300 ? "timer-digits near-estimate" : "timer-digits";
+      bar.className = "timer-bar";
+      status.textContent = `${formatTime(remaining)} remaining of estimated ${estimatedMinutes} min`;
+    } else {
+      display.className = "timer-digits over-estimate";
+      bar.className = "timer-bar over";
+      bar.style.width = "100%";
+      status.textContent = `${formatTime(Math.abs(remaining))} over estimate`;
+    }
+  }
+}
+
+function startTimer() {
+  if (isRunning) return;
+  isRunning = true;
+  document.getElementById("startBtn").disabled = true;
+  document.getElementById("pauseBtn").disabled = false;
+  document.getElementById("doneBtn").disabled = false;
+  document.getElementById("timerStatus").textContent = "Running...";
+
+  timerInterval = setInterval(() => {
+    elapsedSeconds++;
+    updateTimerUI();
+  }, 1000);
+}
+
+function pauseTimer() {
+  if (!isRunning) {
+    // Resume
+    isRunning = true;
+    document.getElementById("pauseBtn").textContent = "⏸ Pause";
+    document.getElementById("startBtn").disabled = true;
+    timerInterval = setInterval(() => { elapsedSeconds++; updateTimerUI(); }, 1000);
+  } else {
+    // Pause
+    isRunning = false;
+    clearInterval(timerInterval);
+    document.getElementById("pauseBtn").textContent = "▶ Resume";
+    document.getElementById("timerStatus").textContent = "Paused";
+  }
+}
+
+async function finishSession() {
+  if (timerInterval) clearInterval(timerInterval);
+  isRunning = false;
+
+  const actualMinutes = Math.round(elapsedSeconds / 60) || 1;
+  const uniqname = document.getElementById("uniqname").value.trim() || "anonymous";
+  const course   = document.getElementById("course").value.trim();
+
+  document.getElementById("startBtn").disabled = false;
+  document.getElementById("pauseBtn").disabled = true;
+  document.getElementById("doneBtn").disabled = true;
+  document.getElementById("timerStatus").textContent =
+    `Session saved: ${actualMinutes} min actual vs ${estimatedMinutes || "?"} min estimated`;
+
+  // Save to server
+  try {
+    await fetch(`${API}/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        uniqname,
+        course,
+        actual_minutes: actualMinutes,
+        estimated_minutes: currentEstimate?.estimated_minutes,
+        assignment_summary: currentEstimate?.assignment_summary || "",
+        primary_concept: currentEstimate?.primary_concept || "",
+      })
+    });
+    if (uniqname) loadHistory(uniqname);
+  } catch (e) {
+    console.error("Could not save session:", e);
+  }
+
+  // Reset timer for potential next use
+  elapsedSeconds = 0;
+  updateTimerUI();
+  document.getElementById("pauseBtn").textContent = "⏸ Pause";
+}
+
+// ── History ───────────────────────────────────────────────────────────────────
+async function loadHistory(uniqname) {
+  if (!uniqname) return;
+  try {
+    const res  = await fetch(`${API}/sessions?uniqname=${encodeURIComponent(uniqname)}`);
+    const data = await res.json();
+
+    const empty = document.getElementById("historyEmpty");
+    const table = document.getElementById("historyTable");
+    const body  = document.getElementById("historyBody");
+
+    if (!data.length) {
+      empty.textContent = "No sessions recorded yet.";
+      empty.style.display = "block";
+      table.style.display = "none";
+      return;
+    }
+
+    empty.style.display = "none";
+    table.style.display = "table";
+    body.innerHTML = "";
+
+    // Show most recent first
+    [...data].reverse().forEach(s => {
+      const diff = s.actual_minutes && s.estimated_minutes
+        ? s.actual_minutes - s.estimated_minutes : null;
+      const diffStr = diff !== null
+        ? `${diff > 0 ? "+" : ""}${diff} min`
+        : "—";
+      const diffClass = diff === null ? "" : diff > 0 ? "diff-positive" : "diff-negative";
+      const date = s.timestamp ? new Date(s.timestamp).toLocaleDateString() : "—";
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${s.course || "—"}</td>
+        <td>${s.primary_concept || "—"}</td>
+        <td>${s.estimated_minutes ? s.estimated_minutes + " min" : "—"}</td>
+        <td>${s.actual_minutes} min</td>
+        <td class="${diffClass}">${diffStr}</td>
+        <td>${date}</td>
+      `;
+      body.appendChild(tr);
+    });
+  } catch (e) {
+    console.error("Could not load history:", e);
+  }
+}
+
+// Load history on uniqname blur
+document.getElementById("uniqname").addEventListener("blur", e => {
+  if (e.target.value.trim()) loadHistory(e.target.value.trim());
+});
+</script>
+</body>
+</html>
