@@ -204,6 +204,16 @@ body.dark hr.divider{border-color:#2d3748}
 body.dark .section-title{color:#94a3b8}
 body.dark .logo-text{color:#f1f5f9}
 body.dark .tagline{color:#64748b}
+/* GCal panel */
+body.dark .gcal-panel{background:#0d2318;border-color:#1a4a30}
+body.dark .gcal-panel .stat-title{color:#f1f5f9}
+/* Estimate results bubble */
+body.dark .estimate-result-card{background:#1e2330;border-color:#2d3748}
+body.dark .estimate-result-card h3{color:#f1f5f9}
+body.dark .estimate-result-card p{color:#94a3b8}
+body.dark .estimate-reasoning{border-left-color:#2d3748;color:#94a3b8}
+body.dark .gcal-legend{color:#94a3b8}
+body.dark .cal-event .ev-sub{color:inherit;opacity:.75}
 
 /* ── Sidebar panels (dark-mode aware) ── */
 .sidebar-panel{background:#fff;border:1px solid #e2e8f0;border-radius:20px}
@@ -272,6 +282,16 @@ body.dark .cal-week-hour-label{border-color:#2d3748;color:#4a5568}
 /* upload choose button */
 .upload-choose-btn{margin-top:12px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:6px 16px;font-size:.82rem;font-weight:500;color:#374151;box-shadow:0 1px 2px rgba(0,0,0,.05)}
 body.dark .upload-choose-btn{background:#2d3748;border-color:#4a5568;color:#e2e8f0}
+
+
+/* ── Google Calendar events ── */
+.cal-gcal-ev{position:absolute;left:4px;right:4px;border-radius:8px;padding:4px 8px;font-size:.72rem;font-weight:500;overflow:hidden;z-index:1;opacity:.9;border-left:3px solid rgba(0,0,0,.15)}
+.cal-gcal-ev .ev-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-suggest-ev{position:absolute;left:4px;right:4px;border-radius:8px;padding:4px 8px;font-size:.72rem;font-weight:600;overflow:hidden;z-index:1;border:2px dashed;background:transparent}
+.cal-suggest-ev .ev-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gcal-legend{display:flex;align-items:center;gap:16px;font-size:.72rem;color:#64748b;margin-bottom:10px;flex-wrap:wrap}
+.gcal-legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+body.dark .cal-gcal-ev{opacity:.75}
 
 </style>
 </head>
@@ -441,6 +461,13 @@ body.dark .upload-choose-btn{background:#2d3748;border-color:#4a5568;color:#e2e8
           </div>
         </div>
 
+        <!-- Legend -->
+        <div class="gcal-legend" id="cal-legend">
+          <span><span class="gcal-legend-dot" style="background:#dbeafe"></span> Study block</span>
+          <span id="gcal-legend-ev" style="display:none"><span class="gcal-legend-dot" style="background:#e9d5ff"></span> Google Calendar</span>
+          <span><span class="gcal-legend-dot" style="border:2px dashed #059669;background:transparent"></span> Suggested</span>
+          <button class="btn btn-secondary btn-sm" id="cal-suggest-btn" onclick="loadSuggestions()" style="margin-left:auto">✨ Suggest Study Times</button>
+        </div>
         <!-- Day calendar -->
         <div id="sched-day" class="sched-panel">
           <div class="cal-day-grid" id="cal-day-grid"></div>
@@ -525,11 +552,7 @@ body.dark .upload-choose-btn{background:#2d3748;border-color:#4a5568;color:#e2e8
         <div id="canvas-assignment-list" class="files-panel" style="max-height:220px;overflow-y:auto"></div>
       </div>
 
-      <div style="text-align:center;color:#94a3b8;font-size:.82rem;margin-bottom:16px;display:flex;align-items:center;gap:10px">
-        <hr style="flex:1;border:none;border-top:1px solid #e2e8f0"/>
-        or upload manually
-        <hr style="flex:1;border:none;border-top:1px solid #e2e8f0"/>
-      </div>
+
 
       <div class="grid-2" style="margin-bottom:20px">
         <div>
@@ -677,6 +700,16 @@ body.dark hr.divider{border-color:#2d3748}
 body.dark .section-title{color:#94a3b8}
 body.dark .logo-text{color:#f1f5f9}
 body.dark .tagline{color:#64748b}
+/* GCal panel */
+body.dark .gcal-panel{background:#0d2318;border-color:#1a4a30}
+body.dark .gcal-panel .stat-title{color:#f1f5f9}
+/* Estimate results bubble */
+body.dark .estimate-result-card{background:#1e2330;border-color:#2d3748}
+body.dark .estimate-result-card h3{color:#f1f5f9}
+body.dark .estimate-result-card p{color:#94a3b8}
+body.dark .estimate-reasoning{border-left-color:#2d3748;color:#94a3b8}
+body.dark .gcal-legend{color:#94a3b8}
+body.dark .cal-event .ev-sub{color:inherit;opacity:.75}
 
 /* ── Sidebar panels (dark-mode aware) ── */
 .sidebar-panel{background:#fff;border:1px solid #e2e8f0;border-radius:20px}
@@ -746,6 +779,16 @@ body.dark .cal-week-hour-label{border-color:#2d3748;color:#4a5568}
 .upload-choose-btn{margin-top:12px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:6px 16px;font-size:.82rem;font-weight:500;color:#374151;box-shadow:0 1px 2px rgba(0,0,0,.05)}
 body.dark .upload-choose-btn{background:#2d3748;border-color:#4a5568;color:#e2e8f0}
 
+
+/* ── Google Calendar events ── */
+.cal-gcal-ev{position:absolute;left:4px;right:4px;border-radius:8px;padding:4px 8px;font-size:.72rem;font-weight:500;overflow:hidden;z-index:1;opacity:.9;border-left:3px solid rgba(0,0,0,.15)}
+.cal-gcal-ev .ev-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-suggest-ev{position:absolute;left:4px;right:4px;border-radius:8px;padding:4px 8px;font-size:.72rem;font-weight:600;overflow:hidden;z-index:1;border:2px dashed;background:transparent}
+.cal-suggest-ev .ev-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gcal-legend{display:flex;align-items:center;gap:16px;font-size:.72rem;color:#64748b;margin-bottom:10px;flex-wrap:wrap}
+.gcal-legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+body.dark .cal-gcal-ev{opacity:.75}
+
 </style>
 
 <!-- ══════════════ SETTINGS PAGE ══════════════ -->
@@ -770,6 +813,22 @@ body.dark .upload-choose-btn{background:#2d3748;border-color:#4a5568;color:#e2e8
         </label>
       </div>
 
+      <h3 style="margin-bottom:12px">Google Calendar</h3>
+      <div class="gcal-panel" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:14px;padding:20px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div>
+            <div style="font-weight:600;font-size:.9rem" id="gcal-status-text">Not connected</div>
+            <div style="font-size:.78rem;color:#64748b;margin-top:3px">Connect to see your schedule and get smart study suggestions.</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary btn-md" id="gcal-connect-btn" onclick="connectGCal()">🗓 Connect Google Calendar</button>
+            <button class="btn btn-danger btn-md hidden" id="gcal-disconnect-btn" onclick="disconnectGCal()">Disconnect</button>
+          </div>
+        </div>
+        <div id="gcal-connect-msg" style="margin-top:8px"></div>
+      </div>
+
+      <hr class="divider"/>
       <h3 style="margin-bottom:12px">Canvas Integration</h3>
       <div class="canvas-panel">
         <div class="grid-2" style="margin-bottom:12px">
@@ -1112,8 +1171,13 @@ async function loadDashboard() {
     const data = await res.json();
     appAssignments = data.assignments || [];
     renderDashboardAssignments();
-    renderStudyPlan();  // also calls renderSchedule
+    renderStudyPlan();
     loadStats();
+    // Wire up empty-state upload zones
+    setupUploadZone("empty-assign-zone","empty-assign-files","empty-assign-names");
+    setupUploadZone("empty-notes-zone","empty-notes-files","empty-notes-names");
+    checkGCalStatus();
+    renderRecentlyOpened();
   } catch(e) { console.error("Could not load assignments", e); }
 }
 
@@ -1201,6 +1265,8 @@ async function loadMaterialsPage() {
   }
   setupUploadZone("mat-assign-zone","mat-assign-files","mat-assign-names");
   setupUploadZone("mat-notes-zone","mat-notes-files","mat-notes-names");
+  setupUploadZone("empty-assign-zone","empty-assign-files","empty-assign-names");
+  setupUploadZone("empty-notes-zone","empty-notes-files","empty-notes-names");
 }
 
 function renderCanvasAssignmentPicker(canvasCourses) {
@@ -1308,6 +1374,41 @@ function setupUploadZone(zoneId, inputId, namesId) {
   });
 }
 
+async function runEmptyEstimate() {
+  // Same as runEstimate but uses the inline empty-state form
+  const btn         = document.getElementById("empty-estimate-btn");
+  const msgEl       = document.getElementById("empty-estimate-msg");
+  const resEl       = document.getElementById("empty-estimate-results");
+  const course      = document.getElementById("empty-course")?.value.trim() || "";
+  const assignFiles = document.getElementById("empty-assign-files")?.files;
+  const notesFiles  = document.getElementById("empty-notes-files")?.files;
+  if (!assignFiles?.length) { showMsg(msgEl, "Upload at least one assignment PDF", "error"); return; }
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Analyzing...';
+  resEl.innerHTML = ""; msgEl.innerHTML = "";
+  // Pre-upload for viewing
+  for (const f of [...assignFiles, ...(notesFiles||[])]) {
+    try { const url = await uploadForView(f); if (url) uploadedFileURLs[f.name] = url; } catch(e) {}
+  }
+  const form = new FormData();
+  form.append("course", course);
+  for (const f of assignFiles) form.append("assignments", f);
+  for (const f of (notesFiles||[])) form.append("notes", f);
+  try {
+    const res  = await fetch(`${API}/estimate`, {method:"POST",credentials:"include",body:form});
+    const data = await res.json();
+    if (data.error) { showMsg(msgEl, data.error, "error"); return; }
+    lastEstimateResults = data.results || [];
+    resEl.innerHTML = renderEstimateResultsHTML(lastEstimateResults);
+    // Refresh assignments
+    const freshRes = await fetch(`${API}/assignments`, {credentials:"include"});
+    const freshData = await freshRes.json();
+    appAssignments = freshData.assignments || [];
+    renderDashboardAssignments();
+    renderStudyPlan();
+  } catch(e) { showMsg(msgEl, "Server error: " + e.message, "error"); }
+  finally { btn.disabled = false; btn.innerHTML = "✦ Analyze &amp; Estimate"; }
+}
+
 async function runEstimate() {
   const btn    = document.getElementById("mat-estimate-btn");
   const msgEl  = document.getElementById("mat-msg");
@@ -1347,15 +1448,13 @@ async function runEstimate() {
   finally { btn.disabled=false; btn.innerHTML='✦ Analyze &amp; Estimate'; }
 }
 
-function renderEstimateResults(results) {
-  const el = document.getElementById("mat-results");
-  el.classList.remove("hidden");
-  el.innerHTML = results.map(r => {
+function renderEstimateResultsHTML(results) {
+  return results.map(r => {
     if (r.error) return `<div class="alert alert-error">Error for ${esc(r.assignment)}: ${esc(r.error)}</div>`;
     const matchedNotes = r.matched_notes || [];
     const highMed = matchedNotes.filter(m => m.relevance === "high" || m.relevance === "medium");
     return `
-    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:24px;margin-bottom:16px;fade-up">
+    <div class="estimate-result-card" style="background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:24px;margin-bottom:16px">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px">
         <div>
           <h3>${esc(r.assignment)}</h3>
@@ -1367,7 +1466,7 @@ function renderEstimateResults(results) {
           <div style="font-size:.72rem;color:#94a3b8;margin-top:2px">Range: ${r.low_minutes||"?"}–${r.high_minutes||"?"} min</div>
         </div>
       </div>
-      ${r.reasoning ? `<p style="font-size:.85rem;color:#475569;border-left:3px solid #d1fae5;padding-left:12px;font-style:italic;margin-bottom:16px">${esc(r.reasoning)}</p>` : ""}
+      ${r.reasoning ? `<p class="estimate-reasoning" style="font-size:.85rem;border-left:3px solid #d1fae5;padding-left:12px;font-style:italic;margin-bottom:16px">${esc(r.reasoning)}</p>` : ""}
       ${matchedNotes.length ? `
         <div class="match-panel">
           <div class="section-title">Matched Notes (${matchedNotes.length})</div>
@@ -1382,7 +1481,7 @@ function renderEstimateResults(results) {
             </div>`).join("")}
         </div>` : ""}
       <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-primary btn-md" onclick="startTimerWithEstimate(${r.estimated_minutes||0}, '${esc(r.assignment).replace(/'/g,"\\'")}')">▶ Start Timer</button>
+        <button class="btn btn-secondary btn-md" onclick="showPage('dashboard')">← Dashboard</button>
         ${uploadedFileURLs[r.assignment] ? `<button class="btn btn-outline btn-md" onclick="openFile('${uploadedFileURLs[r.assignment]}','${esc(r.assignment)}')">📄 Open Assignment</button>` : ""}
       </div>
       ${matchedNotes.filter(m=>m.relevance==="high"||m.relevance==="medium").length ? `
@@ -1404,6 +1503,12 @@ function renderEstimateResults(results) {
       </div>` : ""}
     </div>`;
   }).join("");
+}
+
+function renderEstimateResults(results) {
+  const el = document.getElementById("mat-results");
+  el.classList.remove("hidden");
+  el.innerHTML = renderEstimateResultsHTML(results);
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -1671,12 +1776,14 @@ function renderRecentlyOpened() {
   const settingsEl = document.getElementById("recently-opened-list");
   if (settingsEl) settingsEl.innerHTML = recentlyOpened.length ? makeList(recentlyOpened) : empty;
 
-  // Dashboard sidebar widget
+  // Dashboard widget — always show, placeholder if empty
   const dashWrap = document.getElementById("dash-recent-files-wrap");
   const dashEl   = document.getElementById("dash-recent-files");
   if (dashWrap && dashEl) {
-    dashWrap.style.display = recentlyOpened.length ? "block" : "none";
-    dashEl.innerHTML = makeList(recentlyOpened.slice(0,4));
+    dashWrap.style.display = "block";
+    dashEl.innerHTML = recentlyOpened.length
+      ? makeList(recentlyOpened.slice(0,5))
+      : '<p style="font-size:.8rem;color:#94a3b8">No files opened yet. Open an assignment or note to see it here.</p>';
   }
 }
 
@@ -1785,10 +1892,124 @@ function showMatchedMaterials(assignment) {
 
 
 
+
+// ══════════════════════════════════════════════════════════════════
+// GOOGLE CALENDAR INTEGRATION
+// ══════════════════════════════════════════════════════════════════
+
+async function checkGCalStatus() {
+  try {
+    const res  = await fetch(`${API}/gcal/status`, {credentials:"include"});
+    const data = await res.json();
+    gcalConnected = data.connected;
+    updateGCalUI();
+    if (gcalConnected) {
+      await loadGCalEvents();
+    }
+  } catch(e) { /* not critical */ }
+}
+
+function updateGCalUI() {
+  const statusEl     = document.getElementById("gcal-status-text");
+  const connectBtn   = document.getElementById("gcal-connect-btn");
+  const disconnectBtn= document.getElementById("gcal-disconnect-btn");
+  const legendEv     = document.getElementById("gcal-legend-ev");
+  if (statusEl)      statusEl.textContent  = gcalConnected ? "✅ Connected to Google Calendar" : "Not connected";
+  if (connectBtn)    connectBtn.classList.toggle("hidden", gcalConnected);
+  if (disconnectBtn) disconnectBtn.classList.toggle("hidden", !gcalConnected);
+  if (legendEv)      legendEv.style.display = gcalConnected ? "flex" : "none";
+}
+
+async function connectGCal() {
+  const msgEl = document.getElementById("gcal-connect-msg");
+  showMsg(msgEl, "⏳ Opening Google sign-in...", "info");
+  try {
+    const res  = await fetch(`${API}/gcal/connect`, {credentials:"include"});
+    const data = await res.json();
+    if (data.error) { showMsg(msgEl, data.error, "error"); return; }
+    // Open OAuth popup
+    const popup = window.open(data.auth_url, "gcal_auth", "width=520,height=640,scrollbars=yes");
+    // Listen for the postMessage from callback
+    const handler = async (event) => {
+      if (event.data === "gcal_connected") {
+        window.removeEventListener("message", handler);
+        popup?.close();
+        showMsg(msgEl, "✅ Google Calendar connected!", "success");
+        gcalConnected = true;
+        updateGCalUI();
+        await loadGCalEvents();
+        renderSchedule();
+      }
+    };
+    window.addEventListener("message", handler);
+    // Fallback: poll for popup close
+    const poll = setInterval(async () => {
+      if (popup?.closed) {
+        clearInterval(poll);
+        window.removeEventListener("message", handler);
+        // Check if auth succeeded
+        const st = await fetch(`${API}/gcal/status`, {credentials:"include"});
+        const sd = await st.json();
+        if (sd.connected) {
+          showMsg(msgEl, "✅ Google Calendar connected!", "success");
+          gcalConnected = true;
+          updateGCalUI();
+          await loadGCalEvents();
+          renderSchedule();
+        }
+      }
+    }, 1000);
+  } catch(e) { showMsg(document.getElementById("gcal-connect-msg"), e.message, "error"); }
+}
+
+async function disconnectGCal() {
+  await fetch(`${API}/gcal/disconnect`, {method:"POST",credentials:"include"});
+  gcalConnected = false;
+  gcalEvents    = [];
+  suggestedBlocks = [];
+  updateGCalUI();
+  renderSchedule();
+  showMsg(document.getElementById("gcal-connect-msg"), "Disconnected.", "info");
+}
+
+async function loadGCalEvents() {
+  if (!gcalConnected) return;
+  try {
+    const res  = await fetch(`${API}/gcal/events`, {credentials:"include"});
+    const data = await res.json();
+    gcalEvents = data.events || [];
+    console.log(`Loaded ${gcalEvents.length} Google Calendar events`);
+  } catch(e) { gcalEvents = []; }
+}
+
+async function loadSuggestions() {
+  const btn = document.getElementById("cal-suggest-btn");
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-dark spinner"></span> Thinking...'; }
+  try {
+    const res  = await fetch(`${API}/schedule/suggest`, {
+      method:"POST", credentials:"include",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({gcal_events: gcalEvents})
+    });
+    const data = await res.json();
+    suggestedBlocks = data.suggested || [];
+    renderSchedule();
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = `✨ ${suggestedBlocks.length} block(s) suggested`;
+    }
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = "✨ Suggest Study Times"; }
+  }
+}
+
 // ══════════════════════════════════════════════════════════════════
 // SCHEDULE CALENDAR
 // ══════════════════════════════════════════════════════════════════
 let scheduleView = "day";
+let gcalEvents    = [];   // [{title, start, end, allDay}]
+let suggestedBlocks = []; // [{assignment_title, course, start, end, hours}]
+let gcalConnected = false;
 
 const COURSE_PALETTE = [
   {bg:"#dbeafe",text:"#1e40af"},{bg:"#d1fae5",text:"#065f46"},
@@ -1827,89 +2048,146 @@ function renderSchedule() {
   else renderWeekCalendar();
 }
 
+const PX_PER_HOUR = 60;
+const CAL_START   = 7;
+const CAL_END     = 23;
+
+function hourToTop(h, rowStart) { return (h - rowStart) * PX_PER_HOUR; }
+
+function placeCalEvent(slot, startH, endH, className, bgColor, textColor, borderColor, titleHtml, onClick) {
+  const el = document.createElement("div");
+  el.className = className;
+  const top = ((startH % 1)) * PX_PER_HOUR;
+  const height = Math.max((endH - startH) * PX_PER_HOUR - 3, 18);
+  el.style.cssText = `top:${top}px;height:${height}px;background:${bgColor};color:${textColor};border-left-color:${borderColor}`;
+  el.innerHTML = titleHtml;
+  if (onClick) el.onclick = onClick;
+  slot.appendChild(el);
+}
+
 function renderDayCalendar() {
-  const grid  = document.getElementById("cal-day-grid");
+  const grid = document.getElementById("cal-day-grid");
   if (!grid) return;
 
-  const START_HOUR = 7;   // 7am
-  const END_HOUR   = 23;  // 11pm
-  const today      = new Date();
-  const todayStr   = today.toISOString().slice(0,10);
+  const today    = new Date();
+  const todayStr = today.toISOString().slice(0,10);
 
-  // Build events for today: assignments due today or scheduled today
-  const events = [];
-  let nextSlot = 8; // default start packing from 8am
-
-  // Sort by due urgency
-  const sorted = [...appAssignments].sort((a,b) => {
-    const ad = a.due_in_days ?? 99, bd = b.due_in_days ?? 99;
-    return ad - bd;
-  });
-
-  sorted.forEach(a => {
-    const hrs  = a.estimated_hours || 1;
-    const dur  = Math.min(hrs, 2.5);
-    const col  = getCourseColor(a.course || "");
-    // Only show if due within 7 days
-    if ((a.due_in_days ?? 99) > 7) return;
-
-    // Check if due today — place at a natural time
-    let startHour = nextSlot;
-    if (startHour + dur > END_HOUR) return; // no space
-    events.push({ a, startHour, dur, col });
-    nextSlot = startHour + dur + 0.25; // 15-min gap
-  });
-
-  // Build hour rows
-  const TOTAL = END_HOUR - START_HOUR;
-  const PX_PER_HOUR = 56;
+  // Build hour grid
   let html = "";
-
-  for (let h = START_HOUR; h < END_HOUR; h++) {
+  for (let h = CAL_START; h < CAL_END; h++) {
     const label = h === 12 ? "12 PM" : h < 12 ? `${h} AM` : `${h-12} PM`;
     html += `<div class="cal-hour-row">
       <div class="cal-hour-label">${label}</div>
-      <div class="cal-hour-slot" style="height:${PX_PER_HOUR}px"></div>
+      <div class="cal-hour-slot" data-hour="${h}" style="height:${PX_PER_HOUR}px;position:relative"></div>
     </div>`;
   }
-
   grid.innerHTML = html;
+  const slots = grid.querySelectorAll(".cal-hour-slot");
+  const slotByHour = {};
+  slots.forEach(s => { slotByHour[parseInt(s.dataset.hour)] = s; });
 
-  // Add now-line
+  // Now-line
   const nowH = today.getHours() + today.getMinutes()/60;
-  if (nowH >= START_HOUR && nowH < END_HOUR) {
-    const slots = grid.querySelectorAll(".cal-hour-slot");
-    const slotIdx = Math.floor(nowH - START_HOUR);
-    if (slots[slotIdx]) {
-      const frac = (nowH - START_HOUR) % 1;
-      const line = document.createElement("div");
-      line.className = "cal-now-line";
-      line.style.top = (frac * PX_PER_HOUR) + "px";
-      slots[slotIdx].appendChild(line);
+  if (nowH >= CAL_START && nowH < CAL_END) {
+    const line = document.createElement("div");
+    line.className = "cal-now-line";
+    line.style.top = (nowH % 1) * PX_PER_HOUR + "px";
+    slotByHour[Math.floor(nowH)]?.appendChild(line);
+  }
+
+  function addSpanningEvent(startH, endH, className, bg, color, border, titleHtml, onClick) {
+    // Event may span multiple hour rows — place in each
+    const hStart = Math.floor(startH);
+    const hEnd   = Math.ceil(endH);
+    for (let h = Math.max(hStart, CAL_START); h < Math.min(hEnd, CAL_END); h++) {
+      const slot = slotByHour[h];
+      if (!slot) continue;
+      const rowStartH = h;
+      const rowEndH   = h + 1;
+      const visStart  = Math.max(startH, rowStartH);
+      const visEnd    = Math.min(endH,   rowEndH);
+      const top    = (visStart - rowStartH) * PX_PER_HOUR;
+      const height = Math.max((visEnd - visStart) * PX_PER_HOUR - 2, 16);
+      const el = document.createElement("div");
+      el.className = className;
+      el.style.cssText = `top:${top}px;height:${height}px;background:${bg};color:${color};border-left-color:${border}`;
+      el.innerHTML = titleHtml;
+      if (onClick) el.onclick = onClick;
+      slot.appendChild(el);
     }
   }
 
-  // Place events
-  events.forEach(({a, startHour, dur, col}) => {
-    const slotIdx = Math.floor(startHour - START_HOUR);
-    const slots   = grid.querySelectorAll(".cal-hour-slot");
-    if (slotIdx < 0 || slotIdx >= slots.length) return;
-    const topFrac = (startHour - START_HOUR - slotIdx);
-    const ev = document.createElement("div");
-    ev.className = "cal-event";
-    ev.style.cssText = `top:${topFrac * PX_PER_HOUR}px;height:${dur * PX_PER_HOUR - 4}px;background:${col.bg};color:${col.text};border-left:3px solid ${col.text}`;
-    const due = a.due_date ? new Date(a.due_date).toLocaleDateString("en-US",{month:"short",day:"numeric"}) : "";
-    ev.innerHTML = `<div class="ev-title">${esc(a.title||"")}</div><div class="ev-sub">${esc(a.course||"")}${due?" · Due "+due:""} · ${fmtHours(a.estimated_hours)}</div>`;
-    ev.onclick = () => showMatchedMaterials(a);
-    // Attach to the right slot row
-    slots[slotIdx].appendChild(ev);
+  // ── Google Calendar events (purple/gray) ─────────────────────────────────
+  gcalEvents.forEach(ev => {
+    if (ev.allDay) return;
+    try {
+      const s = new Date(ev.start); const e = new Date(ev.end);
+      if (s.toISOString().slice(0,10) !== todayStr) return;
+      const sH = s.getHours() + s.getMinutes()/60;
+      const eH = e.getHours() + e.getMinutes()/60;
+      const dur = ((eH - sH) * 60).toFixed(0);
+      addSpanningEvent(sH, eH, "cal-gcal-ev",
+        "#f3e8ff", "#6b21a8", "#a855f7",
+        `<div class="ev-title">📅 ${esc(ev.title)}</div><div style="font-size:.65rem;opacity:.7">${dur} min</div>`,
+        null
+      );
+    } catch(e2) {}
   });
 
-  if (!events.length) {
+  // ── Suggested study blocks (dashed green) ────────────────────────────────
+  suggestedBlocks.forEach(b => {
+    try {
+      const s = new Date(b.start); const e = new Date(b.end);
+      if (s.toISOString().slice(0,10) !== todayStr) return;
+      const sH = s.getHours() + s.getMinutes()/60;
+      const eH = e.getHours() + e.getMinutes()/60;
+      const col = getCourseColor(b.course||"");
+      addSpanningEvent(sH, eH, "cal-suggest-ev",
+        "transparent", col.text, col.text,
+        `<div class="ev-title">✨ ${esc(b.assignment_title)}</div><div style="font-size:.65rem;opacity:.8">${esc(b.course)} · ${(b.hours*60).toFixed(0)} min suggested</div>`,
+        null
+      );
+    } catch(e2) {}
+  });
+
+  // ── Syllabot study blocks (colored) ─────────────────────────────────────
+  let nextSlot = 9;
+  const sorted = [...appAssignments].sort((a,b) => (a.due_in_days??99) - (b.due_in_days??99));
+  sorted.forEach(a => {
+    if ((a.due_in_days??99) > 7) return;
+    const hrs  = a.estimated_hours || 1;
+    const dur  = Math.min(hrs, 2);
+    const col  = getCourseColor(a.course||"");
+    // Skip if suggested block already covers this assignment today
+    const alreadySuggested = suggestedBlocks.some(b =>
+      b.assignment_id === a.id &&
+      new Date(b.start).toISOString().slice(0,10) === todayStr
+    );
+    if (alreadySuggested) return;
+    // Skip if overlaps with a GCal event
+    const blocked = gcalEvents.some(ev => {
+      if (ev.allDay) return false;
+      try {
+        const es = new Date(ev.start).getHours() + new Date(ev.start).getMinutes()/60;
+        const ee = new Date(ev.end).getHours()   + new Date(ev.end).getMinutes()/60;
+        return nextSlot < ee && nextSlot + dur > es;
+      } catch { return false; }
+    });
+    if (blocked) { nextSlot += 0.5; }
+    if (nextSlot + dur > CAL_END) return;
+    const due = a.due_date ? new Date(a.due_date).toLocaleDateString("en-US",{month:"short",day:"numeric"}) : "";
+    addSpanningEvent(nextSlot, nextSlot + dur, "cal-event",
+      col.bg, col.text, col.text,
+      `<div class="ev-title">${esc(a.title||"")}</div><div class="ev-sub">${esc(a.course||"")}${due?" · Due "+due:""}</div>`,
+      () => showMatchedMaterials(a)
+    );
+    nextSlot += dur + 0.25;
+  });
+
+  if (!sorted.some(a => (a.due_in_days??99) <= 7) && !gcalEvents.length) {
     const empty = document.createElement("div");
-    empty.style.cssText = "text-align:center;padding:32px;color:#94a3b8;font-size:.85rem;position:absolute;left:0;right:0;top:50px;pointer-events:none";
+    empty.style.cssText = "text-align:center;padding:32px;color:#94a3b8;font-size:.85rem";
     empty.textContent = "No assignments due in the next 7 days 🎉";
-    grid.style.position = "relative";
     grid.appendChild(empty);
   }
 }
@@ -1936,32 +2214,58 @@ function renderWeekCalendar() {
     html += `<div class="cal-week-day-hdr${isToday?" today":""}">${label}</div>`;
   }
 
-  // Map assignments to day columns
-  const dayEvents = Array.from({length:7}, () => []);
+  // Build day event maps
+  const dayStudy   = Array.from({length:7}, () => []);
+  const dayGcal    = Array.from({length:7}, () => []);
+  const daySuggest = Array.from({length:7}, () => []);
+
   appAssignments.forEach(a => {
     if (!a.due_date) return;
     const due = new Date(a.due_date);
     const diff = Math.round((due - weekStart) / 86400000);
     if (diff >= 0 && diff < 7) {
-      // Schedule study block day before due (or same day if due today)
       const studyDay = Math.max(0, diff - 1);
-      dayEvents[studyDay].push(a);
+      dayStudy[studyDay].push(a);
     }
   });
+  gcalEvents.forEach(ev => {
+    if (ev.allDay) return;
+    try {
+      const s    = new Date(ev.start);
+      const diff = Math.round((new Date(s.toDateString()) - new Date(weekStart.toDateString())) / 86400000);
+      if (diff >= 0 && diff < 7) dayGcal[diff].push(ev);
+    } catch {}
+  });
+  suggestedBlocks.forEach(b => {
+    try {
+      const s    = new Date(b.start);
+      const diff = Math.round((new Date(s.toDateString()) - new Date(weekStart.toDateString())) / 86400000);
+      if (diff >= 0 && diff < 7) daySuggest[diff].push(b);
+    } catch {}
+  });
 
-  // Hour rows
   for (let h = START_HOUR; h < END_HOUR; h++) {
     const label = h === 12 ? "12p" : h < 12 ? `${h}a` : `${h-12}p`;
     html += `<div class="cal-week-hour-label">${label}</div>`;
     for (let d = 0; d < 7; d++) {
       const dt      = dayDates[d];
       const isToday = dt.toDateString() === today.toDateString();
-      // Only show events at 9am slot
       let evHtml = "";
       if (h === 9) {
-        dayEvents[d].forEach(a => {
+        dayStudy[d].forEach(a => {
           const col = getCourseColor(a.course||"");
-          evHtml += `<div class="cal-week-ev" style="background:${col.bg};color:${col.text}" onclick="showMatchedMaterials(${JSON.stringify(a).replace(/"/g,'&quot;')})" title="${esc(a.title)}">${esc(a.title||"")}</div>`;
+          evHtml += `<div class="cal-week-ev" style="background:${col.bg};color:${col.text}" onclick="showMatchedMaterials(${JSON.stringify(a).replace(/"/g,"&quot;")})" title="${esc(a.title)}">${esc(a.title||"")}</div>`;
+        });
+        daySuggest[d].forEach(b => {
+          const col = getCourseColor(b.course||"");
+          evHtml += `<div class="cal-week-ev" style="border:2px dashed ${col.text};color:${col.text};background:transparent" title="Suggested: ${esc(b.assignment_title)}">✨ ${esc(b.assignment_title)}</div>`;
+        });
+      }
+      if (h === 10) {
+        dayGcal[d].forEach(ev => {
+          const s = new Date(ev.start); const e = new Date(ev.end);
+          const dur = Math.round((e - s)/60000);
+          evHtml += `<div class="cal-week-ev" style="background:#f3e8ff;color:#6b21a8" title="${esc(ev.title)}">📅 ${esc(ev.title)} (${dur}m)</div>`;
         });
       }
       html += `<div class="cal-week-cell${isToday?" today-col":""}">${evHtml}</div>`;
@@ -2218,6 +2522,7 @@ const _origLoadSettings = loadSettings;
 async function loadSettings() {
   await _origLoadSettings();
   renderRecentlyOpened();
+  checkGCalStatus();
   const isDark = document.body.classList.contains("dark");
   const track  = document.getElementById("dark-track");
   const thumb  = document.getElementById("dark-thumb");

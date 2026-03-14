@@ -7,13 +7,18 @@
     "created_at": "2026-03-14T17:50:43.168378",
     "courses": [
       {
-        "course_name": "EECS 001",
-        "course_code": "TestCode123",
+        "course_name": "EECS 484",
+        "course_code": "EECS 484",
         "canvas_id": 14399537
       },
       {
-        "course_name": "STATS 012",
-        "course_code": "STATS 012",
+        "course_name": "MATH 423",
+        "course_code": "MATH 423",
+        "canvas_id": 14400555
+      },
+      {
+        "course_name": "STATS 413",
+        "course_code": "STATS 413",
         "canvas_id": 14399699
       }
     ],
@@ -21,115 +26,182 @@
       {
         "id": "canvas_63162661",
         "title": "HW 3",
-        "course": "EECS 001",
+        "course": "EECS 484",
         "course_id": 14399537,
         "description": "Homework_3-1.pdf",
-        "due_date": "2026-03-16T05:59:00Z",
-        "points": 100,
+        "due_date": "2026-03-19T05:59:59Z",
+        "points": 100.0,
         "type": "homework",
         "difficulty": 3,
         "source": "canvas",
         "canvas_url": "https://canvas.instructure.com/courses/14399537/assignments/63162661",
-        "estimated_minutes": 10,
-        "estimated_hours": 0.17,
-        "primary_concept": "Storage Hierarchy",
+        "assignment_pdf": null,
+        "estimated_minutes": 90,
+        "estimated_hours": 1.5,
+        "primary_concept": "Database normalization",
         "matched_notes": [
           {
             "filename": "lec10-storage-and-indexing-pre.pdf",
             "relevance": "high",
-            "reason": "This file covers the fundamental concepts of storage and indexing in databases, which are directly related to how homework assignments are structured and evaluated."
+            "reason": "This lecture covers storage and indexing concepts, which are fundamental to understanding how homework assignments related to databases are structured and processed."
           },
           {
             "filename": "lec12-B%2Btrees.pdf",
             "relevance": "high",
-            "reason": "This lecture specifically details B+ Trees, a crucial data structure for indexing in databases, which is a common topic for database homework assignments."
+            "reason": "This lecture specifically details B+ Trees, a common indexing structure for databases, which is likely to be covered in a homework assignment concerning database internals."
           },
           {
             "filename": "lec12-treeidx-pre.pdf",
             "relevance": "high",
-            "reason": "This file also focuses on tree-structured indexes, particularly B+ Trees, which are fundamental to database performance and commonly covered in assignments."
+            "reason": "This lecture also discusses tree-structured indexes, including B+ Trees, and the index design space, making it highly relevant to database homework assignments."
           },
           {
             "filename": "lec13-lsm-trees.pdf",
-            "relevance": "medium",
-            "reason": "LSM trees are an alternative indexing structure to B+ trees, and understanding them could be relevant for a comprehensive database assignment."
+            "relevance": "high",
+            "reason": "This lecture introduces Log-Structured Merge Trees (LSM Trees), an alternative indexing structure to B+ Trees, which could be part of a comprehensive database homework assignment."
           },
           {
             "filename": "lec14-hash-idx-pre.pdf",
-            "relevance": "medium",
-            "reason": "Hash-based indexes are another important indexing technique in databases, and might be a part of a broader assignment on indexing structures."
-          },
-          {
-            "filename": "lec09-norm.pdf",
-            "relevance": "low",
-            "reason": "This file discusses normalization, which is a database design topic, but less directly related to the typical content of a homework assignment focused on storage and indexing."
+            "relevance": "high",
+            "reason": "This lecture focuses on Hash-Based Indexes, another key indexing technique in database systems, which is likely to be relevant to a homework assignment on database indexing."
           },
           {
             "filename": "lec09-norm-pre.pdf",
-            "relevance": "low",
-            "reason": "This file also covers normalization, which is a database design topic, and not the primary focus of an assignment likely related to indexing."
+            "relevance": "medium",
+            "reason": "This lecture introduces normalization, a concept in database design that could be relevant if the homework involves schema design or relational integrity."
+          },
+          {
+            "filename": "lec09-norm.pdf",
+            "relevance": "medium",
+            "reason": "This lecture also covers normalization, which is a crucial aspect of database design and schema refinement, potentially relevant to the homework."
           },
           {
             "filename": "lec08-dbApp.pdf",
             "relevance": "low",
-            "reason": "This lecture focuses on database application programming and JDBC, which is a higher-level concept than the core storage and indexing mechanisms likely tested in a homework assignment."
+            "reason": "This lecture discusses database application programming and JDBC, which might be relevant if the homework involves interacting with a database from an application, but less directly about core database structures."
           }
         ],
-        "ai_reasoning": "The assignment is likely a brief conceptual exercise based on the provided lecture notes about the memory hierarchy. The historical data for this course is exceptionally low."
+        "ai_reasoning": "This homework likely involves applying normalization principles to given database schemas, which is a standard but moderately time-consuming task in database design."
       },
       {
-        "id": "canvas_63162921",
-        "title": "HW 3",
-        "course": "STATS 012",
-        "course_id": 14399699,
-        "description": "",
-        "due_date": "2026-04-03T05:59:00Z",
-        "points": 100,
+        "id": "canvas_63165855",
+        "title": "Homework 3",
+        "course": "MATH 423",
+        "course_id": 14400555,
+        "description": "Homework 3.pdf",
+        "due_date": "2026-03-24T05:59:00Z",
+        "points": 100.0,
         "type": "homework",
         "difficulty": 3,
         "source": "canvas",
-        "canvas_url": "https://canvas.instructure.com/courses/14399699/assignments/63162921",
+        "canvas_url": "https://canvas.instructure.com/courses/14400555/assignments/63165855",
+        "assignment_pdf": null,
         "estimated_minutes": 90,
         "estimated_hours": 1.5,
-        "primary_concept": "Bayesian inference problems",
+        "primary_concept": "Financial Markets Basics",
         "matched_notes": [
           {
-            "filename": "Homework3.pdf",
+            "filename": "Lecture+1.pdf",
             "relevance": "high",
-            "reason": "This file is explicitly named 'Homework3.pdf' and contains details about Homework 3, including its due date, submission guidelines, and content."
+            "reason": "Introduces fundamental concepts of financial markets, including risk-free and risky assets, which are foundational for understanding assignments related to financial instruments."
           },
           {
-            "filename": "Lecture11_LocalSearch.pdf",
+            "filename": "Lecture+7.pdf",
+            "relevance": "high",
+            "reason": "Focuses specifically on forward contracts, defining them and explaining their payoff, which is likely to be directly applicable to an assignment on this topic."
+          },
+          {
+            "filename": "Lecture+9.pdf",
+            "relevance": "high",
+            "reason": "Introduces options, defining call and put options and their payoffs, which are core concepts for assignments on derivatives."
+          },
+          {
+            "filename": "Lecture+2.pdf",
             "relevance": "medium",
-            "reason": "This lecture discusses 'Local Search' and mentions that 'HW3 to be released tomorrow,' suggesting a connection to the assignment."
+            "reason": "Covers the time value of money and interest rates, which are crucial for pricing and valuing financial instruments discussed in other lectures."
           },
           {
-            "filename": "Lecture12_AdversarialSearch.pdf",
+            "filename": "Lecture+3.pdf",
             "relevance": "medium",
-            "reason": "This lecture also mentions that 'HW3 due April 1,' further linking it to the assignment."
+            "reason": "Discusses probability concepts and the dynamics of stock prices, including the binomial tree model, which are essential for option and derivative pricing."
           },
           {
-            "filename": "Lecture9_Uninformed_Search.pdf",
-            "relevance": "low",
-            "reason": "This lecture covers 'Search' which is a foundational AI topic, and while not directly mentioning HW3, it's a general relevant topic for AI courses."
+            "filename": "Lecture+4.pdf",
+            "relevance": "medium",
+            "reason": "Begins the discussion on portfolio management, including concepts like weights and returns, which can be relevant if the assignment involves analyzing portfolios of financial assets."
           },
           {
-            "filename": "Lecture10_Informed_Search.pdf",
-            "relevance": "low",
-            "reason": "This lecture covers 'Informed Search,' another fundamental AI topic that might be relevant to the assignment's broader context."
+            "filename": "Lecture+5.pdf",
+            "relevance": "medium",
+            "reason": "Continues the topic of portfolio management with multiple securities and introduces optimization techniques like Lagrange multipliers, relevant for more complex assignments."
           },
           {
-            "filename": "Search+Algorithms+at+a+Glance.pdf",
-            "relevance": "low",
-            "reason": "This document provides an overview of search algorithms, a common topic in introductory AI courses, which could be foundational for homework assignments."
+            "filename": "Lecture+6.pdf",
+            "relevance": "medium",
+            "reason": "Introduces the Capital Asset Pricing Model (CAPM) and beta factors, which are important for understanding risk and return in portfolios."
+          },
+          {
+            "filename": "Lecture+8.pdf",
+            "relevance": "medium",
+            "reason": "Expands on forward contracts by discussing continuous dividends and provides a formula for forward price with dividends, directly relevant if the assignment involves such scenarios."
+          },
+          {
+            "filename": "Lecture+10.pdf",
+            "relevance": "medium",
+            "reason": "Delves into bounds on European option prices and their dependence on various factors, providing specific formulas and inequalities relevant for option pricing assignments."
+          },
+          {
+            "filename": "Lecture+11.pdf",
+            "relevance": "medium",
+            "reason": "Covers American options and their pricing bounds, contrasting them with European options, which is highly relevant for assignments comparing or focusing on American options."
+          },
+          {
+            "filename": "Lecture+12.pdf",
+            "relevance": "medium",
+            "reason": "Prepares for option pricing by detailing the binomial tree model and introducing risk-neutral probability, which are fundamental for many option pricing methodologies."
           }
         ],
-        "ai_reasoning": "This assignment involves applying Bayesian inference to solve conceptual and coding problems. The provided time reflects time spent on problem-solving and implementation, assuming material is understood."
+        "ai_reasoning": "This homework likely covers introductory concepts in financial markets, including basic asset types and potentially early model applications like the one-step binomial model. The time estimate reflects problem-solving and applying these foundational ideas."
+      },
+      {
+        "id": "canvas_63166171",
+        "title": "Problem Set 6",
+        "course": "STATS 413",
+        "course_id": 14399699,
+        "description": "STATS_413_problem_set_6.pdf",
+        "due_date": "2026-03-21T05:59:59Z",
+        "points": 100.0,
+        "type": "homework",
+        "difficulty": 3,
+        "source": "canvas",
+        "canvas_url": "https://canvas.instructure.com/courses/14399699/assignments/63166171",
+        "assignment_pdf": null,
+        "estimated_minutes": 75,
+        "estimated_hours": 1.25,
+        "primary_concept": "Regression inference and prediction",
+        "matched_notes": [
+          {
+            "filename": "STATS+413_+Lecture10.pdf",
+            "relevance": "high",
+            "reason": "This lecture covers inference for the regression function and prediction intervals, which are common topics in regression problem sets."
+          },
+          {
+            "filename": "STATS+413_+Lecture11.pdf",
+            "relevance": "high",
+            "reason": "This lecture focuses on regression diagnostics, including assessing linearity, homoskedasticity, and normality, which are crucial for validating regression models and are likely to be tested in a problem set."
+          },
+          {
+            "filename": "STATS+413_+Lecture12.pdf",
+            "relevance": "medium",
+            "reason": "This lecture discusses influential observations, leverage scores, and testing for outliers, which are important diagnostic tools often included in regression problem sets for model assessment."
+          }
+        ],
+        "ai_reasoning": "The problem set likely involves applying concepts of hypothesis testing and constructing prediction intervals for a regression model, similar to the lecture content. This requires calculations and interpretation of statistical output."
       }
     ],
     "canvas": {
       "domain": "canvas.instructure.com",
-      "synced_at": "2026-03-14T19:19:31.384653"
+      "synced_at": "2026-03-14T21:05:45.267972"
     },
     "onboarded": true,
     "friends": [

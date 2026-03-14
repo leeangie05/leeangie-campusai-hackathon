@@ -1085,6 +1085,260 @@ def canvas_debug():
             results[str(params)] = f"ERROR: {e}"
     return jsonify(results)
 
+
+# ══════════════════════════════════════════════════════════════════
+# GOOGLE CALENDAR
+# ══════════════════════════════════════════════════════════════════
+import math
+from zoneinfo import ZoneInfo
+
+GCAL_SCOPES     = ["https://www.googleapis.com/auth/calendar.readonly"]
+GCAL_CREDS_FILE = Path("credentials.json")
+GCAL_TOKENS_DIR = DATA_DIR / "gcal_tokens"
+GCAL_TOKENS_DIR.mkdir(exist_ok=True)
+WORK_START      = int(os.environ.get("WORK_START_HOUR", 9))
+WORK_END        = int(os.environ.get("WORK_END_HOUR", 22))
+TZ_STR          = os.environ.get("TIMEZONE", "America/Detroit")
+APP_BASE_URL    = os.environ.get("APP_BASE_URL", "http://localhost:5000")
+
+def gcal_token_path(user_id: str) -> Path:
+    return GCAL_TOKENS_DIR / f"{user_id}.json"
+
+def gcal_get_creds(user_id: str):
+    """Return valid Google credentials for user, or None if not connected."""
+    try:
+        from google.oauth2.credentials import Credentials
+        from google.auth.transport.requests import Request as GRequest
+    except ImportError:
+        return None
+    tp = gcal_token_path(user_id)
+    if not tp.exists():
+        return None
+    creds = Credentials.from_authorized_user_file(str(tp), GCAL_SCOPES)
+    if creds and creds.expired and creds.refresh_token:
+        try:
+            creds.refresh(GRequest())
+            tp.write_text(creds.to_json())
+        except Exception:
+            tp.unlink(missing_ok=True)
+            return None
+    return creds if creds and creds.valid else None
+
+@app.route("/api/gcal/status")
+def gcal_status():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    creds = gcal_get_creds(u["id"])
+    return jsonify({"connected": creds is not None})
+
+@app.route("/api/gcal/connect")
+def gcal_connect():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    if not GCAL_CREDS_FILE.exists():
+        return jsonify({"error": "credentials.json not found on server"}), 500
+    try:
+        from google_auth_oauthlib.flow import Flow
+        os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
+        flow = Flow.from_client_secrets_file(
+            str(GCAL_CREDS_FILE), scopes=GCAL_SCOPES,
+            redirect_uri=f"{APP_BASE_URL}/api/gcal/callback"
+        )
+        auth_url, state = flow.authorization_url(
+            access_type="offline", include_granted_scopes="true", prompt="consent"
+        )
+        # Store state + user_id in session for callback
+        session["gcal_state"]   = state
+        session["gcal_user_id"] = u["id"]
+        return jsonify({"auth_url": auth_url})
+    except ImportError:
+        return jsonify({"error": "google-auth-oauthlib not installed. Run: pip install google-auth-oauthlib google-api-python-client"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/gcal/callback")
+def gcal_callback():
+    state   = session.get("gcal_state")
+    user_id = session.get("gcal_user_id")
+    if not state or not user_id:
+        return "Session expired. Please try again.", 400
+    try:
+        from google_auth_oauthlib.flow import Flow
+        os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
+        flow = Flow.from_client_secrets_file(
+            str(GCAL_CREDS_FILE), scopes=GCAL_SCOPES,
+            state=state, redirect_uri=f"{APP_BASE_URL}/api/gcal/callback"
+        )
+        flow.fetch_token(authorization_response=request.url)
+        creds = flow.credentials
+        gcal_token_path(user_id).write_text(creds.to_json())
+        return """<script>
+          window.opener && window.opener.postMessage('gcal_connected', '*');
+          window.close();
+        </script><p>Connected! You can close this window.</p>"""
+    except Exception as e:
+        return f"Error: {e}", 500
+
+@app.route("/api/gcal/disconnect", methods=["POST"])
+def gcal_disconnect():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    tp = gcal_token_path(u["id"])
+    tp.unlink(missing_ok=True)
+    return jsonify({"ok": True})
+
+@app.route("/api/gcal/events")
+def gcal_events():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    creds = gcal_get_creds(u["id"])
+    if not creds:
+        return jsonify({"error": "Not connected", "events": []}), 200
+    try:
+        from googleapiclient.discovery import build as gbuild
+        import datetime as dt
+        service = gbuild("calendar", "v3", credentials=creds)
+        now     = dt.datetime.now(tz=dt.timezone.utc)
+        cutoff  = now + dt.timedelta(days=14)
+        items   = service.events().list(
+            calendarId="primary",
+            timeMin=now.isoformat(),
+            timeMax=cutoff.isoformat(),
+            singleEvents=True,
+            orderBy="startTime",
+            maxResults=200,
+        ).execute().get("items", [])
+
+        events = []
+        for ev in items:
+            start_raw = ev.get("start",{}).get("dateTime") or ev.get("start",{}).get("date","")
+            end_raw   = ev.get("end",{}).get("dateTime")   or ev.get("end",{}).get("date","")
+            events.append({
+                "id":      ev.get("id",""),
+                "title":   ev.get("summary","(no title)"),
+                "start":   start_raw,
+                "end":     end_raw,
+                "allDay":  "T" not in start_raw,
+                "color":   ev.get("colorId",""),
+            })
+        return jsonify({"events": events})
+    except Exception as e:
+        return jsonify({"error": str(e), "events": []}), 200
+
+@app.route("/api/schedule/suggest", methods=["POST"])
+def suggest_schedule():
+    """
+    Given existing Google Calendar events and assignments,
+    suggest optimal study blocks in free time slots.
+    """
+    err = require_auth()
+    if err: return err
+    u = current_user()
+
+    import datetime as dt
+    try:
+        TZ = ZoneInfo(TZ_STR)
+    except Exception:
+        TZ = ZoneInfo("America/Detroit")
+
+    d           = request.get_json() or {}
+    gcal_events = d.get("gcal_events", [])   # [{start, end, title}]
+    assignments = u.get("assignments", [])
+
+    now      = dt.datetime.now(tz=TZ)
+    today    = now.date()
+    cutoff   = today + dt.timedelta(days=14)
+
+    # Build busy intervals per day from Google Calendar
+    busy: dict[dt.date, list[tuple]] = {}
+    for ev in gcal_events:
+        if ev.get("allDay"): continue
+        try:
+            s = dt.datetime.fromisoformat(ev["start"]).astimezone(TZ)
+            e = dt.datetime.fromisoformat(ev["end"]).astimezone(TZ)
+            d_key = s.date()
+            busy.setdefault(d_key, []).append((s.hour + s.minute/60, e.hour + e.minute/60))
+        except Exception:
+            continue
+
+    def free_slots(date: dt.date, duration_h: float) -> list[tuple]:
+        """Return (start_h, end_h) free slots of at least duration_h on date."""
+        day_busy = sorted(busy.get(date, []))
+        # Add implicit boundaries
+        windows = []
+        prev_end = WORK_START
+        for (bs, be) in day_busy:
+            bs = max(bs, WORK_START)
+            if bs > prev_end + 0.25:
+                windows.append((prev_end, bs))
+            prev_end = max(prev_end, be)
+        if prev_end < WORK_END:
+            windows.append((prev_end, WORK_END))
+        return [(s, e) for (s, e) in windows if e - s >= duration_h]
+
+    # Build suggested blocks
+    MAX_BLOCK = 2.0  # max 2h per block
+    suggested = []
+    day_used: dict[dt.date, float] = {}
+
+    # Sort by urgency (soonest due first)
+    pending = []
+    for a in assignments:
+        if not a.get("due_date"): continue
+        try:
+            due_dt = dt.datetime.fromisoformat(a["due_date"].replace("Z","")).astimezone(TZ)
+        except Exception:
+            continue
+        if due_dt.date() < today: continue
+        hrs = a.get("estimated_hours") or 1.5
+        pending.append({"a": a, "due": due_dt, "remaining_h": hrs})
+    pending.sort(key=lambda x: x["due"])
+
+    for item in pending:
+        a         = item["a"]
+        due_date  = item["due"].date()
+        remaining = item["remaining_h"]
+        # Work backwards from day before due
+        days_range = [(due_date - dt.timedelta(days=i))
+                      for i in range(1, min((due_date - today).days + 1, 8))]
+        if not days_range:
+            days_range = [today]
+
+        for date in days_range:
+            if remaining <= 0: break
+            if date < today: continue
+            block_h   = min(remaining, MAX_BLOCK)
+            # Limit hours per day
+            used      = day_used.get(date, 0)
+            available = min(block_h, 4.0 - used)
+            if available < 0.5: continue
+            slots = free_slots(date, available)
+            if not slots: continue
+            # Pick earliest slot
+            s_h, e_h = slots[0]
+            actual_h = min(available, e_h - s_h)
+            start_dt = dt.datetime(date.year, date.month, date.day,
+                                   int(s_h), int((s_h % 1)*60), tzinfo=TZ)
+            end_dt   = start_dt + dt.timedelta(hours=actual_h)
+            suggested.append({
+                "assignment_id":    a.get("id",""),
+                "assignment_title": a.get("title",""),
+                "course":           a.get("course",""),
+                "due_date":         item["due"].isoformat(),
+                "start":            start_dt.isoformat(),
+                "end":              end_dt.isoformat(),
+                "hours":            round(actual_h, 2),
+                "type":             "study_block",
+            })
+            day_used[date] = used + actual_h
+            remaining      -= actual_h
+
+    return jsonify({"suggested": suggested})
+
 if __name__ == "__main__":
     print("="*50)
     print("  Syllabot server starting...")
