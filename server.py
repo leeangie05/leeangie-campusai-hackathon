@@ -453,6 +453,7 @@ def get_assignments():
             "matched_notes":     a.get("matched_notes", []),
             "ai_reasoning":      a.get("ai_reasoning"),
             "estimate_pending":  est_mins is None,
+            "assignment_pdf":    a.get("assignment_pdf"),
         }
         entry["priority"] = calculate_priority(entry)
         out.append(entry)
@@ -529,18 +530,47 @@ def canvas_sync():
 
         for a in canvas_assignments:
             desc = re.sub(r"<[^>]+>", " ", a.get("description") or "").strip()
+
+            # Download any PDFs attached directly to this assignment
+            assignment_pdf_filename = None
+            attachments = a.get("attachments") or []
+            for att in attachments:
+                fname = att.get("filename") or att.get("display_name", "")
+                ext   = os.path.splitext(fname)[1].lower()
+                if ext in ALLOWED_EXTENSIONS:
+                    cache_dir_a = get_canvas_cache_dir(u["id"], cid)
+                    dest = cache_dir_a / fname
+                    if not dest.exists():
+                        print(f"  Downloading assignment attachment: {fname}")
+                        file_bytes = canvas_download_file(att, token)
+                        if file_bytes:
+                            dest.write_bytes(file_bytes)
+                            manifest_a = canvas_cache_manifest(u["id"], cid)
+                            manifest_a[str(att.get("id","att_"+fname))] = {
+                                "filename":     fname,
+                                "cached_at":    datetime.utcnow().isoformat(),
+                                "size":         len(file_bytes),
+                                "content_type": MIME_MAP.get(ext, "application/octet-stream"),
+                            }
+                            save_canvas_cache_manifest(u["id"], cid, manifest_a)
+                            total_files += 1
+                    if dest.exists():
+                        assignment_pdf_filename = fname
+                    break  # only use first attachment
+
             all_assignments.append({
-                "id":          f"canvas_{a['id']}",
-                "title":       a.get("name", "Unnamed"),
-                "course":      cname,
-                "course_id":   cid,
-                "description": desc,
-                "due_date":    a.get("due_at", ""),
-                "points":      a.get("points_possible", 100) or 100,
-                "type":        "homework",
-                "difficulty":  3,
-                "source":      "canvas",
-                "canvas_url":  a.get("html_url", ""),
+                "id":                     f"canvas_{a['id']}",
+                "title":                  a.get("name", "Unnamed"),
+                "course":                 cname,
+                "course_id":              cid,
+                "description":            desc,
+                "due_date":               a.get("due_at", ""),
+                "points":                 a.get("points_possible", 100) or 100,
+                "type":                   "homework",
+                "difficulty":             3,
+                "source":                 "canvas",
+                "canvas_url":             a.get("html_url", ""),
+                "assignment_pdf":         assignment_pdf_filename,
             })
 
         # Files — download and cache
@@ -999,13 +1029,21 @@ def add_friend():
         return jsonify({"error": f"No Syllabot account found for {email}"}), 404
 
     users = load_users()
+    already = False
     for user in users:
         if user["id"] == u["id"]:
             friends = user.setdefault("friends", [])
             if email in friends:
-                return jsonify({"error": "Already friends"}), 409
+                already = True
+                break
             friends.append(email)
-            break
+        # Also add reverse so the other user sees this user
+        elif user["email"] == email:
+            their_friends = user.setdefault("friends", [])
+            if u["email"] not in their_friends:
+                their_friends.append(u["email"])
+    if already:
+        return jsonify({"error": "Already friends"}), 409
     save_users(users)
     return jsonify({"ok": True})
 
