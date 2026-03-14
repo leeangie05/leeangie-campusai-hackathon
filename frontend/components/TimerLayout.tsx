@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export default function TimerLayout() {
@@ -49,38 +50,52 @@ export default function TimerLayout() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f7f8fb] flex items-center justify-center px-6 py-8">
-      <div className="w-full max-w-2xl rounded-[32px] border border-slate-200 bg-white p-10 shadow-sm">
-        <h1 className="text-4xl font-bold text-slate-900">
+    <main
+      className={`min-h-screen flex items-center justify-center px-6 py-8 transition-colors duration-500 ${
+        isRunning ? "bg-emerald-100" : "bg-[#f7f8fb]"
+      }`}
+    >
+      <div className="w-full max-w-2xl rounded-[32px] border border-emerald-100 bg-white p-10 shadow-sm">
+        <h1 className="text-4xl font-bold text-emerald-900">
           {isBreak ? "Break Time" : "Focus Session"}
         </h1>
 
-        <p className="mt-4 text-slate-600">
+        <p className="mt-4 text-emerald-700">
           {isBreak
             ? "Take a 5-minute break."
             : "Work for 25 minutes with full focus."}
         </p>
 
         <div className="mt-10 text-center">
-          <div className="text-7xl font-bold text-slate-900">
-            {formatTime(timeLeft)}
+          <div className="rounded-[28px] bg-white px-8 py-10 shadow-md border border-emerald-100">
+            <div className="text-7xl font-bold tracking-wide text-emerald-700">
+              {formatTime(timeLeft)}
+            </div>
           </div>
         </div>
 
         <div className="mt-10 flex justify-center gap-4">
           <button
             onClick={handleStartPause}
-            className="rounded-2xl bg-blue-600 px-6 py-3 text-lg font-semibold text-white transition hover:bg-blue-700"
+            className="rounded-2xl bg-emerald-600 px-6 py-3 text-lg font-semibold text-white transition hover:bg-emerald-700"
           >
             {isRunning ? "Pause" : "Start"}
           </button>
 
           <button
             onClick={handleReset}
-            className="rounded-2xl bg-slate-200 px-6 py-3 text-lg font-semibold text-slate-800 transition hover:bg-slate-300"
+            className="rounded-2xl bg-emerald-50 px-6 py-3 text-lg font-semibold text-emerald-800 transition hover:bg-emerald-100"
           >
             Reset
           </button>
+        </div>
+
+        <div className="mt-8 flex justify-center">
+          <Link href="/materials">
+            <button className="rounded-2xl border border-emerald-200 bg-white px-6 py-3 text-lg font-semibold text-emerald-700 transition hover:bg-emerald-50">
+              Access Relevant Materials
+            </button>
+          </Link>
         </div>
       </div>
     </main>
