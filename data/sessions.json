@@ -51,5 +51,27 @@
     "estimated_minutes": 90,
     "actual_minutes": 1,
     "timestamp": "2026-03-14T19:02:46.023349"
+  },
+  {
+    "id": "1773518234674",
+    "user_id": "2c4f8f2b8c43852745055840ce235193",
+    "email": "albeyuchen@gmail.com",
+    "course": "EECS 001",
+    "assignment_summary": "HW 3",
+    "primary_concept": "Storage Hierarchy",
+    "estimated_minutes": 10,
+    "actual_minutes": 1,
+    "timestamp": "2026-03-14T19:57:14.674906"
+  },
+  {
+    "id": "1773518270393",
+    "user_id": "2c4f8f2b8c43852745055840ce235193",
+    "email": "albeyuchen@gmail.com",
+    "course": "EECS 001",
+    "assignment_summary": "HW 3",
+    "primary_concept": "Storage Hierarchy",
+    "estimated_minutes": 10,
+    "actual_minutes": 1,
+    "timestamp": "2026-03-14T19:57:50.393723"
   }
 ]

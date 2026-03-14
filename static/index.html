@@ -234,6 +234,45 @@ body.dark .section-title{color:#94a3b8}
 /* ── Assignment card dark mode extras ── */
 body.dark .assignment-card h3{color:#f1f5f9}
 body.dark .assignment-card p{color:#94a3b8}
+
+/* ── Schedule / Calendar ── */
+.sched-panel{}
+.cal-day-grid{display:flex;flex-direction:column;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}
+.cal-hour-row{display:grid;grid-template-columns:52px 1fr;min-height:56px;border-bottom:1px solid #f1f5f9;position:relative}
+.cal-hour-row:last-child{border-bottom:none}
+.cal-hour-label{font-size:.7rem;color:#94a3b8;padding:6px 8px 0;text-align:right;font-variant-numeric:tabular-nums;flex-shrink:0}
+.cal-hour-slot{position:relative;border-left:1px solid #f1f5f9}
+.cal-event{position:absolute;left:4px;right:4px;border-radius:8px;padding:4px 8px;font-size:.75rem;font-weight:600;overflow:hidden;cursor:pointer;z-index:1;transition:opacity .15s}
+.cal-event:hover{opacity:.85}
+.cal-event .ev-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-event .ev-sub{font-size:.65rem;font-weight:400;opacity:.8;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-now-line{position:absolute;left:0;right:0;height:2px;background:#ef4444;z-index:2;pointer-events:none}
+.cal-now-line::before{content:'';position:absolute;left:-4px;top:-4px;width:10px;height:10px;border-radius:50%;background:#ef4444}
+/* Week grid */
+.cal-week-grid{display:grid;grid-template-columns:52px repeat(7,1fr);border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}
+.cal-week-header{display:contents}
+.cal-week-day-hdr{padding:8px 4px;text-align:center;font-size:.72rem;font-weight:600;border-bottom:1px solid #e2e8f0;border-left:1px solid #f1f5f9;background:#f8fafc}
+.cal-week-day-hdr.today{background:#ecfdf5;color:#059669}
+.cal-week-day-hdr:first-child{border-left:none}
+.cal-week-body{display:contents}
+.cal-week-hour-label{font-size:.65rem;color:#94a3b8;padding:4px 6px 0;text-align:right;border-bottom:1px solid #f1f5f9}
+.cal-week-cell{min-height:40px;border-left:1px solid #f1f5f9;border-bottom:1px solid #f1f5f9;position:relative;padding:2px}
+.cal-week-cell.today-col{background:#f0fdf4}
+.cal-week-ev{border-radius:5px;padding:2px 5px;font-size:.65rem;font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+body.dark .cal-day-grid{border-color:#2d3748}
+body.dark .cal-hour-row{border-color:#2d3748}
+body.dark .cal-hour-slot{border-color:#2d3748}
+body.dark .cal-hour-label{color:#64748b}
+body.dark .cal-week-grid{border-color:#2d3748}
+body.dark .cal-week-day-hdr{background:#1e2330;border-color:#2d3748;color:#94a3b8}
+body.dark .cal-week-day-hdr.today{background:#0d2318;color:#4ade80}
+body.dark .cal-week-cell{border-color:#2d3748}
+body.dark .cal-week-cell.today-col{background:#0d2318}
+body.dark .cal-week-hour-label{border-color:#2d3748;color:#4a5568}
+/* upload choose button */
+.upload-choose-btn{margin-top:12px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:6px 16px;font-size:.82rem;font-weight:500;color:#374151;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+body.dark .upload-choose-btn{background:#2d3748;border-color:#4a5568;color:#e2e8f0}
+
 </style>
 </head>
 <body>
@@ -337,7 +376,8 @@ body.dark .assignment-card p{color:#94a3b8}
 <div id="page-dashboard" class="page hidden">
   <div class="max-7xl">
     <div class="card">
-      <!-- Header -->
+
+      <!-- ── Nav ── -->
       <nav>
         <div class="logo-row">
           <div class="logo-icon">📘</div>
@@ -351,91 +391,96 @@ body.dark .assignment-card p{color:#94a3b8}
         </div>
       </nav>
 
-      <!-- Greeting -->
-      <div style="margin-bottom:32px">
+      <!-- ── Greeting ── -->
+      <div style="margin-bottom:28px">
         <h1 id="dash-greeting">Good afternoon 👋</h1>
-        <p style="margin-top:6px">Your study plan is ready. Start your next session or review what's coming up.</p>
+        <p class="muted-text" style="margin-top:6px">Here's your study plan for today.</p>
       </div>
 
-      <div style="display:grid;grid-template-columns:1.7fr 1fr;gap:28px">
-
-        <!-- Assignments -->
-        <section>
-          <h2 style="margin-bottom:20px">Upcoming Assignments</h2>
-          <div id="dash-assignments" style="display:grid;gap:16px;grid-template-columns:1fr 1fr"></div>
-          <div id="dash-empty" class="hidden" style="text-align:center;padding:40px;color:#94a3b8">
-            No upcoming assignments. <a href="#" onclick="showPage('onboarding')" style="color:#059669">Add some →</a>
-          </div>
-        </section>
-
-        <!-- Sidebar -->
-        <aside>
-          <!-- Next focus -->
-          <div class="sidebar-panel sidebar-panel-green" style="margin-bottom:16px">
-            <div class="section-title" style="color:#059669">Next Focus</div>
-            <div class="sidebar-inner" id="next-focus">
-              <p style="font-size:.8rem" class="muted-text" id="nf-time">—</p>
-              <h3 id="nf-title" style="margin-top:6px">—</h3>
-              <p style="font-size:.85rem;margin-top:6px" id="nf-desc">—</p>
-              <button class="btn btn-primary btn-md" style="margin-top:14px;width:100%" onclick="startTimerForTop()">▶ Start Session</button>
-            </div>
-          </div>
-          <!-- Study plan list -->
-          <div class="sidebar-panel" style="padding:20px">
-            <h3 style="margin-bottom:14px">Study Plan</h3>
-            <div id="study-plan-list"></div>
-          </div>
-          <!-- Recently opened files -->
-          <div class="recent-files-widget" id="dash-recent-files-wrap" style="display:none">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-              <h3 style="font-size:.95rem">Recently Opened</h3>
-              <button class="btn btn-secondary btn-sm" onclick="showPage('settings')">See all</button>
-            </div>
-            <div id="dash-recent-files"></div>
-          </div>
-        </aside>
-      </div>
-      <!-- Stat cards row -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:28px" id="dash-stats">
+      <!-- ── 1. Summary Statistics ── -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px" id="dash-stats">
         <div class="stat-card blue">
           <div class="stat-icon">🔥</div>
           <div class="stat-title" id="stat-streak">— day streak</div>
-          <div class="stat-subtitle">Keep it going!</div>
+          <div class="stat-subtitle">Current streak</div>
           <div class="stat-footer" id="stat-streak-footer"></div>
         </div>
         <div class="stat-card amber">
           <div class="stat-icon">📚</div>
-          <div class="stat-title" id="stat-sessions">— sessions</div>
-          <div class="stat-subtitle">This week</div>
+          <div class="stat-title" id="stat-sessions">—</div>
+          <div class="stat-subtitle">Sessions this week</div>
           <div class="stat-footer" id="stat-sessions-footer"></div>
         </div>
         <div class="stat-card rose">
           <div class="stat-icon">⏱</div>
-          <div class="stat-title" id="stat-hours">— hrs</div>
+          <div class="stat-title" id="stat-hours">—</div>
           <div class="stat-subtitle">Total focus time</div>
           <div class="stat-footer" id="stat-hours-footer"></div>
         </div>
       </div>
 
-      <!-- Upload Materials section -->
-      <section style="margin-top:28px">
+      <!-- ── 2. Upcoming Assignments ── -->
+      <section style="margin-bottom:36px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+          <h2>Upcoming Assignments</h2>
+          <button class="btn btn-secondary btn-sm" onclick="showPage('onboarding')">+ Add</button>
+        </div>
+        <div id="dash-assignments" style="display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))"></div>
+        <div id="dash-empty" class="hidden" style="text-align:center;padding:40px;color:#94a3b8">
+          No upcoming assignments. <a href="#" onclick="showPage('onboarding')" style="color:#059669">Add some →</a>
+        </div>
+      </section>
+
+      <!-- ── 3. Today's Plan / Schedule ── -->
+      <section style="margin-bottom:36px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+          <h2>Study Schedule</h2>
+          <div class="tab-bar" style="width:auto;gap:4px;padding:3px">
+            <button class="tab active" id="sched-tab-day"  onclick="switchSchedule('day')">Today</button>
+            <button class="tab"        id="sched-tab-week" onclick="switchSchedule('week')">This Week</button>
+          </div>
+        </div>
+
+        <!-- Day calendar -->
+        <div id="sched-day" class="sched-panel">
+          <div class="cal-day-grid" id="cal-day-grid"></div>
+        </div>
+
+        <!-- Week calendar -->
+        <div id="sched-week" class="sched-panel" style="display:none">
+          <div class="cal-week-grid" id="cal-week-grid"></div>
+        </div>
+      </section>
+
+      <!-- ── 4. Recently Opened ── -->
+      <div class="recent-files-widget" id="dash-recent-files-wrap" style="display:none;margin-bottom:32px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <h3 style="font-size:1rem">Recently Opened</h3>
+          <button class="btn btn-secondary btn-sm" onclick="showPage('settings')">See all</button>
+        </div>
+        <div id="dash-recent-files"></div>
+      </div>
+
+      <!-- ── 5. Upload Assignments ── -->
+      <section>
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap">
           <div>
-            <h2 style="font-size:1.4rem">Upload Materials</h2>
-            <p style="font-size:.85rem;color:#64748b;margin-top:4px">Add syllabi, assignment sheets, or lecture slides to improve estimates.</p>
+            <h2 style="font-size:1.4rem">Upload Assignments</h2>
+            <p class="muted-text" style="font-size:.85rem;margin-top:4px">Add syllabi, assignment sheets, or lecture slides to improve estimates.</p>
           </div>
           <span class="badge badge-emerald">PDF, DOCX, TXT</span>
         </div>
         <label class="dash-upload-zone" id="dash-upload-label">
           <input type="file" id="dash-upload-input" multiple accept=".pdf,.docx,.txt,.md" onchange="handleDashUpload(this)"/>
           <div style="font-size:2rem;margin-bottom:10px">⬆️</div>
-          <div style="font-weight:600;font-size:1rem;color:#0f172a">Drag and drop files here</div>
-          <p style="font-size:.82rem;color:#64748b;margin-top:6px;max-width:360px">Upload syllabus, assignments, lecture slides, or supporting course materials.</p>
-          <span style="margin-top:12px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:6px 16px;font-size:.82rem;font-weight:500;color:#374151;box-shadow:0 1px 2px rgba(0,0,0,.05)">Choose Files</span>
+          <div style="font-weight:600;font-size:1rem">Drag and drop files here</div>
+          <p class="muted-text" style="font-size:.82rem;margin-top:6px;max-width:360px">Upload assignments, lecture slides, or supporting course materials.</p>
+          <span class="upload-choose-btn">Choose Files</span>
         </label>
         <div id="dash-upload-msg" style="margin-top:10px"></div>
         <div id="dash-upload-results" style="margin-top:12px"></div>
       </section>
+
     </div>
   </div>
 </div>
@@ -662,6 +707,45 @@ body.dark .section-title{color:#94a3b8}
 /* ── Assignment card dark mode extras ── */
 body.dark .assignment-card h3{color:#f1f5f9}
 body.dark .assignment-card p{color:#94a3b8}
+
+/* ── Schedule / Calendar ── */
+.sched-panel{}
+.cal-day-grid{display:flex;flex-direction:column;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}
+.cal-hour-row{display:grid;grid-template-columns:52px 1fr;min-height:56px;border-bottom:1px solid #f1f5f9;position:relative}
+.cal-hour-row:last-child{border-bottom:none}
+.cal-hour-label{font-size:.7rem;color:#94a3b8;padding:6px 8px 0;text-align:right;font-variant-numeric:tabular-nums;flex-shrink:0}
+.cal-hour-slot{position:relative;border-left:1px solid #f1f5f9}
+.cal-event{position:absolute;left:4px;right:4px;border-radius:8px;padding:4px 8px;font-size:.75rem;font-weight:600;overflow:hidden;cursor:pointer;z-index:1;transition:opacity .15s}
+.cal-event:hover{opacity:.85}
+.cal-event .ev-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-event .ev-sub{font-size:.65rem;font-weight:400;opacity:.8;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-now-line{position:absolute;left:0;right:0;height:2px;background:#ef4444;z-index:2;pointer-events:none}
+.cal-now-line::before{content:'';position:absolute;left:-4px;top:-4px;width:10px;height:10px;border-radius:50%;background:#ef4444}
+/* Week grid */
+.cal-week-grid{display:grid;grid-template-columns:52px repeat(7,1fr);border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}
+.cal-week-header{display:contents}
+.cal-week-day-hdr{padding:8px 4px;text-align:center;font-size:.72rem;font-weight:600;border-bottom:1px solid #e2e8f0;border-left:1px solid #f1f5f9;background:#f8fafc}
+.cal-week-day-hdr.today{background:#ecfdf5;color:#059669}
+.cal-week-day-hdr:first-child{border-left:none}
+.cal-week-body{display:contents}
+.cal-week-hour-label{font-size:.65rem;color:#94a3b8;padding:4px 6px 0;text-align:right;border-bottom:1px solid #f1f5f9}
+.cal-week-cell{min-height:40px;border-left:1px solid #f1f5f9;border-bottom:1px solid #f1f5f9;position:relative;padding:2px}
+.cal-week-cell.today-col{background:#f0fdf4}
+.cal-week-ev{border-radius:5px;padding:2px 5px;font-size:.65rem;font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+body.dark .cal-day-grid{border-color:#2d3748}
+body.dark .cal-hour-row{border-color:#2d3748}
+body.dark .cal-hour-slot{border-color:#2d3748}
+body.dark .cal-hour-label{color:#64748b}
+body.dark .cal-week-grid{border-color:#2d3748}
+body.dark .cal-week-day-hdr{background:#1e2330;border-color:#2d3748;color:#94a3b8}
+body.dark .cal-week-day-hdr.today{background:#0d2318;color:#4ade80}
+body.dark .cal-week-cell{border-color:#2d3748}
+body.dark .cal-week-cell.today-col{background:#0d2318}
+body.dark .cal-week-hour-label{border-color:#2d3748;color:#4a5568}
+/* upload choose button */
+.upload-choose-btn{margin-top:12px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:6px 16px;font-size:.82rem;font-weight:500;color:#374151;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+body.dark .upload-choose-btn{background:#2d3748;border-color:#4a5568;color:#e2e8f0}
+
 </style>
 
 <!-- ══════════════ SETTINGS PAGE ══════════════ -->
@@ -1028,7 +1112,7 @@ async function loadDashboard() {
     const data = await res.json();
     appAssignments = data.assignments || [];
     renderDashboardAssignments();
-    renderStudyPlan();
+    renderStudyPlan();  // also calls renderSchedule
     loadStats();
   } catch(e) { console.error("Could not load assignments", e); }
 }
@@ -1069,41 +1153,8 @@ function renderDashboardAssignments() {
 }
 
 function renderStudyPlan() {
-  const el = document.getElementById("study-plan-list");
-  const nf_t = document.getElementById("nf-title");
-  const nf_d = document.getElementById("nf-desc");
-  const nf_time = document.getElementById("nf-time");
-  const nf_start = document.querySelector("#next-focus .btn-primary");
-
-  if (!appAssignments.length) {
-    el.innerHTML = '<p style="color:#94a3b8;font-size:.8rem">No assignments yet.</p>';
-    nf_t.textContent = "No upcoming assignments";
-    nf_d.textContent = "—";
-    nf_time.textContent = "—";
-    if (nf_start) nf_start.disabled = true;
-    return;
-  }
-
-  const top = appAssignments[0];
-  nf_t.textContent = top.title || "Assignment";
-  nf_d.textContent = top.estimate_pending
-    ? `${top.course} · estimating...`
-    : `${top.course} · ${fmtHours(top.estimated_hours)} · AI est.`;
-  nf_time.textContent = top.due_date ? `Due ${new Date(top.due_date).toLocaleDateString()}` : "No due date";
-  if (nf_start) { nf_start.disabled = false; nf_start.onclick = () => startTimerFor(top); }
-
-  el.innerHTML = appAssignments.slice(0,8).map((a,i) => {
-    const color = courseColor(a.course||"");
-    return `<div class="plan-row">
-      <div style="display:flex;align-items:center;gap:8px;min-width:0">
-        <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></span>
-        <span style="font-size:.82rem;font-weight:600">${esc(a.title||"?")} <span style="color:#94a3b8;font-weight:400">· ${a.course||""}</span></span>
-      </div>
-      ${a.estimate_pending
-        ? `<span class="badge badge-slate" style="opacity:.5">—</span>`
-        : `<span class="badge badge-emerald">${fmtHours(a.estimated_hours)}</span>`}
-    </div>`;
-  }).join("");
+  // Sidebar is gone — schedule calendar handles the plan view
+  renderSchedule();
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -1732,6 +1783,193 @@ function showMatchedMaterials(assignment) {
   listEl.innerHTML = assignmentSection + notesSection;
 }
 
+
+
+// ══════════════════════════════════════════════════════════════════
+// SCHEDULE CALENDAR
+// ══════════════════════════════════════════════════════════════════
+let scheduleView = "day";
+
+const COURSE_PALETTE = [
+  {bg:"#dbeafe",text:"#1e40af"},{bg:"#d1fae5",text:"#065f46"},
+  {bg:"#fef3c7",text:"#92400e"},{bg:"#fce7f3",text:"#9d174d"},
+  {bg:"#ede9fe",text:"#5b21b6"},{bg:"#ffedd5",text:"#9a3412"},
+  {bg:"#e0f2fe",text:"#0c4a6e"},{bg:"#ecfccb",text:"#365314"},
+];
+const courseColors = {};
+function getCourseColor(course) {
+  if (!courseColors[course]) {
+    const idx = Object.keys(courseColors).length % COURSE_PALETTE.length;
+    courseColors[course] = COURSE_PALETTE[idx];
+  }
+  return courseColors[course];
+}
+
+function switchSchedule(view) {
+  scheduleView = view;
+  document.getElementById("sched-tab-day").classList.toggle("active",  view === "day");
+  document.getElementById("sched-tab-week").classList.toggle("active", view === "week");
+  document.getElementById("sched-day").style.display  = view === "day"  ? "block" : "none";
+  document.getElementById("sched-week").style.display = view === "week" ? "block" : "none";
+  renderSchedule();
+}
+
+function assignmentToEvent(a) {
+  // Place each assignment as a study block on its due date (or today if no due date)
+  // Calculate a start time by spreading assignments through the day
+  const due = a.due_date ? new Date(a.due_date) : null;
+  const hrs  = a.estimated_hours || 1;
+  return { assignment: a, dueDate: due, durationHours: Math.min(hrs, 3) };
+}
+
+function renderSchedule() {
+  if (scheduleView === "day") renderDayCalendar();
+  else renderWeekCalendar();
+}
+
+function renderDayCalendar() {
+  const grid  = document.getElementById("cal-day-grid");
+  if (!grid) return;
+
+  const START_HOUR = 7;   // 7am
+  const END_HOUR   = 23;  // 11pm
+  const today      = new Date();
+  const todayStr   = today.toISOString().slice(0,10);
+
+  // Build events for today: assignments due today or scheduled today
+  const events = [];
+  let nextSlot = 8; // default start packing from 8am
+
+  // Sort by due urgency
+  const sorted = [...appAssignments].sort((a,b) => {
+    const ad = a.due_in_days ?? 99, bd = b.due_in_days ?? 99;
+    return ad - bd;
+  });
+
+  sorted.forEach(a => {
+    const hrs  = a.estimated_hours || 1;
+    const dur  = Math.min(hrs, 2.5);
+    const col  = getCourseColor(a.course || "");
+    // Only show if due within 7 days
+    if ((a.due_in_days ?? 99) > 7) return;
+
+    // Check if due today — place at a natural time
+    let startHour = nextSlot;
+    if (startHour + dur > END_HOUR) return; // no space
+    events.push({ a, startHour, dur, col });
+    nextSlot = startHour + dur + 0.25; // 15-min gap
+  });
+
+  // Build hour rows
+  const TOTAL = END_HOUR - START_HOUR;
+  const PX_PER_HOUR = 56;
+  let html = "";
+
+  for (let h = START_HOUR; h < END_HOUR; h++) {
+    const label = h === 12 ? "12 PM" : h < 12 ? `${h} AM` : `${h-12} PM`;
+    html += `<div class="cal-hour-row">
+      <div class="cal-hour-label">${label}</div>
+      <div class="cal-hour-slot" style="height:${PX_PER_HOUR}px"></div>
+    </div>`;
+  }
+
+  grid.innerHTML = html;
+
+  // Add now-line
+  const nowH = today.getHours() + today.getMinutes()/60;
+  if (nowH >= START_HOUR && nowH < END_HOUR) {
+    const slots = grid.querySelectorAll(".cal-hour-slot");
+    const slotIdx = Math.floor(nowH - START_HOUR);
+    if (slots[slotIdx]) {
+      const frac = (nowH - START_HOUR) % 1;
+      const line = document.createElement("div");
+      line.className = "cal-now-line";
+      line.style.top = (frac * PX_PER_HOUR) + "px";
+      slots[slotIdx].appendChild(line);
+    }
+  }
+
+  // Place events
+  events.forEach(({a, startHour, dur, col}) => {
+    const slotIdx = Math.floor(startHour - START_HOUR);
+    const slots   = grid.querySelectorAll(".cal-hour-slot");
+    if (slotIdx < 0 || slotIdx >= slots.length) return;
+    const topFrac = (startHour - START_HOUR - slotIdx);
+    const ev = document.createElement("div");
+    ev.className = "cal-event";
+    ev.style.cssText = `top:${topFrac * PX_PER_HOUR}px;height:${dur * PX_PER_HOUR - 4}px;background:${col.bg};color:${col.text};border-left:3px solid ${col.text}`;
+    const due = a.due_date ? new Date(a.due_date).toLocaleDateString("en-US",{month:"short",day:"numeric"}) : "";
+    ev.innerHTML = `<div class="ev-title">${esc(a.title||"")}</div><div class="ev-sub">${esc(a.course||"")}${due?" · Due "+due:""} · ${fmtHours(a.estimated_hours)}</div>`;
+    ev.onclick = () => showMatchedMaterials(a);
+    // Attach to the right slot row
+    slots[slotIdx].appendChild(ev);
+  });
+
+  if (!events.length) {
+    const empty = document.createElement("div");
+    empty.style.cssText = "text-align:center;padding:32px;color:#94a3b8;font-size:.85rem;position:absolute;left:0;right:0;top:50px;pointer-events:none";
+    empty.textContent = "No assignments due in the next 7 days 🎉";
+    grid.style.position = "relative";
+    grid.appendChild(empty);
+  }
+}
+
+function renderWeekCalendar() {
+  const grid = document.getElementById("cal-week-grid");
+  if (!grid) return;
+
+  const today   = new Date();
+  const dayOfWk = today.getDay(); // 0=Sun
+  const weekStart = new Date(today); weekStart.setDate(today.getDate() - dayOfWk);
+
+  const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const START_HOUR = 7, END_HOUR = 22;
+
+  // Header row
+  let html = `<div class="cal-week-day-hdr" style="background:transparent;border-bottom:1px solid #e2e8f0"></div>`;
+  const dayDates = [];
+  for (let d = 0; d < 7; d++) {
+    const dt = new Date(weekStart); dt.setDate(weekStart.getDate() + d);
+    dayDates.push(dt);
+    const isToday = dt.toDateString() === today.toDateString();
+    const label   = `${DAYS[d]}<br/><span style="font-size:.9rem;font-weight:700">${dt.getDate()}</span>`;
+    html += `<div class="cal-week-day-hdr${isToday?" today":""}">${label}</div>`;
+  }
+
+  // Map assignments to day columns
+  const dayEvents = Array.from({length:7}, () => []);
+  appAssignments.forEach(a => {
+    if (!a.due_date) return;
+    const due = new Date(a.due_date);
+    const diff = Math.round((due - weekStart) / 86400000);
+    if (diff >= 0 && diff < 7) {
+      // Schedule study block day before due (or same day if due today)
+      const studyDay = Math.max(0, diff - 1);
+      dayEvents[studyDay].push(a);
+    }
+  });
+
+  // Hour rows
+  for (let h = START_HOUR; h < END_HOUR; h++) {
+    const label = h === 12 ? "12p" : h < 12 ? `${h}a` : `${h-12}p`;
+    html += `<div class="cal-week-hour-label">${label}</div>`;
+    for (let d = 0; d < 7; d++) {
+      const dt      = dayDates[d];
+      const isToday = dt.toDateString() === today.toDateString();
+      // Only show events at 9am slot
+      let evHtml = "";
+      if (h === 9) {
+        dayEvents[d].forEach(a => {
+          const col = getCourseColor(a.course||"");
+          evHtml += `<div class="cal-week-ev" style="background:${col.bg};color:${col.text}" onclick="showMatchedMaterials(${JSON.stringify(a).replace(/"/g,'&quot;')})" title="${esc(a.title)}">${esc(a.title||"")}</div>`;
+        });
+      }
+      html += `<div class="cal-week-cell${isToday?" today-col":""}">${evHtml}</div>`;
+    }
+  }
+
+  grid.innerHTML = html;
+}
 
 // ══════════════════════════════════════════════════════════════════
 // STATS & SOCIAL
