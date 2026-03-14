@@ -293,6 +293,23 @@ body.dark .upload-choose-btn{background:#2d3748;border-color:#4a5568;color:#e2e8
 .gcal-legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
 body.dark .cal-gcal-ev{opacity:.75}
 
+
+/* ── Materials per-problem display ── */
+.topic-group{margin-bottom:14px}
+.topic-label{font-size:.72rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#059669;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.topic-label::before{content:"";display:inline-block;width:4px;height:14px;background:#059669;border-radius:2px;flex-shrink:0}
+body.dark .topic-label{color:#4ade80}
+body.dark .topic-label::before{background:#4ade80}
+.rel-bar{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:.65rem;font-weight:700;flex-shrink:0}
+.rel-bar.high{background:#d1fae5;color:#065f46}
+.rel-bar.medium{background:#fef3c7;color:#92400e}
+.rel-bar.low{background:#f1f5f9;color:#64748b}
+body.dark .rel-bar.high{background:#0d2318;color:#4ade80}
+body.dark .rel-bar.medium{background:#2a2010;color:#fbbf24}
+body.dark .rel-bar.low{background:#2d3748;color:#94a3b8}
+.problem-tag{font-size:.62rem;background:#eff6ff;color:#1e40af;padding:1px 6px;border-radius:4px;display:inline-block;margin-right:3px;margin-top:2px}
+body.dark .problem-tag{background:#1a2535;color:#60a5fa}
+
 </style>
 </head>
 <body>
@@ -441,9 +458,12 @@ body.dark .cal-gcal-ev{opacity:.75}
 
       <!-- ── 2. Upcoming Assignments ── -->
       <section style="margin-bottom:36px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:8px">
           <h2>Upcoming Assignments</h2>
-          <button class="btn btn-secondary btn-sm" onclick="showPage('onboarding')">+ Add</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm" onclick="showPage('onboarding')">+ Add</button>
+            <button class="btn btn-danger btn-sm" id="remove-all-btn" onclick="removeAllAssignments()" style="display:none">🗑 Remove All</button>
+          </div>
         </div>
         <div id="dash-assignments" style="display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))"></div>
         <div id="dash-empty" class="hidden" style="text-align:center;padding:40px;color:#94a3b8">
@@ -788,6 +808,23 @@ body.dark .upload-choose-btn{background:#2d3748;border-color:#4a5568;color:#e2e8
 .gcal-legend{display:flex;align-items:center;gap:16px;font-size:.72rem;color:#64748b;margin-bottom:10px;flex-wrap:wrap}
 .gcal-legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
 body.dark .cal-gcal-ev{opacity:.75}
+
+
+/* ── Materials per-problem display ── */
+.topic-group{margin-bottom:14px}
+.topic-label{font-size:.72rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#059669;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.topic-label::before{content:"";display:inline-block;width:4px;height:14px;background:#059669;border-radius:2px;flex-shrink:0}
+body.dark .topic-label{color:#4ade80}
+body.dark .topic-label::before{background:#4ade80}
+.rel-bar{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:.65rem;font-weight:700;flex-shrink:0}
+.rel-bar.high{background:#d1fae5;color:#065f46}
+.rel-bar.medium{background:#fef3c7;color:#92400e}
+.rel-bar.low{background:#f1f5f9;color:#64748b}
+body.dark .rel-bar.high{background:#0d2318;color:#4ade80}
+body.dark .rel-bar.medium{background:#2a2010;color:#fbbf24}
+body.dark .rel-bar.low{background:#2d3748;color:#94a3b8}
+.problem-tag{font-size:.62rem;background:#eff6ff;color:#1e40af;padding:1px 6px;border-radius:4px;display:inline-block;margin-right:3px;margin-top:2px}
+body.dark .problem-tag{background:#1a2535;color:#60a5fa}
 
 </style>
 
@@ -1184,6 +1221,8 @@ async function loadDashboard() {
 function renderDashboardAssignments() {
   const el    = document.getElementById("dash-assignments");
   const empty = document.getElementById("dash-empty");
+  const removeAllBtn = document.getElementById("remove-all-btn");
+  if (removeAllBtn) removeAllBtn.style.display = appAssignments.length ? "inline-flex" : "none";
   if (!appAssignments.length) { el.innerHTML = ""; empty.classList.remove("hidden"); return; }
   empty.classList.add("hidden");
   el.innerHTML = appAssignments.slice(0,6).map(a => {
@@ -1451,8 +1490,10 @@ async function runEstimate() {
 function renderEstimateResultsHTML(results) {
   return results.map(r => {
     if (r.error) return `<div class="alert alert-error">Error for ${esc(r.assignment)}: ${esc(r.error)}</div>`;
-    const matchedNotes = r.matched_notes || [];
-    const highMed = matchedNotes.filter(m => m.relevance === "high" || m.relevance === "medium");
+    const matchedNotes  = r.matched_notes || [];
+    const matchedTopics = r.matched_topics || [];
+    const uid      = appUser?.id || "";
+    const courseId = r.course_id || (appAssignments.find(a => a.title === r.assignment)?.course_id) || "";
     return `
     <div class="estimate-result-card" style="background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:24px;margin-bottom:16px">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px">
@@ -1467,19 +1508,7 @@ function renderEstimateResultsHTML(results) {
         </div>
       </div>
       ${r.reasoning ? `<p class="estimate-reasoning" style="font-size:.85rem;border-left:3px solid #d1fae5;padding-left:12px;font-style:italic;margin-bottom:16px">${esc(r.reasoning)}</p>` : ""}
-      ${matchedNotes.length ? `
-        <div class="match-panel">
-          <div class="section-title">Matched Notes (${matchedNotes.length})</div>
-          ${matchedNotes.map(m => `
-            <div class="match-item">
-              <div class="relevance-dot rel-${m.relevance||"low"}"></div>
-              <div>
-                <div style="font-size:.82rem;font-weight:600">${esc(m.filename||"")}</div>
-                <div style="font-size:.78rem;color:#64748b;margin-top:2px">${esc(m.reason||"")}</div>
-              </div>
-              <span class="badge ${m.relevance==="high"?"badge-emerald":m.relevance==="medium"?"badge-amber":"badge-slate"}" style="margin-left:auto;flex-shrink:0">${m.relevance||"?"}</span>
-            </div>`).join("")}
-        </div>` : ""}
+      ${buildMatchedMaterialsHTML(matchedNotes, r.matched_topics || [], uid, courseId)}
       <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-secondary btn-md" onclick="showPage('dashboard')">← Dashboard</button>
         ${uploadedFileURLs[r.assignment] ? `<button class="btn btn-outline btn-md" onclick="openFile('${uploadedFileURLs[r.assignment]}','${esc(r.assignment)}')">📄 Open Assignment</button>` : ""}
@@ -1680,6 +1709,106 @@ function showMsg(el, msg, type) {
 
 
 // ══════════════════════════════════════════════════════════════════
+// MATCHED MATERIALS RENDERER
+// ══════════════════════════════════════════════════════════════════
+
+function buildMatchedMaterialsHTML(files, topics, uid, courseId) {
+  if (!files || !files.length) return "";
+  // files: [{filename, relevance, reason, problems:[]}]
+  // topics: [{topic, matches:[{filename,relevance,reason}]}]
+
+  const getUrl = (fname) => {
+    if (uploadedFileURLs[fname]) return uploadedFileURLs[fname];
+    if (courseId) return `/api/canvas/file/${uid}/${courseId}/${encodeURIComponent(fname)}`;
+    return null;
+  };
+
+  const relOrder = {high:0, medium:1, low:2};
+
+  // If we have topic breakdown, show by problem
+  if (topics && topics.length) {
+    let html = `<div class="match-panel"><div class="section-title" style="margin-bottom:10px">Matched Materials by Problem</div>`;
+
+    topics.forEach(t => {
+      const matches = (t.matches || []).sort((a,b) => (relOrder[a.relevance]||2) - (relOrder[b.relevance]||2));
+      if (!matches.length) return;
+      html += `<div class="topic-group">
+        <div class="topic-label">${esc(t.topic||"")}</div>`;
+      matches.forEach(m => {
+        const url = getUrl(m.filename);
+        const ext = (m.filename||"").split(".").pop().toUpperCase();
+        html += `<div class="file-item" style="align-items:flex-start;padding:8px 6px">
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <span class="file-ext">${ext}</span>
+              <span style="font-size:.82rem;font-weight:600">${esc(m.filename||"")}</span>
+              <span class="rel-bar ${m.relevance||"low"}">${(m.relevance||"low").toUpperCase()}</span>
+            </div>
+            <div style="font-size:.72rem;color:#64748b;margin-top:3px">${esc(m.reason||"")}</div>
+          </div>
+          ${url ? `<button class="btn btn-secondary btn-sm" style="flex-shrink:0;margin-left:8px" onclick="openFile('${url}','${esc(m.filename)}')">Open</button>` : '<span style="font-size:.7rem;color:#94a3b8;flex-shrink:0">Not cached</span>'}
+        </div>`;
+      });
+      html += `</div>`;
+    });
+
+    // Also show a flat summary sorted by relevance
+    const sortedFiles = [...files].sort((a,b) => (relOrder[a.relevance]||2) - (relOrder[b.relevance]||2));
+    html += `<hr style="border:none;border-top:1px solid #f1f5f9;margin:10px 0"/>
+      <div class="section-title" style="margin-bottom:8px">All Matched Files</div>`;
+    sortedFiles.forEach(f => {
+      const url = getUrl(f.filename);
+      const ext = (f.filename||"").split(".").pop().toUpperCase();
+      const problems = (f.problems||[]);
+      const problemTags = problems.map(p => `<span class="problem-tag">${esc(p)}</span>`).join("");
+      html += `<div class="file-item" style="align-items:flex-start;padding:10px 8px">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0">
+              <span class="file-ext">${ext}</span>
+              <span style="font-size:.82rem;font-weight:600">${esc(f.filename||"")}</span>
+              <span class="rel-bar ${f.relevance||"low"}">${(f.relevance||"low").toUpperCase()}</span>
+            </div>
+            ${problemTags ? `<div style="text-align:right;flex-shrink:0">${problemTags}</div>` : ""}
+          </div>
+          <div style="font-size:.72rem;color:#64748b;margin-top:4px">${esc(f.reason||"")}</div>
+        </div>
+        ${url ? `<button class="btn btn-secondary btn-sm" style="flex-shrink:0;margin-left:8px;margin-top:2px" onclick="openFile('${url}','${esc(f.filename)}')">Open</button>` : '<span style="font-size:.7rem;color:#94a3b8;flex-shrink:0;margin-left:8px">Not cached</span>'}
+      </div>`;
+    });
+
+    html += `</div>`;
+    return html;
+  }
+
+  // Fallback: simple flat list sorted by relevance
+  const sorted = [...files].sort((a,b) => (relOrder[a.relevance]||2) - (relOrder[b.relevance]||2));
+  let html = `<div class="match-panel"><div class="section-title" style="margin-bottom:8px">Matched Materials</div>`;
+  sorted.forEach(f => {
+    const url      = getUrl(f.filename);
+    const ext      = (f.filename||"").split(".").pop().toUpperCase();
+    const problems = (f.problems||[]);
+    const probTags = problems.map(p => `<span class="problem-tag">${esc(p)}</span>`).join("");
+    html += `<div class="file-item" style="align-items:flex-start;padding:10px 8px">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span class="file-ext">${ext}</span>
+            <span style="font-size:.82rem;font-weight:600">${esc(f.filename||"")}</span>
+            <span class="rel-bar ${f.relevance||"low"}">${(f.relevance||"low").toUpperCase()}</span>
+          </div>
+          ${probTags ? `<div style="text-align:right;flex-shrink:0">${probTags}</div>` : ""}
+        </div>
+        <div style="font-size:.72rem;color:#64748b;margin-top:4px">${esc(f.reason||"")}</div>
+      </div>
+      ${url ? `<button class="btn btn-secondary btn-sm" style="flex-shrink:0;margin-left:8px;margin-top:2px" onclick="openFile('${url}','${esc(f.filename)}')">Open</button>` : '<span style="font-size:.7rem;color:#94a3b8;flex-shrink:0;margin-left:8px">Not cached</span>'}
+    </div>`;
+  });
+  html += `</div>`;
+  return html;
+}
+
+// ══════════════════════════════════════════════════════════════════
 // FILE VIEWER — with page memory + recently opened + timer visibility
 // ══════════════════════════════════════════════════════════════════
 const pdfPageMemory = {};      // url -> last page (stored as #page=N hash)
@@ -1694,29 +1823,40 @@ function openFile(url, name) {
   if (recentlyOpened.length > MAX_RECENT) recentlyOpened.pop();
   renderRecentlyOpened();
 
-  // Restore last page (for same-origin PDFs served by Flask, #page=N works)
   const baseUrl = url.split("#")[0];
+  const frame   = document.getElementById("file-modal-frame");
+
+  // Stop any previous poller
+  if (frame._pagePoller) { clearInterval(frame._pagePoller); frame._pagePoller = null; }
+  frame._baseUrl = baseUrl;
+
+  // Restore last known page
   const rememberedPage = pdfPageMemory[baseUrl];
   const fullUrl = rememberedPage ? `${baseUrl}#page=${rememberedPage}` : baseUrl;
 
   document.getElementById("file-modal-title").textContent = name;
-  const frame = document.getElementById("file-modal-frame");
-  frame.src = fullUrl;
   document.getElementById("file-modal").classList.remove("hidden");
+  frame.src = fullUrl;
 
-  // Track page changes via hash on same-origin iframes
+  // Poll the iframe's own src attribute — Chrome's PDF viewer updates
+  // the iframe src to include #page=N as you navigate between pages.
   frame.onload = () => {
-    try {
-      const trackHash = () => {
-        const h = frame.contentWindow?.location?.hash || "";
-        const m = h.match(/#page=(\d+)/);
-        if (m) pdfPageMemory[baseUrl] = parseInt(m[1]);
-      };
-      frame.contentWindow.addEventListener("hashchange", trackHash);
-      // Also poll every 2s as fallback (PDF viewers update hash on page turn)
-      clearInterval(frame._pagePoller);
-      frame._pagePoller = setInterval(trackHash, 2000);
-    } catch(e) { /* cross-origin — can't track */ }
+    frame._pagePoller = setInterval(() => {
+      try {
+        // Method 1: read the iframe's src attribute (Chrome updates this)
+        const currentSrc = frame.src || "";
+        const m1 = currentSrc.match(/#page=(\d+)/);
+        if (m1) { pdfPageMemory[baseUrl] = parseInt(m1[1]); return; }
+        // Method 2: contentWindow.location (same-origin only)
+        const loc = frame.contentWindow?.location;
+        if (loc) {
+          const m2 = (loc.hash||"").match(/#page=(\d+)/);
+          if (m2) { pdfPageMemory[baseUrl] = parseInt(m2[1]); return; }
+          const m3 = (loc.href||"").match(/#page=(\d+)/);
+          if (m3) { pdfPageMemory[baseUrl] = parseInt(m3[1]); return; }
+        }
+      } catch(e) { /* cross-origin */ }
+    }, 1000);
   };
 
   updatePdfTimerBar();
@@ -1724,14 +1864,19 @@ function openFile(url, name) {
 
 function closeFileModal() {
   const frame = document.getElementById("file-modal-frame");
-  // Try to save current page one last time
+  // Final page read before closing
   try {
-    const h = frame.contentWindow?.location?.hash || "";
-    const m = h.match(/#page=(\d+)/);
-    const src = frame.src.split("#")[0];
-    if (m && src) pdfPageMemory[src] = parseInt(m[1]);
+    const currentSrc = frame.src || "";
+    const base = currentSrc.split("#")[0];
+    const m1   = currentSrc.match(/#page=(\d+)/);
+    if (m1 && base) pdfPageMemory[base] = parseInt(m1[1]);
+    else {
+      const loc = frame.contentWindow?.location;
+      const m2  = (loc?.hash||"").match(/#page=(\d+)/);
+      if (m2 && base) pdfPageMemory[base] = parseInt(m2[1]);
+    }
   } catch(e) {}
-  clearInterval(frame._pagePoller);
+  if (frame._pagePoller) { clearInterval(frame._pagePoller); frame._pagePoller = null; }
   document.getElementById("file-modal").classList.add("hidden");
   frame.src = "about:blank";
 }
@@ -1852,6 +1997,12 @@ function showMatchedMaterials(assignment) {
         <div class="file-item-name"><span class="file-ext">PDF</span>${esc(pdfName)}</div>
         <button class="btn btn-primary btn-sm" onclick="openFile('${pdfUrl}','${esc(pdfName)}')">Open PDF</button>
       </div>`;
+    } else if (assignment.id && courseId) {
+      // Offer to fetch the assignment PDF from Canvas on demand
+      rows += `<div class="file-item" style="border-radius:10px;padding:10px 12px;margin-bottom:6px">
+        <div class="file-item-name"><span class="file-ext">PDF</span>${esc(assignment.title || "Assignment")}</div>
+        <button class="btn btn-primary btn-sm" id="fetch-pdf-btn-${esc(assignment.id)}" onclick="fetchAssignmentPdf('${esc(assignment.id)}','${esc(courseId)}','${esc(assignment.title||"")}')">⬇ Fetch PDF</button>
+      </div>`;
     }
     if (assignment.canvas_url) {
       rows += `<div class="file-item" style="border-radius:10px;padding:10px 12px;margin-bottom:6px">
@@ -1865,27 +2016,12 @@ function showMatchedMaterials(assignment) {
     }
   }
 
-  // ── Section 2: Relevant materials ─────────────────────────────────────────
-  let notesSection = "";
-  if (notes.length) {
-    notesSection = `
-      <div class="section-title" style="margin-bottom:6px">Relevant Materials</div>
-      ${notes.map(m => {
-        const ext = (m.filename||"").split(".").pop().toUpperCase();
-        const url = courseId
-          ? `/api/canvas/file/${uid}/${courseId}/${encodeURIComponent(m.filename)}`
-          : uploadedFileURLs[m.filename];
-        return `<div class="file-item">
-          <div>
-            <div class="file-item-name"><span class="file-ext">${ext}</span>${esc(m.filename)}</div>
-            <div style="font-size:.72rem;color:#64748b;margin-top:2px">${esc(m.reason||"")}</div>
-          </div>
-          ${url ? `<button class="btn btn-secondary btn-sm" onclick="openFile('${url}','${esc(m.filename)}')">Open</button>` : '<span style="font-size:.72rem;color:#94a3b8">Not cached</span>'}
-        </div>`;
-      }).join("")}`;
-  } else {
-    notesSection = '<p style="font-size:.82rem;color:#94a3b8">No matched materials found.</p>';
-  }
+  // ── Section 2: Relevant materials (topic-per-problem) ───────────────────────
+  const allFiles   = assignment.matched_notes  || [];
+  const allTopics  = assignment.matched_topics || [];
+  const notesSection = allFiles.length
+    ? buildMatchedMaterialsHTML(allFiles, allTopics, uid, courseId)
+    : '<p style="font-size:.82rem;color:#94a3b8">No matched materials found.</p>';
 
   listEl.innerHTML = assignmentSection + notesSection;
 }
@@ -2470,6 +2606,46 @@ async function removeAssignment(id) {
     renderDashboardAssignments();
     renderStudyPlan();
   } catch(e) { alert("Could not remove assignment."); }
+}
+
+async function removeAllAssignments() {
+  if (!appAssignments.length) return;
+  if (!confirm(`Remove all ${appAssignments.length} assignment(s)? This cannot be undone.`)) return;
+  try {
+    const res  = await fetch(`${API}/assignments/all`, {method:"DELETE",credentials:"include"});
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+    appAssignments = [];
+    renderDashboardAssignments();
+    renderStudyPlan();
+  } catch(e) { alert("Could not remove assignments."); }
+}
+
+async function fetchAssignmentPdf(assignmentId, courseId, title) {
+  const btn = document.getElementById(`fetch-pdf-btn-${assignmentId}`);
+  if (btn) { btn.disabled = true; btn.textContent = "Fetching..."; }
+  try {
+    const res  = await fetch(`${API}/assignments/${encodeURIComponent(assignmentId)}/fetch_pdf`, {
+      method:"POST", credentials:"include",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({course_id: courseId})
+    });
+    const data = await res.json();
+    if (data.error) { alert("Could not fetch PDF: " + data.error); return; }
+    if (data.url) {
+      uploadedFileURLs[data.filename] = data.url;
+      openFile(data.url, data.filename);
+      // Update the button to Open PDF
+      if (btn) {
+        btn.textContent = "Open PDF";
+        btn.disabled    = false;
+        btn.onclick     = () => openFile(data.url, data.filename);
+      }
+    }
+  } catch(e) {
+    alert("Could not fetch PDF.");
+    if (btn) { btn.disabled = false; btn.textContent = "⬇ Fetch PDF"; }
+  }
 }
 
 // ── Clear Canvas cache ───────────────────────────────────────────────────────

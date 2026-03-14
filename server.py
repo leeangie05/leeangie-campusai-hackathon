@@ -170,48 +170,104 @@ def save_canvas_cache_manifest(user_id, course_id, manifest):
 
 # ── Material matcher ──────────────────────────────────────────────────────────
 def match_assignment_to_notes(assignment_text: str, assignment_name: str,
-                               notes: list[dict]) -> list[dict]:
+                               notes: list[dict]) -> dict:
     """
-    notes: list of {"filename": str, "text": str}
-    Returns list of {"filename", "relevance", "reason"} sorted by relevance.
+    Returns:
+      {
+        "topics": [
+          {
+            "topic": "Problem 1 / Brief description",
+            "matches": [
+              {"filename": "...", "relevance": "high|medium|low", "reason": "..."}
+            ]
+          }
+        ],
+        "files": [
+          {"filename": "...", "relevance": "high|medium|low", "reason": "...", "problems": ["Problem 1", ...]}
+        ]
+      }
+    topics  — problems/topics in the assignment, each with matching files
+    files   — flat list of files sorted by first problem they appear in, includes LOW relevance
     """
     if not notes:
-        return []
+        return {"topics": [], "files": []}
 
     file_list = "\n".join(f"{i+1}. {n['filename']}" for i, n in enumerate(notes))
     notes_content = "\n\n".join(
-        f"=== {n['filename']} ===\n{n['text'][:2000]}" for n in notes
+        f"=== {n['filename']} ===\n{n['text'][:1800]}" for n in notes
     )
 
-    prompt = f"""You are a study assistant. Match an assignment to relevant notes/lectures.
+    prompt = f"""You are a study assistant matching an assignment to course notes.
 
 Assignment: {assignment_name}
-Assignment content:
 {assignment_text[:3000]}
 
-Available notes files:
+Course files available:
 {file_list}
 
-Notes content:
+File contents:
 {notes_content}
 
 Instructions:
-- Identify which notes files are genuinely relevant to this assignment.
-- Base your answer on actual content, not just filenames.
-- Return ONLY valid JSON, no markdown:
+- Identify each distinct problem, question, or topic in the assignment.
+- For EACH problem, find which course files contain content that helps with it.
+- Only include a file if it contains content that genuinely and directly helps a student complete that specific problem.
+- "high" = the file covers this exact topic in depth. "medium" = the file has meaningful related content. "low" = only include if it contains at least one specific concept, formula, or example that applies directly to this problem. Omit files that are only tangentially related.
+- Base matches on actual file content, not filenames.
+- A file may match multiple problems. It is better to omit a file than to include a weakly relevant one.
+
+Return ONLY valid JSON, no markdown:
 [
   {{
-    "filename": "exact filename from list",
-    "relevance": "high" | "medium" | "low",
-    "reason": "one sentence explaining why this file is relevant"
+    "topic": "Problem 1: <brief description>",
+    "matches": [
+      {{ "filename": "exact filename", "relevance": "high" | "medium" | "low", "reason": "one sentence citing specific content" }}
+    ]
   }}
 ]
-Only include relevant files. Order by relevance descending. Return [] if nothing is relevant."""
+
+Only include files that are directly useful. Order matches within each topic by relevance descending."""
 
     try:
-        return gemini_parse_json(prompt)
+        topics = gemini_parse_json(prompt)
+        if not isinstance(topics, list):
+            topics = []
+
+        # Build flat files list sorted by first problem appearance
+        file_order = {}   # filename -> first problem index it appears in
+        file_best  = {}   # filename -> {"relevance", "reason", "problems": []}
+        RANK = {"high": 0, "medium": 1, "low": 2}
+
+        for t_idx, t in enumerate(topics):
+            for m in t.get("matches", []):
+                fn = m.get("filename","")
+                if not fn: continue
+                if fn not in file_order:
+                    file_order[fn] = t_idx
+                    file_best[fn]  = {
+                        "filename":  fn,
+                        "relevance": m.get("relevance","low"),
+                        "reason":    m.get("reason",""),
+                        "problems":  [t.get("topic","")]
+                    }
+                else:
+                    # Update to best relevance seen
+                    if RANK.get(m.get("relevance","low"), 2) < RANK.get(file_best[fn]["relevance"], 2):
+                        file_best[fn]["relevance"] = m.get("relevance","low")
+                        file_best[fn]["reason"]    = m.get("reason","")
+                    if t.get("topic","") not in file_best[fn]["problems"]:
+                        file_best[fn]["problems"].append(t.get("topic",""))
+
+        # Sort by first appearance then by relevance
+        files_sorted = sorted(
+            file_best.values(),
+            key=lambda f: (file_order.get(f["filename"], 99), RANK.get(f["relevance"], 2))
+        )
+
+        return {"topics": topics, "files": files_sorted}
+
     except Exception as e:
-        return [{"error": str(e)}]
+        return {"topics": [], "files": [{"error": str(e)}]}
 
 # ── AI time estimator ─────────────────────────────────────────────────────────
 def ai_estimate(assignment_text: str, assignment_name: str,
@@ -313,15 +369,18 @@ def run_estimate_for_assignment(user_id: str, assignment: dict) -> dict:
     hist     = history_summary(course, sessions, user_id)
 
     try:
-        matched  = match_assignment_to_notes(assignment_text, title, notes)
+        match_result   = match_assignment_to_notes(assignment_text, title, notes)
+        matched_files  = match_result.get("files", [])
+        matched_topics = match_result.get("topics", [])
         relevant = "\n\n".join(
             f"=== {n['filename']} ===\n{n['text'][:1500]}"
             for n in notes
-            if any(m.get("filename") == n["filename"] and
-                   m.get("relevance") in ("high","medium") for m in matched)
+            if any(f.get("filename") == n["filename"] and
+                   f.get("relevance") in ("high","medium") for f in matched_files)
         )
         result = ai_estimate(assignment_text, title, course, relevant, hist)
-        result["matched_notes"] = matched
+        result["matched_notes"]  = matched_files
+        result["matched_topics"] = matched_topics
         return result
     except Exception as e:
         print(f"  Auto-estimate failed for '{title}': {e}")
@@ -402,6 +461,7 @@ def onboarding():
             a["estimated_hours"]   = round(est.get("estimated_minutes", 180) / 60, 2)
             a["primary_concept"]   = est.get("primary_concept", "")
             a["matched_notes"]     = est.get("matched_notes", [])
+            a["matched_topics"]    = est.get("matched_topics", [])
             a["ai_reasoning"]      = est.get("reasoning", "")
             print(f"  ✓ {a['title']}: {est.get('estimated_minutes')} min")
 
@@ -624,10 +684,15 @@ def canvas_sync():
             a["estimated_hours"]   = round(est.get("estimated_minutes", 180) / 60, 2)
             a["primary_concept"]   = est.get("primary_concept", "")
             a["matched_notes"]     = est.get("matched_notes", [])
+            a["matched_topics"]    = est.get("matched_topics", [])
             a["ai_reasoning"]      = est.get("reasoning", "")
             print(f"  ✓ {a['title']}: {est.get('estimated_minutes')} min")
 
-    # ── Step 4: save to user profile ─────────────────────────────────────────
+    # ── Step 4: save token for on-demand PDF fetching ────────────────────────
+    token_file = DATA_DIR / f"canvas_token_{u['id']}.txt"
+    token_file.write_text(token)
+
+    # ── Step 5: save to user profile ─────────────────────────────────────────
     users = load_users()
     for user in users:
         if user["id"] == u["id"]:
@@ -729,19 +794,22 @@ def estimate():
         atext  = extract_pdf_text(abytes)
 
         # Material matching
-        matched_notes = match_assignment_to_notes(atext, aname, notes)
+        match_result  = match_assignment_to_notes(atext, aname, notes)
+        matched_files  = match_result.get("files", [])
+        matched_topics = match_result.get("topics", [])
 
-        # AI time estimate — use only the matched high/medium notes
+        # AI time estimate — use only the high/medium matched notes
         relevant_notes_text = "\n\n".join(
             f"=== {n['filename']} ===\n{n['text'][:1500]}"
             for n in notes
-            if any(m.get("filename") == n["filename"] and
-                   m.get("relevance") in ("high","medium") for m in matched_notes)
+            if any(f.get("filename") == n["filename"] and
+                   f.get("relevance") in ("high","medium") for f in matched_files)
         )
 
         estimate_result = ai_estimate(atext, aname, course, relevant_notes_text, hist_sum)
-        estimate_result["assignment"] = aname
-        estimate_result["matched_notes"] = matched_notes
+        estimate_result["assignment"]    = aname
+        estimate_result["matched_notes"] = matched_files   # flat list for backwards compat
+        estimate_result["matched_topics"] = matched_topics # per-problem breakdown
         results.append(estimate_result)
 
     # Save estimates back to matching assignments in users.json
@@ -806,19 +874,21 @@ def estimate_canvas():
     hist_sum = history_summary(course, sessions)
 
     # Match notes to assignment
-    matched_notes = match_assignment_to_notes(assignment_text, asgn_title, notes)
+    match_result   = match_assignment_to_notes(assignment_text, asgn_title, notes)
+    matched_notes  = match_result.get("files", [])
+    matched_topics = match_result.get("topics", [])
 
-    # Build notes text from high/medium matches
     relevant_notes_text = "\n\n".join(
         f"=== {n['filename']} ===\n{n['text'][:1500]}"
         for n in notes
-        if any(m.get("filename") == n["filename"] and
-               m.get("relevance") in ("high", "medium") for m in matched_notes)
+        if any(f.get("filename") == n["filename"] and
+               f.get("relevance") in ("high", "medium") for f in matched_notes)
     )
 
     estimate_result = ai_estimate(assignment_text, asgn_title, course, relevant_notes_text, hist_sum)
-    estimate_result["assignment"]    = asgn_title
-    estimate_result["matched_notes"] = matched_notes
+    estimate_result["assignment"]     = asgn_title
+    estimate_result["matched_notes"]  = matched_notes
+    estimate_result["matched_topics"] = matched_topics
 
     # Save back to assignment in users.json
     asgn_id = request.form.get("canvas_assignment_id", "")
@@ -862,6 +932,95 @@ def patch_assignment_estimate(assignment_id):
             break
     save_users(users)
     return jsonify({"ok": updated})
+
+
+# ── Delete ALL assignments ────────────────────────────────────────────────────
+@app.route("/api/assignments/all", methods=["DELETE"])
+def delete_all_assignments():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    users = load_users()
+    count = 0
+    for user in users:
+        if user["id"] == u["id"]:
+            count = len(user.get("assignments", []))
+            user["assignments"] = []
+            break
+    save_users(users)
+    return jsonify({"ok": True, "removed": count})
+
+# ── Fetch assignment PDF from Canvas on demand ────────────────────────────────
+@app.route("/api/assignments/<assignment_id>/fetch_pdf", methods=["POST"])
+def fetch_assignment_pdf(assignment_id):
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    d = request.get_json() or {}
+    course_id = str(d.get("course_id",""))
+
+    # Find assignment in user profile
+    assignment = next((a for a in u.get("assignments",[]) if a.get("id") == assignment_id), None)
+    if not assignment:
+        return jsonify({"error": "Assignment not found"}), 404
+
+    canvas_info = u.get("canvas", {})
+    domain      = canvas_info.get("domain","")
+    # Get canvas token from session-stored canvas data
+    # We need the token — look it up from a canvas_token file if stored
+    token_file  = DATA_DIR / f"canvas_token_{u['id']}.txt"
+    if not token_file.exists():
+        return jsonify({"error": "Canvas token not available. Re-sync Canvas to enable PDF fetching."}), 400
+    token = token_file.read_text().strip()
+
+    if not domain or not token:
+        return jsonify({"error": "Canvas not connected"}), 400
+
+    try:
+        # Fetch assignment details to get attachments
+        canvas_id = assignment_id.replace("canvas_","")
+        asgn_data = canvas_get(domain, token, f"/api/v1/courses/{course_id}/assignments/{canvas_id}")
+        attachments = asgn_data.get("attachments", []) if isinstance(asgn_data, dict) else []
+
+        if not attachments:
+            return jsonify({"error": "No PDF attachments found on this assignment in Canvas."}), 404
+
+        for att in attachments:
+            fname = att.get("filename") or att.get("display_name","file.pdf")
+            ext   = os.path.splitext(fname)[1].lower()
+            if ext not in ALLOWED_EXTENSIONS:
+                continue
+            cache_dir = get_canvas_cache_dir(u["id"], course_id)
+            dest      = cache_dir / fname
+            file_bytes = canvas_download_file(att, token)
+            if file_bytes:
+                dest.write_bytes(file_bytes)
+                manifest = canvas_cache_manifest(u["id"], course_id)
+                manifest[str(att.get("id","att_"+fname))] = {
+                    "filename":     fname,
+                    "cached_at":    datetime.utcnow().isoformat(),
+                    "size":         len(file_bytes),
+                    "content_type": MIME_MAP.get(ext,"application/octet-stream"),
+                }
+                save_canvas_cache_manifest(u["id"], course_id, manifest)
+                # Update assignment record
+                users = load_users()
+                for user in users:
+                    if user["id"] == u["id"]:
+                        for a in user.get("assignments",[]):
+                            if a.get("id") == assignment_id:
+                                a["assignment_pdf"] = fname
+                        break
+                save_users(users)
+                return jsonify({
+                    "ok":       True,
+                    "filename": fname,
+                    "url":      f"/api/canvas/file/{u['id']}/{course_id}/{fname}",
+                })
+
+        return jsonify({"error": "No supported file attachments found."}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # ── Delete an assignment ──────────────────────────────────────────────────────
 @app.route("/api/assignments/<assignment_id>", methods=["DELETE"])
@@ -1093,7 +1252,9 @@ import math
 from zoneinfo import ZoneInfo
 
 GCAL_SCOPES     = ["https://www.googleapis.com/auth/calendar.readonly"]
-GCAL_CREDS_FILE = Path("credentials.json")
+# Look for credentials.json next to server.py first, then CWD
+_script_dir     = Path(__file__).parent
+GCAL_CREDS_FILE = (_script_dir / "credentials.json") if (_script_dir / "credentials.json").exists() else Path("credentials.json")
 GCAL_TOKENS_DIR = DATA_DIR / "gcal_tokens"
 GCAL_TOKENS_DIR.mkdir(exist_ok=True)
 WORK_START      = int(os.environ.get("WORK_START_HOUR", 9))
@@ -1339,10 +1500,15 @@ def suggest_schedule():
 
     return jsonify({"suggested": suggested})
 
+#if __name__ == "__main__":
+#    print("="*50)
+#    print("  Syllabot server starting...")
+#    print("  Set: export GEMINI_API_KEY=your_key")
+#    print("  Open: http://localhost:5000")
+#    print("="*50)
+#    app.run(debug=True, port=5000)
+
 if __name__ == "__main__":
-    print("="*50)
-    print("  Syllabot server starting...")
-    print("  Set: export GEMINI_API_KEY=your_key")
-    print("  Open: http://localhost:5000")
-    print("="*50)
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
+
