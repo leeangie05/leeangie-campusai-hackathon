@@ -1,0 +1,155 @@
+[
+  {
+    "id": "2c4f8f2b8c43852745055840ce235193",
+    "email": "albeyuchen@gmail.com",
+    "password": "589babcda09cf593db12673d89d1c7010b8e944f3d522c141d659cc821e26ea9",
+    "name": "Albert",
+    "created_at": "2026-03-14T17:50:43.168378",
+    "courses": [
+      {
+        "course_name": "EECS 001",
+        "course_code": "TestCode123",
+        "canvas_id": 14399537
+      },
+      {
+        "course_name": "STATS 012",
+        "course_code": "STATS 012",
+        "canvas_id": 14399699
+      }
+    ],
+    "assignments": [
+      {
+        "id": "canvas_63162661",
+        "title": "HW 3",
+        "course": "EECS 001",
+        "course_id": 14399537,
+        "description": "Homework_3-1.pdf",
+        "due_date": "2026-03-16T05:59:00Z",
+        "points": 100,
+        "type": "homework",
+        "difficulty": 3,
+        "source": "canvas",
+        "canvas_url": "https://canvas.instructure.com/courses/14399537/assignments/63162661",
+        "estimated_minutes": 90,
+        "estimated_hours": 1.5,
+        "primary_concept": "Disk and Memory Hierarchy",
+        "matched_notes": [
+          {
+            "filename": "lec10-storage-and-indexing-pre.pdf",
+            "relevance": "high",
+            "reason": "This lecture covers the fundamental concepts of storage and indexing, which are directly relevant to understanding how homework assignments like HW 3 are processed."
+          },
+          {
+            "filename": "lec12-B%2Btrees.pdf",
+            "relevance": "high",
+            "reason": "This lecture specifically details B+ Trees, a common tree-structured indexing method crucial for database performance and likely covered in HW 3."
+          },
+          {
+            "filename": "lec12-treeidx-pre.pdf",
+            "relevance": "high",
+            "reason": "This lecture also focuses on tree-structured indexes, including B+ Trees, providing essential context for indexing mechanisms relevant to HW 3."
+          },
+          {
+            "filename": "lec13-lsm-trees.pdf",
+            "relevance": "medium",
+            "reason": "This lecture introduces Log-Structured Merge Trees (LSM Trees), an alternative indexing structure that may be relevant if HW 3 discusses advanced or comparative indexing techniques."
+          },
+          {
+            "filename": "lec14-hash-idx-pre.pdf",
+            "relevance": "medium",
+            "reason": "This lecture covers hash-based indexes, another important indexing technique that could be a component of or compared against in HW 3."
+          },
+          {
+            "filename": "lec09-norm-pre.pdf",
+            "relevance": "low",
+            "reason": "This lecture introduces normalization, which is a database design concept, and while foundational, it is less directly related to a homework assignment likely focused on storage and indexing mechanisms."
+          },
+          {
+            "filename": "lec09-norm.pdf",
+            "relevance": "low",
+            "reason": "This lecture covers normalization, a database design principle, which is likely foundational but not the primary focus of a homework assignment on storage and indexing."
+          },
+          {
+            "filename": "lec08-dbApp.pdf",
+            "relevance": "low",
+            "reason": "This lecture discusses database application programming and client-server architectures, which are broader topics than the specific indexing and storage mechanisms likely to be covered in HW 3."
+          }
+        ],
+        "ai_reasoning": "This assignment likely involves understanding and applying concepts related to data storage and memory hierarchies in databases. A typical homework assignment of this nature would require problem-solving and possibly some theoretical explanation."
+      },
+      {
+        "id": "canvas_63162921",
+        "title": "HW 3",
+        "course": "STATS 012",
+        "course_id": 14399699,
+        "description": "",
+        "due_date": "2026-04-03T05:59:00Z",
+        "points": 100,
+        "type": "homework",
+        "difficulty": 3,
+        "source": "canvas",
+        "canvas_url": "https://canvas.instructure.com/courses/14399699/assignments/63162921",
+        "estimated_minutes": 75,
+        "estimated_hours": 1.25,
+        "primary_concept": "Statistical inference and modeling",
+        "matched_notes": [
+          {
+            "filename": "Homework3.pdf",
+            "relevance": "high",
+            "reason": "This file is explicitly named 'Homework3.pdf' and contains the details for the assignment."
+          },
+          {
+            "filename": "Lecture11_LocalSearch.pdf",
+            "relevance": "medium",
+            "reason": "This lecture covers 'Local Search' and mentions that 'HW3 to be released tomorrow', indicating it's likely related to the assignment's content."
+          },
+          {
+            "filename": "Lecture12_AdversarialSearch.pdf",
+            "relevance": "medium",
+            "reason": "This lecture covers 'Adversarial Search' and also mentions that 'HW3 due April 1', directly linking it to the assignment."
+          },
+          {
+            "filename": "Lecture9_Uninformed_Search.pdf",
+            "relevance": "low",
+            "reason": "This lecture covers 'Uninformed Search' and mentions 'Search' as a topic for EECS 492, which might be part of the assignment's scope."
+          },
+          {
+            "filename": "Lecture10_Informed_Search.pdf",
+            "relevance": "low",
+            "reason": "This lecture covers 'Informed Search' and relates to general search algorithms which might be relevant to the assignment."
+          },
+          {
+            "filename": "Search+Algorithms+at+a+Glance.pdf",
+            "relevance": "low",
+            "reason": "This document provides an overview of search algorithms, which could be foundational for an assignment related to search topics."
+          }
+        ],
+        "ai_reasoning": "The assignment appears to be a standard homework problem set for an introductory statistics course, likely involving calculations, interpretation, and potentially some basic coding. The time estimate reflects the typical effort for such a problem set."
+      }
+    ],
+    "canvas": {
+      "domain": "canvas.instructure.com",
+      "synced_at": "2026-03-14T19:01:26.232955"
+    },
+    "onboarded": true
+  },
+  {
+    "id": "2f3fbf2e63c970822c4c59ed54f14473",
+    "email": "yichengh01@gmail.com",
+    "password": "189f40034be7a199f1fa9891668ee3ab6049f82d38c68be70f596eab2e1857b7",
+    "name": "j",
+    "created_at": "2026-03-14T17:52:41.332577",
+    "courses": [
+      {
+        "course_name": "EECS 281",
+        "course_code": "Data Structures"
+      }
+    ],
+    "assignments": [],
+    "canvas": {
+      "domain": "canvas.instructure.com",
+      "synced_at": "2026-03-14T17:53:06.191418"
+    },
+    "onboarded": true
+  }
+]

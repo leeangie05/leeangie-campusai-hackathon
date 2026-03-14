@@ -18,5 +18,38 @@
     "estimated_minutes": 150,
     "actual_minutes": 1,
     "timestamp": "2026-03-14T04:42:39.770489"
+  },
+  {
+    "id": "1773512708813",
+    "user_id": "2c4f8f2b8c43852745055840ce235193",
+    "email": "albeyuchen@gmail.com",
+    "course": "",
+    "assignment_summary": "Homework_3.pdf",
+    "primary_concept": "",
+    "estimated_minutes": 180,
+    "actual_minutes": 1,
+    "timestamp": "2026-03-14T18:25:08.814038"
+  },
+  {
+    "id": "1773514430272",
+    "user_id": "2c4f8f2b8c43852745055840ce235193",
+    "email": "albeyuchen@gmail.com",
+    "course": "",
+    "assignment_summary": "",
+    "primary_concept": "",
+    "estimated_minutes": null,
+    "actual_minutes": 1,
+    "timestamp": "2026-03-14T18:53:50.272197"
+  },
+  {
+    "id": "1773514966023",
+    "user_id": "2c4f8f2b8c43852745055840ce235193",
+    "email": "albeyuchen@gmail.com",
+    "course": "EECS 001",
+    "assignment_summary": "HW 3",
+    "primary_concept": "Disk and Memory Hierarchy",
+    "estimated_minutes": 90,
+    "actual_minutes": 1,
+    "timestamp": "2026-03-14T19:02:46.023349"
   }
 ]
