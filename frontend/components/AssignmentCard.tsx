@@ -27,8 +27,8 @@ function getCourseStyles(course: string) {
 
 export default function AssignmentCard({ assignment }: Props) {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-start justify-between gap-3">
+    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <span
           className={`rounded-full px-3 py-1 text-xs font-semibold tracking-wide text-white ${getCourseStyles(
             assignment.course
@@ -37,33 +37,32 @@ export default function AssignmentCard({ assignment }: Props) {
           {assignment.course}
         </span>
 
-        <div className="flex items-center gap-2">
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${getPriorityStyles(
-              assignment.priority
-            )}`}
-          >
-            {assignment.priority}
-          </span>
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-            {assignment.estimate}
-          </span>
-        </div>
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-semibold ${getPriorityStyles(
+            assignment.priority
+          )}`}
+        >
+          {assignment.priority}
+        </span>
+
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+          {assignment.estimate}
+        </span>
       </div>
 
       <h3 className="text-3xl font-semibold tracking-tight text-slate-900">
         {assignment.title}
       </h3>
 
-      <p className="mt-2 text-lg text-slate-600">{assignment.dueDate}</p>
+      <p className="mt-2 text-base text-slate-500">{assignment.dueDate}</p>
 
-      <p className="mt-4 min-h-[60px] text-slate-600">{assignment.description}</p>
+      <p className="mt-4 min-h-[72px] text-slate-600">{assignment.description}</p>
 
-      <div className="mt-5 flex gap-3">
+      <div className="mt-6 flex gap-3">
         <button className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-medium text-slate-700 transition hover:bg-slate-100">
           View Study Plan
         </button>
-        <button className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 font-medium text-blue-700 transition hover:bg-blue-100">
+        <button className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 font-medium text-emerald-700 transition hover:bg-emerald-100">
           Related Materials
         </button>
       </div>

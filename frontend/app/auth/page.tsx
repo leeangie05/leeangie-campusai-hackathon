@@ -32,7 +32,38 @@ export default function AuthPage() {
 
         if (error) throw error;
         setMessage("Signed in successfully.");
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+
+        if (userError || !userData.user) {
+        throw new Error("Could not get signed-in user.");
+        }
+
+        const user = userData.user;
+
+        const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+        if (profileError && profileError.code !== "PGRST116") {
+        throw profileError;
+        }
+
+        if (!profile) {
+        const { error: insertError } = await supabase.from("profiles").insert([
+            {
+            id: user.id,
+            email: user.email,
+            },
+        ]);
+
+        if (insertError) throw insertError;
+
+        window.location.href = "/onboarding";
+        } else {
         window.location.href = "/dashboard";
+        }
       }
     } catch (err: any) {
       setMessage(err.message || "Something went wrong.");
