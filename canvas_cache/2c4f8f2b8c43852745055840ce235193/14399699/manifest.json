@@ -1,0 +1,110 @@
+{
+  "340015137": {
+    "filename": "bank_auth.txt",
+    "cached_at": "2026-03-14T19:00:38.313796",
+    "size": 46400,
+    "content_type": "text/plain"
+  },
+  "340015163": {
+    "filename": "Ethics+Assignment+1.pdf",
+    "cached_at": "2026-03-14T19:00:39.071566",
+    "size": 212127,
+    "content_type": "application/pdf"
+  },
+  "340015151": {
+    "filename": "Homework2.pdf",
+    "cached_at": "2026-03-14T19:00:39.883836",
+    "size": 655181,
+    "content_type": "application/pdf"
+  },
+  "340015157": {
+    "filename": "Homework3.pdf",
+    "cached_at": "2026-03-14T19:00:40.837573",
+    "size": 839614,
+    "content_type": "application/pdf"
+  },
+  "340015143": {
+    "filename": "hw1.pdf",
+    "cached_at": "2026-03-14T19:00:41.614791",
+    "size": 594087,
+    "content_type": "application/pdf"
+  },
+  "340015177": {
+    "filename": "Lecture1_Introduction.pdf",
+    "cached_at": "2026-03-14T19:00:42.403162",
+    "size": 1271361,
+    "content_type": "application/pdf"
+  },
+  "340015181": {
+    "filename": "Lecture2_Agents_MathReview.pdf",
+    "cached_at": "2026-03-14T19:00:43.727161",
+    "size": 4610861,
+    "content_type": "application/pdf"
+  },
+  "340015187": {
+    "filename": "Lecture3_IntroML.pdf",
+    "cached_at": "2026-03-14T19:00:44.558566",
+    "size": 906446,
+    "content_type": "application/pdf"
+  },
+  "340015189": {
+    "filename": "Lecture4_DT.pdf",
+    "cached_at": "2026-03-14T19:00:45.425582",
+    "size": 1895205,
+    "content_type": "application/pdf"
+  },
+  "340015191": {
+    "filename": "Lecture5_Regression.pdf",
+    "cached_at": "2026-03-14T19:00:46.196500",
+    "size": 903633,
+    "content_type": "application/pdf"
+  },
+  "340015193": {
+    "filename": "Lecture6_Non-parametric.pdf",
+    "cached_at": "2026-03-14T19:00:47.028328",
+    "size": 1036926,
+    "content_type": "application/pdf"
+  },
+  "340015195": {
+    "filename": "Lecture7_DeepLearning_1.pdf",
+    "cached_at": "2026-03-14T19:00:47.976890",
+    "size": 3224974,
+    "content_type": "application/pdf"
+  },
+  "340015197": {
+    "filename": "Lecture8_DeepLearning_2.pdf",
+    "cached_at": "2026-03-14T19:00:48.997976",
+    "size": 4461702,
+    "content_type": "application/pdf"
+  },
+  "340015203": {
+    "filename": "Lecture9_Uninformed_Search.pdf",
+    "cached_at": "2026-03-14T19:00:49.847620",
+    "size": 2288407,
+    "content_type": "application/pdf"
+  },
+  "340015201": {
+    "filename": "Lecture10_Informed_Search.pdf",
+    "cached_at": "2026-03-14T19:00:50.600609",
+    "size": 1132336,
+    "content_type": "application/pdf"
+  },
+  "340015205": {
+    "filename": "Lecture11_LocalSearch.pdf",
+    "cached_at": "2026-03-14T19:00:52.459656",
+    "size": 2109079,
+    "content_type": "application/pdf"
+  },
+  "340015207": {
+    "filename": "Lecture12_AdversarialSearch.pdf",
+    "cached_at": "2026-03-14T19:00:53.323279",
+    "size": 2596441,
+    "content_type": "application/pdf"
+  },
+  "340015199": {
+    "filename": "Search+Algorithms+at+a+Glance.pdf",
+    "cached_at": "2026-03-14T19:00:54.124481",
+    "size": 401043,
+    "content_type": "application/pdf"
+  }
+}

@@ -3,764 +3,1950 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>StudyClock</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet"/>
+<title>Syllabot</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
-:root {
-  --maize: #FFCB05;
-  --maize-dim: rgba(255,203,5,0.12);
-  --blue: #00274C;
-  --blue-mid: #0a3260;
-  --blue-light: #1a4f8a;
-  --cream: #f5f0e8;
-  --muted: #7a90aa;
-  --danger: #ff6b6b;
-  --success: #5edd8e;
-  --border: rgba(255,203,5,0.18);
-  --card: rgba(255,255,255,0.04);
-  --radius: 10px;
-  --transition: 0.2s ease;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#f4f7f3;color:#0f172a;min-height:100vh}
+.hidden{display:none!important}
 
-body {
-  font-family: 'DM Mono', monospace;
-  background: var(--blue);
-  color: var(--cream);
-  min-height: 100vh;
-  overflow-x: hidden;
-}
+/* ── Layout ── */
+.page{min-height:100vh;padding:32px 24px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:24px;padding:32px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.max-7xl{max-width:1280px;margin:0 auto}
+.max-2xl{max-width:672px;margin:0 auto}
+.max-4xl{max-width:896px;margin:0 auto}
 
-/* grain texture */
-body::before {
-  content: '';
-  position: fixed; inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
-  pointer-events: none; z-index: 0;
-}
+/* ── Typography ── */
+h1{font-size:2.5rem;font-weight:800;letter-spacing:-.03em;color:#0f172a}
+h2{font-size:1.75rem;font-weight:700;color:#0f172a}
+h3{font-size:1.25rem;font-weight:600;color:#0f172a}
+p{color:#475569;line-height:1.6}
 
-.wrap {
-  position: relative; z-index: 1;
-  max-width: 780px;
-  margin: 0 auto;
-  padding: 44px 24px 100px;
-}
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:8px;border:none;border-radius:14px;font-family:'Inter',sans-serif;font-weight:600;cursor:pointer;transition:all .15s ease;text-decoration:none}
+.btn-lg{padding:14px 28px;font-size:1rem}
+.btn-md{padding:10px 20px;font-size:.9rem}
+.btn-sm{padding:7px 14px;font-size:.8rem}
+.btn-primary{background:#059669;color:#fff}.btn-primary:hover{background:#047857}
+.btn-secondary{background:#f1f5f9;color:#334155}.btn-secondary:hover{background:#e2e8f0}
+.btn-outline{background:#fff;border:1px solid #d1d5db;color:#374151}.btn-outline:hover{background:#f9fafb}
+.btn-emerald-light{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}.btn-emerald-light:hover{background:#d1fae5}
+.btn-danger{background:#fee2e2;color:#991b1b}.btn-danger:hover{background:#fecaca}
+.btn:disabled{opacity:.5;cursor:not-allowed}
 
-/* ── Header ── */
-header {
-  margin-bottom: 48px;
-  animation: fadeUp 0.5s ease both;
-}
-.wordmark {
-  display: flex; align-items: center; gap: 12px;
-  margin-bottom: 6px;
-}
-.wordmark-icon {
-  width: 36px; height: 36px;
-  border: 2px solid var(--maize);
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 16px;
-}
-h1 {
-  font-family: 'Instrument Serif', serif;
-  font-size: 1.9rem;
-  color: var(--maize);
-  letter-spacing: -0.3px;
-}
-h1 em { font-style: italic; }
-.tagline {
-  font-size: 0.72rem;
-  color: var(--muted);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-left: 48px;
-}
+/* ── Form ── */
+.form-group{margin-bottom:16px}
+label{display:block;font-size:.85rem;font-weight:500;color:#374151;margin-bottom:6px}
+input[type=text],input[type=email],input[type=password],input[type=datetime-local],select,textarea{
+  width:100%;border:1px solid #d1d5db;border-radius:12px;padding:11px 14px;
+  font-family:'Inter',sans-serif;font-size:.9rem;color:#0f172a;outline:none;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{border-color:#059669;box-shadow:0 0 0 3px rgba(5,150,105,.1)}
+textarea{min-height:90px;resize:vertical}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:600px){.grid-2{grid-template-columns:1fr}}
 
-/* ── Cards ── */
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 28px;
-  margin-bottom: 20px;
-  animation: fadeUp 0.5s ease both;
-}
-.card-title {
-  font-size: 0.65rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--maize);
-  margin-bottom: 20px;
-  display: flex; align-items: center; gap-8px;
-}
-.card-title::before {
-  content: ''; display: inline-block;
-  width: 20px; height: 1px;
-  background: var(--maize);
-  margin-right: 8px;
-}
+/* ── Tags / badges ── */
+.badge{display:inline-flex;align-items:center;border-radius:999px;padding:3px 10px;font-size:.72rem;font-weight:600}
+.badge-emerald{background:#d1fae5;color:#065f46}
+.badge-rose{background:#fee2e2;color:#991b1b}
+.badge-amber{background:#fef3c7;color:#92400e}
+.badge-sky{background:#e0f2fe;color:#0c4a6e}
+.badge-blue{background:#dbeafe;color:#1e40af}
+.badge-slate{background:#f1f5f9;color:#475569}
+.badge-purple{background:#ede9fe;color:#5b21b6}
 
-/* ── Form elements ── */
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-.form-row.single { grid-template-columns: 1fr; }
+/* ── Upload zone ── */
+.upload-zone{border:2px dashed #d1d5db;border-radius:12px;padding:24px;text-align:center;cursor:pointer;transition:all .15s;position:relative}
+.upload-zone:hover,.upload-zone.dragover{border-color:#059669;background:#f0fdf4}
+.upload-zone.has-file{border-color:#10b981;background:#f0fdf4}
+.upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-label{font-size:.85rem;color:#64748b}
+.upload-label strong{color:#334155}
+.filenames{font-size:.75rem;color:#059669;margin-top:4px}
 
-label {
-  display: block;
-  font-size: 0.68rem;
-  color: var(--muted);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  margin-bottom: 7px;
-}
+/* ── Nav ── */
+nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px}
+.logo-row{display:flex;align-items:center;gap:10px}
+.logo-icon{width:40px;height:40px;background:#d1fae5;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem}
+.logo-text{font-size:1.4rem;font-weight:800;color:#0f172a}
+.nav-links{display:flex;gap:8px}
 
-input[type="text"] {
-  width: 100%;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--cream);
-  font-family: 'DM Mono', monospace;
-  font-size: 0.85rem;
-  padding: 10px 14px;
-  outline: none;
-  transition: border-color var(--transition);
-}
-input[type="text"]:focus {
-  border-color: rgba(255,203,5,0.5);
-}
-input[type="text"]::placeholder { color: var(--muted); }
+/* ── Assignment card ── */
+.assignment-card{background:#fff;border:1px solid #e2e8f0;border-radius:20px;padding:24px;transition:box-shadow .2s}
+.assignment-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08)}
 
-/* ── File upload ── */
-.upload-zone {
-  border: 1.5px dashed var(--border);
-  border-radius: 8px;
-  padding: 22px 16px;
-  text-align: center;
-  cursor: pointer;
-  transition: all var(--transition);
-  position: relative;
-}
-.upload-zone:hover, .upload-zone.dragover {
-  border-color: rgba(255,203,5,0.5);
-  background: var(--maize-dim);
-}
-.upload-zone input[type="file"] {
-  position: absolute; inset: 0;
-  opacity: 0; cursor: pointer; width: 100%; height: 100%;
-}
-.upload-icon { font-size: 1.4rem; margin-bottom: 6px; }
-.upload-label {
-  font-size: 0.75rem; color: var(--muted);
-}
-.upload-label strong { color: var(--cream); }
-.upload-zone.has-file {
-  border-color: rgba(94,221,142,0.4);
-  background: rgba(94,221,142,0.05);
-}
-.upload-zone.has-file .upload-icon::after { content: ' ✓'; color: var(--success); }
-.filename {
-  font-size: 0.7rem;
-  color: var(--success);
-  margin-top: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* ── Button ── */
-.btn {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: var(--maize);
-  color: var(--blue);
-  border: none; border-radius: 6px;
-  font-family: 'DM Mono', monospace;
-  font-size: 0.8rem;
-  font-weight: 500;
-  padding: 12px 24px;
-  cursor: pointer;
-  transition: all var(--transition);
-  letter-spacing: 0.04em;
-}
-.btn:hover { background: #ffe040; transform: translateY(-1px); }
-.btn:active { transform: translateY(0); }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-.btn-ghost {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--cream);
-}
-.btn-ghost:hover { background: var(--card); border-color: rgba(255,203,5,0.4); }
-.btn-danger {
-  background: transparent;
-  border: 1px solid rgba(255,107,107,0.4);
-  color: var(--danger);
-}
-.btn-danger:hover { background: rgba(255,107,107,0.1); }
-
-/* ── Estimate result ── */
-.estimate-block {
-  display: none;
-  animation: fadeUp 0.4s ease both;
-}
-.estimate-block.visible { display: block; }
-
-.time-range {
-  display: flex; align-items: baseline; gap: 8px;
-  margin-bottom: 12px;
-}
-.time-main {
-  font-family: 'Instrument Serif', serif;
-  font-size: 3.2rem;
-  color: var(--maize);
-  line-height: 1;
-}
-.time-unit {
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-.time-range-sub {
-  font-size: 0.72rem;
-  color: var(--muted);
-  margin-bottom: 16px;
-}
-.concept-tag {
-  display: inline-block;
-  background: var(--maize-dim);
-  border: 1px solid var(--border);
-  border-radius: 100px;
-  padding: 3px 12px;
-  font-size: 0.68rem;
-  color: var(--maize);
-  letter-spacing: 0.06em;
-  margin-bottom: 14px;
-}
-.reasoning {
-  font-size: 0.78rem;
-  color: var(--muted);
-  line-height: 1.7;
-  border-left: 2px solid var(--border);
-  padding-left: 14px;
-  font-style: italic;
-}
-.confidence-row {
-  display: flex; align-items: center; gap: 8px;
-  margin-top: 14px;
-  font-size: 0.68rem; color: var(--muted);
-}
-.confidence-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--muted);
-}
-.confidence-dot.high { background: var(--success); }
-.confidence-dot.medium { background: var(--maize); }
-.confidence-dot.low { background: var(--danger); }
+/* ── Course color dots ── */
+.course-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px}
 
 /* ── Timer ── */
-.timer-display {
-  text-align: center;
-  padding: 10px 0 6px;
-}
-.timer-digits {
-  font-family: 'Instrument Serif', serif;
-  font-size: 4.5rem;
-  color: var(--cream);
-  letter-spacing: 0.02em;
-  line-height: 1;
-  transition: color 0.3s ease;
-}
-.timer-digits.over-estimate { color: var(--danger); }
-.timer-digits.near-estimate { color: var(--maize); }
+.timer-screen{background:#fff;border:1px solid #d1fae5;border-radius:24px;padding:40px;text-align:center}
+.timer-digits{font-size:5rem;font-weight:800;letter-spacing:.04em;color:#065f46;transition:color .3s}
+.timer-digits.near{color:#d97706}
+.timer-digits.over{color:#dc2626}
+.timer-bar-wrap{background:#f1f5f9;height:6px;border-radius:3px;overflow:hidden;margin:20px 0}
+.timer-bar{height:100%;background:#059669;border-radius:3px;transition:width 1s linear,background .3s}
+.timer-bar.over{background:#dc2626}
 
-.timer-bar-wrap {
-  margin: 16px 0;
-  height: 4px;
-  background: rgba(255,255,255,0.08);
-  border-radius: 2px;
-  overflow: hidden;
-}
-.timer-bar {
-  height: 100%;
-  background: var(--maize);
-  border-radius: 2px;
-  transition: width 1s linear, background 0.3s ease;
-  width: 0%;
-}
-.timer-bar.over { background: var(--danger); }
+/* ── Notes match panel ── */
+.match-panel{background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:16px;margin-top:12px}
+.match-item{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid #f1f5f9}
+.match-item:last-child{border-bottom:none}
+.relevance-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0}
+.rel-high{background:#10b981}.rel-medium{background:#f59e0b}.rel-low{background:#94a3b8}
 
-.timer-status {
-  font-size: 0.7rem;
-  color: var(--muted);
-  text-align: center;
-  margin-bottom: 20px;
-  min-height: 18px;
-}
+/* ── Study plan ── */
+.plan-row{background:#f8fafc;border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.plan-row+.plan-row{margin-top:8px}
 
-.timer-controls {
-  display: flex; gap: 12px; justify-content: center;
-  flex-wrap: wrap;
-}
+/* ── Loading ── */
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+.spinner-dark{border:2px solid rgba(0,0,0,.1);border-top-color:#059669}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-/* ── History table ── */
-.history-wrap {
-  margin-top: 4px;
-  overflow-x: auto;
-}
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.72rem;
-}
-th {
-  text-align: left;
-  color: var(--muted);
-  font-weight: 400;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--border);
-}
-td {
-  padding: 9px 10px;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-  color: var(--cream);
-}
-tr:last-child td { border-bottom: none; }
-.diff-positive { color: var(--danger); }
-.diff-negative { color: var(--success); }
-.empty-state {
-  text-align: center;
-  color: var(--muted);
-  font-size: 0.75rem;
-  padding: 28px;
-  font-style: italic;
-}
+/* ── Alerts ── */
+.alert{border-radius:10px;padding:12px 16px;font-size:.85rem;margin-top:12px}
+.alert-error{background:#fee2e2;color:#991b1b}
+.alert-success{background:#d1fae5;color:#065f46}
+.alert-info{background:#dbeafe;color:#1e40af}
 
-/* ── Loading spinner ── */
-.spinner {
-  display: inline-block;
-  width: 16px; height: 16px;
-  border: 2px solid rgba(0,39,76,0.3);
-  border-top-color: var(--blue);
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
+/* ── Tab bar ── */
+.tab-bar{display:flex;background:#f1f5f9;border-radius:14px;padding:4px;gap:2px;margin-bottom:24px}
+.tab{flex:1;padding:8px;border:none;background:transparent;border-radius:10px;font-family:'Inter',sans-serif;font-size:.85rem;font-weight:500;color:#64748b;cursor:pointer;transition:all .15s}
+.tab.active{background:#fff;color:#0f172a;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 
-/* ── Error ── */
-.error-msg {
-  background: rgba(255,107,107,0.1);
-  border: 1px solid rgba(255,107,107,0.3);
-  border-radius: 6px;
-  padding: 12px 16px;
-  font-size: 0.75rem;
-  color: var(--danger);
-  margin-top: 12px;
-  display: none;
-}
-.error-msg.visible { display: block; }
+/* ── Section dividers ── */
+.section-title{font-size:.7rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;margin-bottom:14px}
+hr.divider{border:none;border-top:1px solid #f1f5f9;margin:24px 0}
 
-/* ── Animations ── */
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+/* ── Canvas sync panel ── */
+.canvas-panel{background:#eff6ff;border:1px solid #bfdbfe;border-radius:14px;padding:20px}
 
-/* ── Responsive ── */
-@media (max-width: 560px) {
-  .form-row { grid-template-columns: 1fr; }
-  .timer-digits { font-size: 3.2rem; }
-  .time-main { font-size: 2.4rem; }
-}
+/* ── Fade animation ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{animation:fadeUp .3s ease both}
+
+/* ── File viewer modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:#fff;border-radius:20px;width:100%;max-width:900px;height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #e2e8f0;flex-shrink:0}
+.modal-header h3{font-size:1rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:700px}
+.modal-close{background:#f1f5f9;border:none;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.modal-close:hover{background:#e2e8f0}
+.modal-body{flex:1;overflow:hidden}
+.modal-body iframe{width:100%;height:100%;border:none}
+/* ── Files panel ── */
+.files-panel{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px;margin-top:10px}
+.file-item{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;border-radius:8px;transition:background .1s}
+.file-item:hover{background:#f1f5f9}
+.file-item-name{font-size:.8rem;font-weight:500;color:#334155;display:flex;align-items:center;gap:6px}
+.file-ext{font-size:.65rem;background:#e2e8f0;color:#64748b;padding:1px 6px;border-radius:4px;text-transform:uppercase}
+
+/* ── Stat cards ── */
+.stat-card{border-radius:16px;padding:20px;border:1px solid}
+.stat-card.blue{background:#eff6ff;border-color:#bfdbfe}
+.stat-card.amber{background:#fffbeb;border-color:#fde68a}
+.stat-card.rose{background:#fff1f2;border-color:#fecdd3}
+.stat-card.green{background:#f0fdf4;border-color:#bbf7d0}
+.stat-icon{font-size:1.5rem;margin-bottom:10px}
+.stat-title{font-size:1.1rem;font-weight:700;color:#0f172a}
+.stat-subtitle{font-size:.85rem;color:#475569;margin-top:4px}
+.stat-footer{font-size:.75rem;color:#94a3b8;margin-top:10px}
+/* ── Social ── */
+.friend-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border:1px solid #f1f5f9;border-radius:14px;margin-bottom:8px}
+.friend-avatar{width:40px;height:40px;border-radius:50%;background:#d1fae5;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;color:#065f46;flex-shrink:0}
+/* ── Upload zone on dashboard ── */
+.dash-upload-zone{border:2px dashed #a7f3d0;border-radius:20px;min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;cursor:pointer;transition:all .15s;position:relative;background:#f8fbf8}
+.dash-upload-zone:hover{border-color:#059669;background:#f0fdf4}
+.dash-upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+
+/* ── Dark mode ── */
+body.dark{background:#0f1117;color:#e2e8f0}
+body.dark .card{background:#1e2330;border-color:#2d3748}
+body.dark input[type=text],body.dark input[type=email],body.dark input[type=password],body.dark input[type=datetime-local],body.dark select,body.dark textarea{background:#2d3748;border-color:#4a5568;color:#e2e8f0}
+body.dark input::placeholder{color:#718096}
+body.dark h1,body.dark h2,body.dark h3{color:#f1f5f9}
+body.dark p{color:#94a3b8}
+body.dark label{color:#94a3b8}
+body.dark .assignment-card{background:#1e2330;border-color:#2d3748}
+body.dark .assignment-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.4)}
+body.dark .btn-secondary{background:#2d3748;color:#e2e8f0}
+body.dark .btn-secondary:hover{background:#3d4a5c}
+body.dark .btn-outline{background:#1e2330;border-color:#4a5568;color:#e2e8f0}
+body.dark .btn-outline:hover{background:#2d3748}
+body.dark .upload-zone{border-color:#4a5568;background:#1a2035}
+body.dark .upload-zone:hover{border-color:#059669;background:#0d2318}
+body.dark .upload-zone.has-file{border-color:#059669;background:#0d2318}
+body.dark .upload-label{color:#94a3b8}
+body.dark .files-panel{background:#2d3748;border-color:#4a5568}
+body.dark .file-item:hover{background:#3d4a5c}
+body.dark .match-panel{background:#2d3748;border-color:#4a5568}
+body.dark .plan-row{background:#2d3748}
+body.dark .tab-bar{background:#2d3748}
+body.dark .tab.active{background:#3d4a5c;color:#f1f5f9}
+body.dark .canvas-panel{background:#1a2a3a;border-color:#2d4a6a}
+body.dark .stat-card.blue{background:#1a2535;border-color:#2d4a6a}
+body.dark .stat-card.amber{background:#2a2010;border-color:#5a4a00}
+body.dark .stat-card.rose{background:#2a1520;border-color:#5a2030}
+body.dark .stat-card.green{background:#0d2318;border-color:#1a4a30}
+body.dark .stat-title{color:#f1f5f9}
+body.dark .stat-subtitle{color:#94a3b8}
+body.dark .friend-row{border-color:#2d3748}
+body.dark .modal{background:#1e2330}
+body.dark .modal-header{border-color:#2d3748}
+body.dark .modal-close{background:#2d3748}
+body.dark .modal-close:hover{background:#3d4a5c}
+body.dark #timer-overlay > div{background:#1e2330}
+body.dark .timer-screen{background:#1e2330;border-color:#2d3748}
+body.dark .dash-upload-zone{background:#1a2035;border-color:#2d4a2d}
+body.dark .dash-upload-zone:hover{border-color:#059669;background:#0d2318}
+body.dark hr.divider{border-color:#2d3748}
+body.dark .section-title{color:#94a3b8}
+body.dark .logo-text{color:#f1f5f9}
+body.dark .tagline{color:#64748b}
 </style>
 </head>
 <body>
-<div class="wrap">
 
-  <!-- Header -->
-  <header>
-    <div class="wordmark">
-      <div class="wordmark-icon">⏱</div>
-      <h1>Study<em>Clock</em></h1>
-    </div>
-    <div class="tagline">UMich Assignment Time Estimator</div>
-  </header>
-
-  <!-- Step 1: Upload & Info -->
-  <div class="card" style="animation-delay:0.05s">
-    <div class="card-title">Assignment Info</div>
-    <div class="form-row">
-      <div>
-        <label>Your Uniqname</label>
-        <input type="text" id="uniqname" placeholder="e.g. albychen"/>
+<!-- ══════════════ AUTH PAGE ══════════════ -->
+<div id="page-auth" class="page hidden">
+  <div class="max-2xl" style="padding-top:60px">
+    <div class="card fade-up">
+      <div class="logo-row" style="margin-bottom:24px">
+        <div class="logo-icon">📘</div>
+        <span class="logo-text">Syllabot</span>
       </div>
-      <div>
+      <h1 style="font-size:1.8rem;margin-bottom:6px">Welcome back</h1>
+      <p style="margin-bottom:28px">Sign in to your study plan.</p>
+
+      <div class="tab-bar">
+        <button class="tab active" onclick="setAuthMode('signin')">Sign In</button>
+        <button class="tab" onclick="setAuthMode('signup')">Sign Up</button>
+      </div>
+
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="auth-email" placeholder="you@umich.edu"/>
+      </div>
+      <div class="form-group" id="auth-name-row" style="display:none">
+        <label>Name</label>
+        <input type="text" id="auth-name" placeholder="Your name"/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="auth-password" placeholder="Password"/>
+      </div>
+      <button class="btn btn-primary btn-lg" style="width:100%" onclick="handleAuth()" id="auth-btn">
+        Sign In
+      </button>
+      <div id="auth-msg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ ONBOARDING PAGE ══════════════ -->
+<div id="page-onboarding" class="page hidden">
+  <div class="max-4xl">
+    <div class="card fade-up">
+      <div class="logo-row" style="margin-bottom:8px">
+        <div class="logo-icon">📘</div>
+        <span class="logo-text">Syllabot</span>
+      </div>
+      <h1 style="margin-bottom:6px">Let's get you set up</h1>
+      <p style="margin-bottom:32px">Add your courses and assignments — or sync directly from Canvas.</p>
+
+      <!-- Canvas sync option -->
+      <div class="canvas-panel" style="margin-bottom:28px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <span style="font-size:1.2rem">🎓</span>
+          <h3 style="font-size:1rem">Import from Canvas <span class="badge badge-emerald" style="margin-left:6px">Recommended</span></h3>
+        </div>
+        <p style="font-size:.85rem;margin-bottom:14px">Automatically imports all your courses, upcoming assignments, and course files.</p>
+        <div class="grid-2" style="margin-bottom:12px">
+          <div>
+            <label>Canvas Domain</label>
+            <input type="text" id="ob-canvas-domain" placeholder="umich.instructure.com"/>
+          </div>
+          <div>
+            <label>Access Token</label>
+            <input type="text" id="ob-canvas-token" placeholder="Canvas → Account → Settings → New Access Token"/>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-md" onclick="canvasSync('onboarding')" id="canvas-sync-btn">
+          ⬇ Sync from Canvas
+        </button>
+        <div id="canvas-sync-msg"></div>
+      </div>
+
+      <div style="text-align:center;color:#94a3b8;font-size:.85rem;margin-bottom:24px">— or enter manually —</div>
+
+      <!-- Courses -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <h2 style="font-size:1.2rem">Courses</h2>
+        <button class="btn btn-secondary btn-sm" onclick="addCourse()">+ Add Course</button>
+      </div>
+      <div id="ob-courses"></div>
+
+      <!-- Assignments -->
+      <hr class="divider"/>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <h2 style="font-size:1.2rem">Assignments</h2>
+        <button class="btn btn-secondary btn-sm" onclick="addAssignment()">+ Add Assignment</button>
+      </div>
+      <div id="ob-assignments"></div>
+
+      <div style="display:flex;justify-content:flex-end;margin-top:24px;gap:12px;align-items:center">
+        <span id="ob-msg" style="font-size:.85rem;color:#64748b"></span>
+        <button class="btn btn-primary btn-lg" onclick="submitOnboarding()" id="ob-submit-btn">Save & Continue →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ DASHBOARD ══════════════ -->
+<div id="page-dashboard" class="page hidden">
+  <div class="max-7xl">
+    <div class="card">
+      <!-- Header -->
+      <nav>
+        <div class="logo-row">
+          <div class="logo-icon">📘</div>
+          <span class="logo-text">Syllabot</span>
+        </div>
+        <div class="nav-links">
+          <button class="btn btn-outline btn-sm" onclick="showPage('materials')">📎 Materials</button>
+          <button class="btn btn-outline btn-sm" onclick="showPage('social')">👥 Social</button>
+          <button class="btn btn-outline btn-sm" onclick="showPage('settings')">⚙ Settings</button>
+          <button class="btn btn-secondary btn-sm" onclick="signOut()">Sign out</button>
+        </div>
+      </nav>
+
+      <!-- Greeting -->
+      <div style="margin-bottom:32px">
+        <h1 id="dash-greeting">Good afternoon 👋</h1>
+        <p style="margin-top:6px">Your study plan is ready. Start your next session or review what's coming up.</p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1.7fr 1fr;gap:28px">
+
+        <!-- Assignments -->
+        <section>
+          <h2 style="margin-bottom:20px">Upcoming Assignments</h2>
+          <div id="dash-assignments" style="display:grid;gap:16px;grid-template-columns:1fr 1fr"></div>
+          <div id="dash-empty" class="hidden" style="text-align:center;padding:40px;color:#94a3b8">
+            No upcoming assignments. <a href="#" onclick="showPage('onboarding')" style="color:#059669">Add some →</a>
+          </div>
+        </section>
+
+        <!-- Sidebar -->
+        <aside>
+          <!-- Next focus -->
+          <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:20px;padding:20px;margin-bottom:16px">
+            <div class="section-title" style="color:#059669">Next Focus</div>
+            <div style="background:#fff;border-radius:14px;padding:16px" id="next-focus">
+              <p style="font-size:.8rem;color:#64748b" id="nf-time">—</p>
+              <h3 id="nf-title" style="margin-top:6px">—</h3>
+              <p style="font-size:.85rem;margin-top:6px" id="nf-desc">—</p>
+              <button class="btn btn-primary btn-md" style="margin-top:14px;width:100%" onclick="startTimerForTop()">▶ Start Session</button>
+            </div>
+          </div>
+          <!-- Study plan list -->
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:20px;padding:20px">
+            <h3 style="margin-bottom:14px">Study Plan</h3>
+            <div id="study-plan-list"></div>
+          </div>
+        </aside>
+      </div>
+      <!-- Stat cards row -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:28px" id="dash-stats">
+        <div class="stat-card blue">
+          <div class="stat-icon">🔥</div>
+          <div class="stat-title" id="stat-streak">— day streak</div>
+          <div class="stat-subtitle">Keep it going!</div>
+          <div class="stat-footer" id="stat-streak-footer"></div>
+        </div>
+        <div class="stat-card amber">
+          <div class="stat-icon">📚</div>
+          <div class="stat-title" id="stat-sessions">— sessions</div>
+          <div class="stat-subtitle">This week</div>
+          <div class="stat-footer" id="stat-sessions-footer"></div>
+        </div>
+        <div class="stat-card rose">
+          <div class="stat-icon">⏱</div>
+          <div class="stat-title" id="stat-hours">— hrs</div>
+          <div class="stat-subtitle">Total focus time</div>
+          <div class="stat-footer" id="stat-hours-footer"></div>
+        </div>
+      </div>
+
+      <!-- Upload Materials section -->
+      <section style="margin-top:28px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap">
+          <div>
+            <h2 style="font-size:1.4rem">Upload Materials</h2>
+            <p style="font-size:.85rem;color:#64748b;margin-top:4px">Add syllabi, assignment sheets, or lecture slides to improve estimates.</p>
+          </div>
+          <span class="badge badge-emerald">PDF, DOCX, TXT</span>
+        </div>
+        <label class="dash-upload-zone" id="dash-upload-label">
+          <input type="file" id="dash-upload-input" multiple accept=".pdf,.docx,.txt,.md" onchange="handleDashUpload(this)"/>
+          <div style="font-size:2rem;margin-bottom:10px">⬆️</div>
+          <div style="font-weight:600;font-size:1rem;color:#0f172a">Drag and drop files here</div>
+          <p style="font-size:.82rem;color:#64748b;margin-top:6px;max-width:360px">Upload syllabus, assignments, lecture slides, or supporting course materials.</p>
+          <span style="margin-top:12px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:6px 16px;font-size:.82rem;font-weight:500;color:#374151;box-shadow:0 1px 2px rgba(0,0,0,.05)">Choose Files</span>
+        </label>
+        <div id="dash-upload-msg" style="margin-top:10px"></div>
+        <div id="dash-upload-results" style="margin-top:12px"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MATERIALS PAGE ══════════════ -->
+<div id="page-materials" class="page hidden">
+  <div class="max-4xl">
+    <div class="card fade-up">
+      <nav style="margin-bottom:24px">
+        <div class="logo-row">
+          <div class="logo-icon">📘</div>
+          <span class="logo-text">Syllabot</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="showPage('dashboard')">← Dashboard</button>
+      </nav>
+
+      <h1 style="margin-bottom:6px">Upload & Estimate</h1>
+      <p style="margin-bottom:28px">Upload assignments and notes to get AI time estimates with matched materials.</p>
+
+      <div class="form-group">
         <label>Course</label>
-        <input type="text" id="course" placeholder="e.g. EECS 281"/>
+        <input type="text" id="mat-course" placeholder="e.g. EECS 281"/>
       </div>
-    </div>
 
-    <div class="form-row">
-      <div>
-        <label>Assignment PDF</label>
-        <div class="upload-zone" id="assignmentZone">
-          <input type="file" id="assignmentFile" accept=".pdf"/>
-          <div class="upload-icon">📄</div>
-          <div class="upload-label"><strong>Click or drop</strong> your assignment PDF</div>
-          <div class="filename" id="assignmentName"></div>
+      <!-- Canvas course selector (if synced) -->
+      <div id="mat-canvas-row" class="form-group hidden">
+        <label>Load notes from Canvas course cache <span class="badge badge-emerald">Auto</span></label>
+        <select id="mat-canvas-course">
+          <option value="">— manual notes only —</option>
+        </select>
+      </div>
+
+      <!-- Canvas assignment quick-estimator -->
+      <div id="canvas-assignment-picker" class="hidden" style="margin-bottom:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div>
+            <span style="font-size:.85rem;font-weight:600;color:#0f172a">Canvas Assignments</span>
+            <span class="badge badge-emerald" style="margin-left:8px">Auto</span>
+          </div>
+          <span style="font-size:.75rem;color:#64748b">Uses cached files — no upload needed</span>
+        </div>
+        <div id="canvas-assignment-list" class="files-panel" style="max-height:220px;overflow-y:auto"></div>
+      </div>
+
+      <div style="text-align:center;color:#94a3b8;font-size:.82rem;margin-bottom:16px;display:flex;align-items:center;gap:10px">
+        <hr style="flex:1;border:none;border-top:1px solid #e2e8f0"/>
+        or upload manually
+        <hr style="flex:1;border:none;border-top:1px solid #e2e8f0"/>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:20px">
+        <div>
+          <label>Assignment PDFs</label>
+          <div class="upload-zone" id="mat-assign-zone">
+            <input type="file" id="mat-assign-files" accept=".pdf" multiple/>
+            <div style="font-size:1.5rem;margin-bottom:6px">📄</div>
+            <div class="upload-label"><strong>Click or drop</strong> assignment PDFs<br/><span style="font-size:.75rem">Multiple allowed</span></div>
+            <div class="filenames" id="mat-assign-names"></div>
+          </div>
+        </div>
+        <div>
+          <label>Notes / Lecture PDFs <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
+          <div class="upload-zone" id="mat-notes-zone">
+            <input type="file" id="mat-notes-files" accept=".pdf" multiple/>
+            <div style="font-size:1.5rem;margin-bottom:6px">📝</div>
+            <div class="upload-label"><strong>Click or drop</strong> notes PDFs<br/><span style="font-size:.75rem">Multiple allowed</span></div>
+            <div class="filenames" id="mat-notes-names"></div>
+          </div>
         </div>
       </div>
-      <div>
-        <label>Notes / Course Materials PDF <span style="color:var(--muted)">(optional)</span></label>
-        <div class="upload-zone" id="notesZone">
-          <input type="file" id="notesFile" accept=".pdf" multiple/>
-          <div class="upload-icon">📝</div>
-          <div class="upload-label"><strong>Click or drop</strong> one or more notes PDFs</div>
-          <div class="filename" id="notesName"></div>
+
+      <!-- Canvas files browser -->
+      <div id="canvas-files-panel" class="hidden" style="margin-bottom:20px">
+        <div class="files-panel">
+          <div class="section-title">Canvas Course Files <span class="badge badge-emerald" style="margin-left:4px">Cached</span></div>
+          <div id="canvas-files-list"><p style="font-size:.8rem;color:#94a3b8">Select a course above</p></div>
         </div>
+      </div>
+
+      <button class="btn btn-primary btn-lg" onclick="runEstimate()" id="mat-estimate-btn">
+        ✦ Analyze &amp; Estimate
+      </button>
+      <div id="mat-msg"></div>
+
+      <!-- Results -->
+      <div id="mat-results" class="hidden" style="margin-top:28px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ TIMER OVERLAY (persistent, never destroyed) ══════════════ -->
+<div id="timer-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:24px;width:100%;max-width:560px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div>
+        <h2 id="timer-label" style="color:#065f46;font-size:1.3rem">Focus Session</h2>
+        <p id="timer-assignment" style="font-size:.82rem;color:#64748b;margin-top:2px">—</p>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline btn-sm" onclick="toggleTimerOverlay(false)" title="Minimize — timer keeps running">↙ Minimize</button>
       </div>
     </div>
 
-    <button class="btn" id="estimateBtn" onclick="getEstimate()">
-      ✦ Get Time Estimate
-    </button>
-    <div class="error-msg" id="errorMsg"></div>
-  </div>
-
-  <!-- Step 2: Estimate Result -->
-  <div class="card estimate-block" id="estimateCard" style="animation-delay:0.1s">
-    <div class="card-title">AI Estimate</div>
-    <div class="time-range">
-      <div class="time-main" id="estMinutes">—</div>
-      <div class="time-unit">minutes</div>
-    </div>
-    <div class="time-range-sub" id="estRange"></div>
-    <div class="concept-tag" id="conceptTag"></div>
-    <div class="reasoning" id="estReasoning"></div>
-    <div class="confidence-row">
-      <div class="confidence-dot" id="confidenceDot"></div>
-      <span id="confidenceText"></span>
-    </div>
-  </div>
-
-  <!-- Step 3: Timer -->
-  <div class="card estimate-block" id="timerCard" style="animation-delay:0.15s">
-    <div class="card-title">Timer</div>
-    <div class="timer-display">
-      <div class="timer-digits" id="timerDisplay">00:00</div>
-    </div>
+    <div class="timer-digits" id="timer-display" style="text-align:center">00:00</div>
     <div class="timer-bar-wrap">
-      <div class="timer-bar" id="timerBar"></div>
+      <div class="timer-bar" id="timer-bar"></div>
     </div>
-    <div class="timer-status" id="timerStatus">Ready to start</div>
-    <div class="timer-controls">
-      <button class="btn" id="startBtn" onclick="startTimer()">▶ Start</button>
-      <button class="btn btn-ghost" id="pauseBtn" onclick="pauseTimer()" disabled>⏸ Pause</button>
-      <button class="btn btn-danger" id="doneBtn" onclick="finishSession()" disabled>✓ Done</button>
+    <p id="timer-status" style="font-size:.8rem;color:#64748b;margin-bottom:20px;text-align:center">Ready to start</p>
+
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:20px">
+      <button class="btn btn-primary btn-lg" id="timer-start-btn" onclick="timerStart()">▶ Start</button>
+      <button class="btn btn-secondary btn-lg" id="timer-pause-btn" onclick="timerPause()" disabled>⏸ Pause</button>
+      <button class="btn btn-emerald-light btn-lg" id="timer-done-btn" onclick="timerDone()" disabled>✓ Done</button>
+    </div>
+
+    <hr class="divider" style="margin:16px 0"/>
+    <button class="btn btn-outline btn-md" style="width:100%" onclick="openMaterialsInOverlay()">📎 View Matched Materials</button>
+
+    <!-- Materials panel inside timer overlay -->
+    <div id="timer-materials-panel" style="display:none;margin-top:16px;max-height:280px;overflow-y:auto">
+      <div class="section-title">Relevant Materials</div>
+      <div id="timer-materials-list"></div>
     </div>
   </div>
+</div>
 
-  <!-- History -->
-  <div class="card" style="animation-delay:0.2s">
-    <div class="card-title">Your Past Sessions</div>
-    <div class="history-wrap">
-      <div class="empty-state" id="historyEmpty">Enter your uniqname above and submit to see your history.</div>
-      <table id="historyTable" style="display:none">
-        <thead>
-          <tr>
-            <th>Course</th>
-            <th>Topic</th>
-            <th>Est.</th>
-            <th>Actual</th>
-            <th>Diff</th>
-            <th>Date</th>
-          </tr>
-        </thead>
-        <tbody id="historyBody"></tbody>
-      </table>
+<!-- Floating timer pill (shown when overlay is minimized but timer is running) -->
+<div id="timer-pill" style="display:none;position:fixed;bottom:24px;right:24px;z-index:499;background:#065f46;color:#fff;border-radius:999px;padding:10px 18px;font-family:Inter,sans-serif;font-weight:700;font-size:1rem;box-shadow:0 4px 16px rgba(0,0,0,.2);cursor:pointer;display:none;align-items:center;gap:10px" onclick="toggleTimerOverlay(true)">
+  <span style="width:8px;height:8px;border-radius:50%;background:#4ade80;animation:pulse 1s infinite"></span>
+  <span id="timer-pill-display">00:00</span>
+  <span style="font-size:.72rem;opacity:.8">tap to open</span>
+</div>
+<style>
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── Stat cards ── */
+.stat-card{border-radius:16px;padding:20px;border:1px solid}
+.stat-card.blue{background:#eff6ff;border-color:#bfdbfe}
+.stat-card.amber{background:#fffbeb;border-color:#fde68a}
+.stat-card.rose{background:#fff1f2;border-color:#fecdd3}
+.stat-card.green{background:#f0fdf4;border-color:#bbf7d0}
+.stat-icon{font-size:1.5rem;margin-bottom:10px}
+.stat-title{font-size:1.1rem;font-weight:700;color:#0f172a}
+.stat-subtitle{font-size:.85rem;color:#475569;margin-top:4px}
+.stat-footer{font-size:.75rem;color:#94a3b8;margin-top:10px}
+/* ── Social ── */
+.friend-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border:1px solid #f1f5f9;border-radius:14px;margin-bottom:8px}
+.friend-avatar{width:40px;height:40px;border-radius:50%;background:#d1fae5;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;color:#065f46;flex-shrink:0}
+/* ── Upload zone on dashboard ── */
+.dash-upload-zone{border:2px dashed #a7f3d0;border-radius:20px;min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;cursor:pointer;transition:all .15s;position:relative;background:#f8fbf8}
+.dash-upload-zone:hover{border-color:#059669;background:#f0fdf4}
+.dash-upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+
+/* ── Dark mode ── */
+body.dark{background:#0f1117;color:#e2e8f0}
+body.dark .card{background:#1e2330;border-color:#2d3748}
+body.dark input[type=text],body.dark input[type=email],body.dark input[type=password],body.dark input[type=datetime-local],body.dark select,body.dark textarea{background:#2d3748;border-color:#4a5568;color:#e2e8f0}
+body.dark input::placeholder{color:#718096}
+body.dark h1,body.dark h2,body.dark h3{color:#f1f5f9}
+body.dark p{color:#94a3b8}
+body.dark label{color:#94a3b8}
+body.dark .assignment-card{background:#1e2330;border-color:#2d3748}
+body.dark .assignment-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.4)}
+body.dark .btn-secondary{background:#2d3748;color:#e2e8f0}
+body.dark .btn-secondary:hover{background:#3d4a5c}
+body.dark .btn-outline{background:#1e2330;border-color:#4a5568;color:#e2e8f0}
+body.dark .btn-outline:hover{background:#2d3748}
+body.dark .upload-zone{border-color:#4a5568;background:#1a2035}
+body.dark .upload-zone:hover{border-color:#059669;background:#0d2318}
+body.dark .upload-zone.has-file{border-color:#059669;background:#0d2318}
+body.dark .upload-label{color:#94a3b8}
+body.dark .files-panel{background:#2d3748;border-color:#4a5568}
+body.dark .file-item:hover{background:#3d4a5c}
+body.dark .match-panel{background:#2d3748;border-color:#4a5568}
+body.dark .plan-row{background:#2d3748}
+body.dark .tab-bar{background:#2d3748}
+body.dark .tab.active{background:#3d4a5c;color:#f1f5f9}
+body.dark .canvas-panel{background:#1a2a3a;border-color:#2d4a6a}
+body.dark .stat-card.blue{background:#1a2535;border-color:#2d4a6a}
+body.dark .stat-card.amber{background:#2a2010;border-color:#5a4a00}
+body.dark .stat-card.rose{background:#2a1520;border-color:#5a2030}
+body.dark .stat-card.green{background:#0d2318;border-color:#1a4a30}
+body.dark .stat-title{color:#f1f5f9}
+body.dark .stat-subtitle{color:#94a3b8}
+body.dark .friend-row{border-color:#2d3748}
+body.dark .modal{background:#1e2330}
+body.dark .modal-header{border-color:#2d3748}
+body.dark .modal-close{background:#2d3748}
+body.dark .modal-close:hover{background:#3d4a5c}
+body.dark #timer-overlay > div{background:#1e2330}
+body.dark .timer-screen{background:#1e2330;border-color:#2d3748}
+body.dark .dash-upload-zone{background:#1a2035;border-color:#2d4a2d}
+body.dark .dash-upload-zone:hover{border-color:#059669;background:#0d2318}
+body.dark hr.divider{border-color:#2d3748}
+body.dark .section-title{color:#94a3b8}
+body.dark .logo-text{color:#f1f5f9}
+body.dark .tagline{color:#64748b}
+</style>
+
+<!-- ══════════════ SETTINGS PAGE ══════════════ -->
+<div id="page-settings" class="page hidden">
+  <div class="max-2xl">
+    <div class="card fade-up">
+      <nav style="margin-bottom:24px">
+        <div class="logo-row">
+          <div class="logo-icon">📘</div>
+          <span class="logo-text">Syllabot</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="showPage('dashboard')">← Dashboard</button>
+      </nav>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+        <h1>Settings</h1>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:.9rem;font-weight:500">
+          <span>🌙 Dark Mode</span>
+          <div style="position:relative;width:44px;height:24px" onclick="toggleDarkMode()">
+            <div id="dark-track" style="width:44px;height:24px;border-radius:12px;background:#e2e8f0;transition:background .2s;position:absolute"></div>
+            <div id="dark-thumb" style="width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div>
+          </div>
+        </label>
+      </div>
+
+      <h3 style="margin-bottom:12px">Canvas Integration</h3>
+      <div class="canvas-panel">
+        <div class="grid-2" style="margin-bottom:12px">
+          <div>
+            <label>Canvas Domain</label>
+            <input type="text" id="set-canvas-domain" placeholder="umich.instructure.com"/>
+          </div>
+          <div>
+            <label>Access Token</label>
+            <input type="text" id="set-canvas-token" placeholder="Paste your token"/>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-md" onclick="canvasSync('settings')" id="set-sync-btn">⬇ Sync Canvas</button>
+          <button class="btn btn-danger btn-md" onclick="clearCanvasCache()" id="clear-cache-btn">🗑 Clear Cache &amp; Assignments</button>
+        </div>
+        <div id="set-sync-msg"></div>
+      </div>
+
+      <hr class="divider"/>
+      <h3 style="margin-bottom:12px">Recently Opened Files</h3>
+      <div id="recently-opened-list">
+        <p style="color:#94a3b8;font-size:.85rem">No files opened yet.</p>
+      </div>
+
+      <hr class="divider"/>
+      <h3 style="margin-bottom:12px">Session History</h3>
+      <div id="settings-history">
+        <p style="color:#94a3b8;font-size:.85rem">Loading...</p>
+      </div>
     </div>
   </div>
-
 </div>
 
 <script>
-// ── State ─────────────────────────────────────────────────────────────────────
-let timerInterval = null;
-let elapsedSeconds = 0;
-let isRunning = false;
-let estimatedMinutes = null;
-let currentEstimate = null;
-
+// ══════════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════════
 const API = "http://localhost:5000/api";
+let appUser = null;
+let appAssignments = [];
+let timerInterval = null;
+let timerElapsed = 0;
+let timerRunning = false;
+let timerEstMinutes = null;
+let timerCurrentAssignment = null;
+let lastEstimateResults = [];
 
-// ── File upload UX ────────────────────────────────────────────────────────────
-function setupUploadZone(zoneId, inputId, nameId) {
+// ── Course colors ──
+const COURSE_COLORS = ["#3b82f6","#10b981","#f59e0b","#8b5cf6","#ef4444","#06b6d4","#ec4899"];
+function courseColor(name) {
+  let h = 0; for (let c of name) h = (h*31 + c.charCodeAt(0)) % COURSE_COLORS.length;
+  return COURSE_COLORS[h];
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ROUTING
+// ══════════════════════════════════════════════════════════════════
+function showPage(name) {
+  document.querySelectorAll("[id^=page-]").forEach(el => el.classList.add("hidden"));
+  const pg = document.getElementById("page-" + name);
+  if (pg) pg.classList.remove("hidden");
+  if (name === "dashboard") loadDashboard();
+  if (name === "settings") loadSettings();
+  if (name === "materials") loadMaterialsPage();
+  if (name === "social") loadSocialPage();
+}
+
+function toggleTimerOverlay(show) {
+  const overlay = document.getElementById("timer-overlay");
+  const pill    = document.getElementById("timer-pill");
+  overlay.style.display = show ? "flex" : "none";
+  // Show pill only when timer is running and overlay is hidden
+  pill.style.display = (!show && timerRunning) ? "flex" : "none";
+}
+
+function openMaterialsInOverlay() {
+  // Show materials for the current timer assignment (called from timer overlay button)
+  const panel  = document.getElementById("timer-materials-panel");
+  const listEl = document.getElementById("timer-materials-list");
+  panel.style.display = "block";
+
+  if (!timerCurrentAssignment) {
+    listEl.innerHTML = '<p style="font-size:.82rem;color:#94a3b8">Start a session first.</p>';
+    return;
+  }
+  // Use notes stored on the assignment object itself
+  const notes = (timerCurrentAssignment.matched_notes || [])
+    .filter(m => m.relevance === "high" || m.relevance === "medium");
+
+  if (!notes.length) {
+    listEl.innerHTML = '<p style="font-size:.82rem;color:#94a3b8">No matched materials for this assignment.</p>';
+    return;
+  }
+  const uid = appUser?.id || "";
+  const courseId = timerCurrentAssignment.course_id || "";
+  listEl.innerHTML = notes.map(m => {
+    const ext = (m.filename||"").split(".").pop().toUpperCase();
+    const url = courseId
+      ? `/api/canvas/file/${uid}/${courseId}/${encodeURIComponent(m.filename)}`
+      : uploadedFileURLs[m.filename];
+    return `<div class="file-item">
+      <div>
+        <div class="file-item-name"><span class="file-ext">${ext}</span>${esc(m.filename)}</div>
+        <div style="font-size:.72rem;color:#64748b;margin-top:2px">${esc(m.reason||"")}</div>
+      </div>
+      ${url ? `<button class="btn btn-secondary btn-sm" onclick="openFile('${url}','${esc(m.filename)}')">Open</button>` : '<span style="font-size:.72rem;color:#94a3b8">Not cached</span>'}
+    </div>`;
+  }).join("");
+}
+
+async function init() {
+  const res  = await fetch(`${API}/auth/me`, {credentials:"include"});
+  const data = await res.json();
+  if (data.user) {
+    appUser = data.user;
+    if (!appUser.onboarded) { showPage("onboarding"); initOnboarding(); }
+    else showPage("dashboard");
+  } else {
+    showPage("auth");
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════════════════════════════
+let authMode = "signin";
+function setAuthMode(mode) {
+  authMode = mode;
+  document.querySelectorAll(".tab-bar .tab").forEach((t,i) => t.classList.toggle("active", (i===0) === (mode==="signin")));
+  document.getElementById("auth-btn").textContent = mode === "signin" ? "Sign In" : "Create Account";
+  document.getElementById("auth-name-row").style.display = mode === "signup" ? "block" : "none";
+}
+
+async function handleAuth() {
+  const email = document.getElementById("auth-email").value.trim();
+  const pw    = document.getElementById("auth-password").value;
+  const name  = document.getElementById("auth-name").value.trim();
+  const msgEl = document.getElementById("auth-msg");
+  const btn   = document.getElementById("auth-btn");
+  if (!email || !pw) { showMsg(msgEl, "Email and password required", "error"); return; }
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    const endpoint = authMode === "signin" ? "signin" : "signup";
+    const body = {email, password: pw};
+    if (authMode === "signup" && name) body.name = name;
+    const res  = await fetch(`${API}/auth/${endpoint}`, {method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    const data = await res.json();
+    if (data.error) { showMsg(msgEl, data.error, "error"); return; }
+    appUser = data.user;
+    if (!data.onboarded) { showPage("onboarding"); initOnboarding(); }
+    else showPage("dashboard");
+  } catch(e) { showMsg(msgEl, "Could not reach server", "error"); }
+  finally { btn.disabled = false; btn.textContent = authMode === "signin" ? "Sign In" : "Create Account"; }
+}
+
+async function signOut() {
+  await fetch(`${API}/auth/signout`, {method:"POST",credentials:"include"});
+  appUser = null;
+  showPage("auth");
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ONBOARDING
+// ══════════════════════════════════════════════════════════════════
+let obCourses = [{course_name:"", course_code:""}];
+let obAssignments = [{courseIndex:0, title:"", due_date:"", description:"", type:"homework", points:100, difficulty:3}];
+
+function initOnboarding() {
+  renderObCourses(); renderObAssignments();
+}
+
+function renderObCourses() {
+  const el = document.getElementById("ob-courses");
+  el.innerHTML = obCourses.map((c,i) => `
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:16px;margin-bottom:10px">
+      <div class="grid-2">
+        <div class="form-group" style="margin-bottom:0">
+          <label>Course Name</label>
+          <input type="text" value="${esc(c.course_name)}" placeholder="e.g. EECS 281" oninput="obCourses[${i}].course_name=this.value"/>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Course Code</label>
+          <input type="text" value="${esc(c.course_code)}" placeholder="e.g. Data Structures" oninput="obCourses[${i}].course_code=this.value"/>
+        </div>
+      </div>
+    </div>`).join("");
+}
+
+function renderObAssignments() {
+  const el = document.getElementById("ob-assignments");
+  el.innerHTML = obAssignments.map((a,i) => `
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:16px;margin-bottom:10px">
+      <div class="grid-2" style="margin-bottom:10px">
+        <div>
+          <label>Course</label>
+          <select onchange="obAssignments[${i}].courseIndex=+this.value">
+            ${obCourses.map((c,ci) => `<option value="${ci}" ${ci===a.courseIndex?"selected":""}>${c.course_name||"Course "+(ci+1)}</option>`).join("")}
+          </select>
+        </div>
+        <div>
+          <label>Type</label>
+          <select onchange="obAssignments[${i}].type=this.value">
+            ${["homework","project","quiz","lab","essay","exam"].map(t=>`<option value="${t}" ${t===a.type?"selected":""}>${t.charAt(0).toUpperCase()+t.slice(1)}</option>`).join("")}
+          </select>
+        </div>
+      </div>
+      <div class="grid-2" style="margin-bottom:10px">
+        <div>
+          <label>Title</label>
+          <input type="text" value="${esc(a.title)}" placeholder="e.g. Homework 3" oninput="obAssignments[${i}].title=this.value"/>
+        </div>
+        <div>
+          <label>Due Date</label>
+          <input type="datetime-local" value="${a.due_date}" oninput="obAssignments[${i}].due_date=this.value"/>
+        </div>
+      </div>
+      <div>
+        <label>Description</label>
+        <textarea placeholder="What is this assignment about?" oninput="obAssignments[${i}].description=this.value">${esc(a.description)}</textarea>
+      </div>
+    </div>`).join("");
+}
+
+function addCourse() { obCourses.push({course_name:"",course_code:""}); renderObCourses(); renderObAssignments(); }
+function addAssignment() { obAssignments.push({courseIndex:0,title:"",due_date:"",description:"",type:"homework",points:100,difficulty:3}); renderObAssignments(); }
+
+async function submitOnboarding() {
+  const btn = document.getElementById("ob-submit-btn");
+  const msg = document.getElementById("ob-msg");
+  const validCourses = obCourses.filter(c => c.course_name.trim());
+  if (!validCourses.length) { msg.textContent = "Add at least one course."; return; }
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+
+  const assignments = obAssignments.filter(a => a.title.trim()).map(a => ({
+    ...a,
+    id: "manual_" + Date.now() + Math.random(),
+    course: (obCourses[a.courseIndex] || {}).course_name || "",
+    source: "manual",
+  }));
+
+  try {
+    const res = await fetch(`${API}/onboarding`, {method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({courses:validCourses,assignments})});
+    const data = await res.json();
+    if (data.error) { msg.textContent = data.error; return; }
+    appUser.onboarded = true;
+    showPage("dashboard");
+  } catch(e) { msg.textContent = "Server error."; }
+  finally { btn.disabled=false; btn.textContent="Save & Continue →"; }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CANVAS SYNC — proxied through local Flask server
+// ══════════════════════════════════════════════════════════════════
+async function canvasSync(context) {
+  const domainEl = document.getElementById(context==="onboarding" ? "ob-canvas-domain" : "set-canvas-domain");
+  const tokenEl  = document.getElementById(context==="onboarding" ? "ob-canvas-token"  : "set-canvas-token");
+  const msgEl    = document.getElementById(context==="onboarding" ? "canvas-sync-msg"  : "set-sync-msg");
+  const btn      = document.getElementById(context==="onboarding" ? "canvas-sync-btn"  : "set-sync-btn");
+
+  let domain = domainEl.value.trim().replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const token = tokenEl.value.trim();
+  if (!domain || !token) { showMsg(msgEl, "Enter both domain and token", "error"); return; }
+
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Syncing...';
+  showMsg(msgEl, "⏳ Connecting to Canvas, downloading files, and running AI estimates for all assignments — this may take a few minutes...", "info");
+
+  try {
+    const res  = await fetch(`${API}/canvas/sync`, {
+      method: "POST", credentials: "include",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({domain, token})
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    // Refresh user profile
+    const meRes = await fetch(`${API}/auth/me`, {credentials:"include"});
+    const meData = await meRes.json();
+    if (meData.user) appUser = meData.user;
+
+    // Refresh user profile and assignments
+    const meRes2 = await fetch(`${API}/auth/me`, {credentials:"include"});
+    const meData2 = await meRes2.json();
+    if (meData2.user) appUser = meData2.user;
+
+    const aRes = await fetch(`${API}/assignments`, {credentials:"include"});
+    const aData = await aRes.json();
+    appAssignments = aData.assignments || [];
+
+    showMsg(msgEl, `✅ Synced ${data.courses} course(s), ${data.assignments_imported} assignment(s), ${data.files_cached} file(s) cached.`, "success");
+    if (context === "onboarding") {
+      setTimeout(() => { appUser.onboarded = true; showPage("dashboard"); }, 1200);
+    } else {
+      renderDashboardAssignments();
+      renderStudyPlan();
+      loadMaterialsPage();
+    }
+  } catch(e) {
+    showMsg(msgEl, `❌ ${e.message}`, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "⬇ Sync from Canvas";
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════════════════════
+async function loadDashboard() {
+  if (!appUser) return;
+  const hour = new Date().getHours();
+  const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  document.getElementById("dash-greeting").textContent = `${greet}, ${appUser.name || appUser.email.split("@")[0]} 👋`;
+
+  try {
+    const res  = await fetch(`${API}/assignments`, {credentials:"include"});
+    const data = await res.json();
+    appAssignments = data.assignments || [];
+    renderDashboardAssignments();
+    renderStudyPlan();
+    loadStats();
+  } catch(e) { console.error("Could not load assignments", e); }
+}
+
+function renderDashboardAssignments() {
+  const el    = document.getElementById("dash-assignments");
+  const empty = document.getElementById("dash-empty");
+  if (!appAssignments.length) { el.innerHTML = ""; empty.classList.remove("hidden"); return; }
+  empty.classList.add("hidden");
+  el.innerHTML = appAssignments.slice(0,6).map(a => {
+    const color = courseColor(a.course || "");
+    const due   = a.due_date ? new Date(a.due_date).toLocaleDateString("en-US",{month:"short",day:"numeric"}) : "—";
+    const urgency = a.due_in_days <= 1 ? "badge-rose" : a.due_in_days <= 3 ? "badge-amber" : "badge-emerald";
+    const urgencyTxt = a.due_in_days <= 1 ? "Urgent" : a.due_in_days <= 3 ? "Soon" : "Upcoming";
+    const hasEstimate = !a.estimate_pending && a.estimated_hours;
+    const estLabel = hasEstimate
+      ? `<span class="badge badge-emerald">${fmtHours(a.estimated_hours)} · AI est.</span>`
+      : `<span class="badge badge-slate" style="opacity:.6">Estimating...</span>`;
+    return `
+    <div class="assignment-card fade-up">
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+        <span class="badge" style="background:${color}22;color:${color}">${a.course || "—"}</span>
+        <span class="badge ${urgency}">${urgencyTxt}</span>
+        ${estLabel}
+        ${a.primary_concept ? `<span class="badge badge-blue">${esc(a.primary_concept)}</span>` : ""}
+      </div>
+      <h3>${esc(a.title || "Untitled")}</h3>
+      <p style="font-size:.82rem;margin-top:4px;color:#64748b">Due ${due}</p>
+      ${a.ai_reasoning
+        ? `<p style="font-size:.78rem;margin-top:8px;color:#64748b;font-style:italic;border-left:2px solid #d1fae5;padding-left:8px">${esc(a.ai_reasoning.slice(0,160))}${a.ai_reasoning.length>160?"...":""}</p>`
+        : `<p style="font-size:.82rem;margin-top:10px;color:#64748b">${esc((a.description||"").slice(0,100))}${(a.description||"").length>100?"...":""}</p>`}
+      <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="showMatchedMaterials(${JSON.stringify(a).replace(/"/g,"&quot;")})">📄 Assignment</button>
+        ${a.canvas_url ? `<a class="btn btn-outline btn-sm" href="${a.canvas_url}" target="_blank">🔗 Canvas</a>` : ""}
+        <button class="btn btn-danger btn-sm" onclick="removeAssignment('${a.id}')">✕ Remove</button>
+      </div>
+    </div>`; }).join("");
+}
+
+function renderStudyPlan() {
+  const el = document.getElementById("study-plan-list");
+  const nf_t = document.getElementById("nf-title");
+  const nf_d = document.getElementById("nf-desc");
+  const nf_time = document.getElementById("nf-time");
+  const nf_start = document.querySelector("#next-focus .btn-primary");
+
+  if (!appAssignments.length) {
+    el.innerHTML = '<p style="color:#94a3b8;font-size:.8rem">No assignments yet.</p>';
+    nf_t.textContent = "No upcoming assignments";
+    nf_d.textContent = "—";
+    nf_time.textContent = "—";
+    if (nf_start) nf_start.disabled = true;
+    return;
+  }
+
+  const top = appAssignments[0];
+  nf_t.textContent = top.title || "Assignment";
+  nf_d.textContent = top.estimate_pending
+    ? `${top.course} · estimating...`
+    : `${top.course} · ${fmtHours(top.estimated_hours)} · AI est.`;
+  nf_time.textContent = top.due_date ? `Due ${new Date(top.due_date).toLocaleDateString()}` : "No due date";
+  if (nf_start) { nf_start.disabled = false; nf_start.onclick = () => startTimerFor(top); }
+
+  el.innerHTML = appAssignments.slice(0,8).map((a,i) => {
+    const color = courseColor(a.course||"");
+    return `<div class="plan-row">
+      <div style="display:flex;align-items:center;gap:8px;min-width:0">
+        <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></span>
+        <span style="font-size:.82rem;font-weight:600">${esc(a.title||"?")} <span style="color:#94a3b8;font-weight:400">· ${a.course||""}</span></span>
+      </div>
+      ${a.estimate_pending
+        ? `<span class="badge badge-slate" style="opacity:.5">—</span>`
+        : `<span class="badge badge-emerald">${fmtHours(a.estimated_hours)}</span>`}
+    </div>`;
+  }).join("");
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MATERIALS / ESTIMATE PAGE
+// ══════════════════════════════════════════════════════════════════
+
+async function loadCanvasFilesPanel(courseId) {
+  if (!courseId) { document.getElementById("canvas-files-panel").classList.add("hidden"); return; }
+  document.getElementById("canvas-files-panel").classList.remove("hidden");
+  const listEl = document.getElementById("canvas-files-list");
+  listEl.innerHTML = '<p style="font-size:.8rem;color:#94a3b8">Loading...</p>';
+  try {
+    const res  = await fetch(`${API}/canvas/files/${courseId}`, {credentials:"include"});
+    const data = await res.json();
+    const files = data.files || [];
+    if (!files.length) { listEl.innerHTML = '<p style="font-size:.8rem;color:#94a3b8">No cached files for this course.</p>'; return; }
+    const uid = appUser?.id || "";
+    listEl.innerHTML = files.map(f => {
+      const ext = f.filename.split(".").pop().toUpperCase();
+      const url = `/api/canvas/file/${uid}/${courseId}/${encodeURIComponent(f.filename)}`;
+      return `<div class="file-item">
+        <div class="file-item-name"><span class="file-ext">${ext}</span>${esc(f.filename)}</div>
+        <button class="btn btn-secondary btn-sm" onclick="openFile('${url}','${esc(f.filename)}')">Open</button>
+      </div>`;
+    }).join("");
+  } catch(e) { listEl.innerHTML = '<p style="font-size:.8rem;color:#dc2626">Could not load files.</p>'; }
+}
+async function loadMaterialsPage() {
+  if (!appUser) return;
+  const courses = appUser.courses || [];
+  const sel     = document.getElementById("mat-canvas-course");
+  const row     = document.getElementById("mat-canvas-row");
+  const canvasCourses = courses.filter(c => c.canvas_id);
+
+  if (canvasCourses.length) {
+    row.classList.remove("hidden");
+    sel.innerHTML = '<option value="">— manual notes only —</option>' +
+      canvasCourses.map(c => `<option value="${c.canvas_id}">${esc(c.course_name)}</option>`).join("");
+    sel.onchange = () => loadCanvasFilesPanel(sel.value);
+    loadCanvasFilesPanel(canvasCourses[0].canvas_id);
+
+    // Populate canvas assignment quick-estimator
+    renderCanvasAssignmentPicker(canvasCourses);
+  }
+  setupUploadZone("mat-assign-zone","mat-assign-files","mat-assign-names");
+  setupUploadZone("mat-notes-zone","mat-notes-files","mat-notes-names");
+}
+
+function renderCanvasAssignmentPicker(canvasCourses) {
+  const panel = document.getElementById("canvas-assignment-picker");
+  if (!panel) return;
+  const allAssignments = (appUser?.assignments || []).filter(a => a.source === "canvas");
+  if (!allAssignments.length) { panel.classList.add("hidden"); return; }
+  panel.classList.remove("hidden");
+
+  const listEl = document.getElementById("canvas-assignment-list");
+  listEl.innerHTML = allAssignments.slice(0, 20).map(a => {
+    const due = a.due_date ? new Date(a.due_date).toLocaleDateString("en-US",{month:"short",day:"numeric"}) : "No due date";
+    const color = courseColor(a.course || "");
+    return `<div class="file-item" style="padding:10px 8px">
+      <div style="min-width:0;flex:1">
+        <div style="font-size:.82rem;font-weight:600;color:#0f172a">${esc(a.title)}</div>
+        <div style="font-size:.72rem;color:#64748b;margin-top:2px">
+          <span style="background:${color}22;color:${color};padding:1px 7px;border-radius:999px;font-weight:600">${esc(a.course)}</span>
+          &nbsp;· Due ${due}
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="estimateCanvasAssignment(${JSON.stringify(a).replace(/"/g,"&quot;")})">Estimate</button>
+    </div>`;
+  }).join("");
+}
+
+async function estimateCanvasAssignment(assignment) {
+  const msgEl = document.getElementById("mat-msg");
+  const resEl = document.getElementById("mat-results");
+  const btn   = event.target;
+
+  // Find the canvas course id for this assignment
+  const courseId = assignment.course_id;
+  if (!courseId) { showMsg(msgEl, "No course ID found for this assignment.", "error"); return; }
+
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  resEl.classList.add("hidden"); resEl.innerHTML = "";
+  msgEl.innerHTML = "";
+
+  // Set the course field
+  document.getElementById("mat-course").value = assignment.course || "";
+
+  showMsg(msgEl, "⏳ Using cached Canvas files for estimate...", "info");
+
+  try {
+    // Fetch cached files list for this course
+    const filesRes = await fetch(`${API}/canvas/files/${courseId}`, {credentials:"include"});
+    const filesData = await filesRes.json();
+    const cachedFiles = filesData.files || [];
+
+    // Build form — send assignment description as a text blob,
+    // plus canvas_course_id so server loads cached notes automatically
+    const form = new FormData();
+    form.append("course", assignment.course || "");
+    form.append("canvas_course_id", String(courseId));
+    form.append("canvas_assignment_id", String(assignment.id));
+    form.append("canvas_assignment_title", assignment.title || "");
+    form.append("canvas_assignment_desc", assignment.description || "");
+
+    // Also register canvas file URLs for in-browser viewing
+    const uid = appUser?.id || "";
+    for (const f of cachedFiles) {
+      const url = `/api/canvas/file/${uid}/${courseId}/${encodeURIComponent(f.filename)}`;
+      uploadedFileURLs[f.filename] = url;
+    }
+
+    const res  = await fetch(`${API}/estimate/canvas`, {method:"POST",credentials:"include",body:form});
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    lastEstimateResults = data.results || [];
+    renderEstimateResults(lastEstimateResults);
+    msgEl.innerHTML = "";
+    // Refresh dashboard so updated estimates appear immediately
+    const freshRes = await fetch(`${API}/assignments`, {credentials:"include"});
+    const freshData = await freshRes.json();
+    appAssignments = freshData.assignments || [];
+    renderDashboardAssignments();
+    renderStudyPlan();
+  } catch(e) {
+    showMsg(msgEl, `❌ ${e.message}`, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Estimate";
+  }
+}
+
+function setupUploadZone(zoneId, inputId, namesId) {
   const zone  = document.getElementById(zoneId);
   const input = document.getElementById(inputId);
-  const name  = document.getElementById(nameId);
-
-  input.addEventListener("change", () => {
-    if (input.files.length > 0) {
+  const names = document.getElementById(namesId);
+  if (zone._setup) return; zone._setup = true;
+  const update = () => {
+    const files = [...input.files];
+    if (files.length) {
       zone.classList.add("has-file");
-      name.textContent = input.files.length === 1
-        ? input.files[0].name
-        : `${input.files.length} files selected`;
+      names.textContent = files.length === 1 ? files[0].name : `${files.length} files selected`;
     }
-  });
-
+  };
+  input.addEventListener("change", update);
   zone.addEventListener("dragover", e => { e.preventDefault(); zone.classList.add("dragover"); });
   zone.addEventListener("dragleave", () => zone.classList.remove("dragover"));
   zone.addEventListener("drop", e => {
-    e.preventDefault();
-    zone.classList.remove("dragover");
-    if (e.dataTransfer.files[0]) {
-      input.files = e.dataTransfer.files;
-      zone.classList.add("has-file");
-      name.textContent = e.dataTransfer.files[0].name;
-    }
+    e.preventDefault(); zone.classList.remove("dragover");
+    input.files = e.dataTransfer.files; update();
   });
 }
 
-setupUploadZone("assignmentZone", "assignmentFile", "assignmentName");
-setupUploadZone("notesZone", "notesFile", "notesName");
+async function runEstimate() {
+  const btn    = document.getElementById("mat-estimate-btn");
+  const msgEl  = document.getElementById("mat-msg");
+  const resEl  = document.getElementById("mat-results");
+  const course = document.getElementById("mat-course").value.trim();
+  const assignFiles = document.getElementById("mat-assign-files").files;
+  const notesFiles  = document.getElementById("mat-notes-files").files;
+  const canvasCid   = document.getElementById("mat-canvas-course").value;
 
-// ── Estimate ──────────────────────────────────────────────────────────────────
-async function getEstimate() {
-  const uniqname = document.getElementById("uniqname").value.trim();
-  const course   = document.getElementById("course").value.trim();
-  const assignment = document.getElementById("assignmentFile").files[0];
-  const notes      = document.getElementById("notesFile").files[0];
-  const btn        = document.getElementById("estimateBtn");
-  const errEl      = document.getElementById("errorMsg");
+  if (!assignFiles.length) { showMsg(msgEl, "Upload at least one assignment PDF", "error"); return; }
 
-  errEl.classList.remove("visible");
-
-  if (!assignment) {
-    showError("Please upload your assignment PDF."); return;
-  }
-
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Analyzing...';
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Analyzing...';
+  resEl.classList.add("hidden"); resEl.innerHTML = "";
+  msgEl.innerHTML = "";
 
   const form = new FormData();
-  form.append("uniqname", uniqname || "anonymous");
   form.append("course", course);
-  form.append("assignment", assignment);
-  const notesInput = document.getElementById("notesFile");
-  for (const file of notesInput.files) {
-    form.append("notes", file);
+  if (canvasCid) form.append("canvas_course_id", canvasCid);
+  for (const f of assignFiles) form.append("assignments", f);
+  for (const f of notesFiles)  form.append("notes", f);
+
+  // Pre-upload files for viewing
+  for (const f of [...assignFiles, ...notesFiles]) {
+    try {
+      const url = await uploadForView(f);
+      if (url) uploadedFileURLs[f.name] = url;
+    } catch(e) { /* non-critical */ }
   }
 
   try {
-    const res  = await fetch(`${API}/estimate`, { method: "POST", body: form });
+    const res  = await fetch(`${API}/estimate`, {method:"POST",credentials:"include",body:form});
     const data = await res.json();
-
-    if (data.error) { showError(data.error); return; }
-
-    currentEstimate = data;
-    estimatedMinutes = data.estimated_minutes;
-
-    // Populate estimate card
-    document.getElementById("estMinutes").textContent = data.estimated_minutes;
-    document.getElementById("estRange").textContent =
-      `Range: ${data.low_minutes}–${data.high_minutes} min`;
-    document.getElementById("conceptTag").textContent = data.primary_concept || course;
-    document.getElementById("estReasoning").textContent = data.reasoning;
-
-    const dot  = document.getElementById("confidenceDot");
-    const conf = (data.confidence || "medium").toLowerCase();
-    dot.className = `confidence-dot ${conf}`;
-    document.getElementById("confidenceText").textContent =
-      `${conf.charAt(0).toUpperCase() + conf.slice(1)} confidence`;
-
-    // Show estimate + timer cards
-    document.getElementById("estimateCard").classList.add("visible");
-    document.getElementById("timerCard").classList.add("visible");
-    document.getElementById("estimateCard").scrollIntoView({ behavior: "smooth", block: "nearest" });
-
-    // Load history
-    if (uniqname) loadHistory(uniqname);
-
-  } catch (e) {
-    showError("Could not reach the server. Make sure server.py is running.");
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '✦ Get Time Estimate';
-  }
+    if (data.error) { showMsg(msgEl, data.error, "error"); return; }
+    lastEstimateResults = data.results || [];
+    renderEstimateResults(lastEstimateResults);
+  } catch(e) { showMsg(msgEl, "Server error: " + e.message, "error"); }
+  finally { btn.disabled=false; btn.innerHTML='✦ Analyze &amp; Estimate'; }
 }
 
-function showError(msg) {
-  const el = document.getElementById("errorMsg");
-  el.textContent = msg;
-  el.classList.add("visible");
-  document.getElementById("estimateBtn").disabled = false;
-  document.getElementById("estimateBtn").innerHTML = '✦ Get Time Estimate';
+function renderEstimateResults(results) {
+  const el = document.getElementById("mat-results");
+  el.classList.remove("hidden");
+  el.innerHTML = results.map(r => {
+    if (r.error) return `<div class="alert alert-error">Error for ${esc(r.assignment)}: ${esc(r.error)}</div>`;
+    const matchedNotes = r.matched_notes || [];
+    const highMed = matchedNotes.filter(m => m.relevance === "high" || m.relevance === "medium");
+    return `
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:24px;margin-bottom:16px;fade-up">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+        <div>
+          <h3>${esc(r.assignment)}</h3>
+          ${r.primary_concept ? `<span class="badge badge-blue" style="margin-top:6px">${esc(r.primary_concept)}</span>` : ""}
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:2.2rem;font-weight:800;color:#065f46;line-height:1">${r.estimated_minutes||"?"}</div>
+          <div style="font-size:.75rem;color:#64748b">minutes estimated</div>
+          <div style="font-size:.72rem;color:#94a3b8;margin-top:2px">Range: ${r.low_minutes||"?"}–${r.high_minutes||"?"} min</div>
+        </div>
+      </div>
+      ${r.reasoning ? `<p style="font-size:.85rem;color:#475569;border-left:3px solid #d1fae5;padding-left:12px;font-style:italic;margin-bottom:16px">${esc(r.reasoning)}</p>` : ""}
+      ${matchedNotes.length ? `
+        <div class="match-panel">
+          <div class="section-title">Matched Notes (${matchedNotes.length})</div>
+          ${matchedNotes.map(m => `
+            <div class="match-item">
+              <div class="relevance-dot rel-${m.relevance||"low"}"></div>
+              <div>
+                <div style="font-size:.82rem;font-weight:600">${esc(m.filename||"")}</div>
+                <div style="font-size:.78rem;color:#64748b;margin-top:2px">${esc(m.reason||"")}</div>
+              </div>
+              <span class="badge ${m.relevance==="high"?"badge-emerald":m.relevance==="medium"?"badge-amber":"badge-slate"}" style="margin-left:auto;flex-shrink:0">${m.relevance||"?"}</span>
+            </div>`).join("")}
+        </div>` : ""}
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-md" onclick="startTimerWithEstimate(${r.estimated_minutes||0}, '${esc(r.assignment).replace(/'/g,"\\'")}')">▶ Start Timer</button>
+        ${uploadedFileURLs[r.assignment] ? `<button class="btn btn-outline btn-md" onclick="openFile('${uploadedFileURLs[r.assignment]}','${esc(r.assignment)}')">📄 Open Assignment</button>` : ""}
+      </div>
+      ${matchedNotes.filter(m=>m.relevance==="high"||m.relevance==="medium").length ? `
+      <div class="files-panel" style="margin-top:12px">
+        <div class="section-title">Open Relevant Notes</div>
+        ${matchedNotes.filter(m=>m.relevance==="high"||m.relevance==="medium").map(m => {
+          const url = uploadedFileURLs[m.filename] || (appUser?.canvas_files?.[m.filename]);
+          const ext = m.filename.split(".").pop().toUpperCase();
+          return url ? `
+          <div class="file-item">
+            <div class="file-item-name"><span class="file-ext">${ext}</span>${esc(m.filename)}</div>
+            <button class="btn btn-secondary btn-sm" onclick="openFile('${url}','${esc(m.filename)}')">Open</button>
+          </div>` : `
+          <div class="file-item">
+            <div class="file-item-name"><span class="file-ext">${ext}</span>${esc(m.filename)}</div>
+            <span style="font-size:.72rem;color:#94a3b8">Not viewable</span>
+          </div>`;
+        }).join("")}
+      </div>` : ""}
+    </div>`;
+  }).join("");
 }
 
-// ── Timer ─────────────────────────────────────────────────────────────────────
-function formatTime(secs) {
-  const h = Math.floor(secs / 3600);
-  const m = Math.floor((secs % 3600) / 60);
-  const s = secs % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
-  return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+// ══════════════════════════════════════════════════════════════════
+// TIMER
+// ══════════════════════════════════════════════════════════════════
+function startTimer() {
+  const top = appAssignments[0];
+  if (top) startTimerFor(top);
+  else startTimerWithEstimate(null, "Study Session");
 }
+
+function startTimerForTop() {
+  const top = appAssignments[0];
+  if (top) startTimerFor(top);
+  else startTimerWithEstimate(null, "Study Session");
+}
+
+// Keep pill display updated
+const _origUpdateTimerUI = updateTimerUI;
+
+function startTimerFor(assignment) {
+  timerEstMinutes = assignment.estimated_hours ? Math.round(assignment.estimated_hours * 60) : null;
+  timerCurrentAssignment = assignment;
+  document.getElementById("timer-assignment").textContent = (assignment.title||assignment.assignment_name||"") + " · " + (assignment.course||"");
+  document.getElementById("timer-materials-panel").style.display = "none";
+  timerReset();
+  toggleTimerOverlay(true);
+}
+
+function startTimerWithEstimate(minutes, name) {
+  timerEstMinutes = minutes || null;
+  timerCurrentAssignment = {title: name, course: document.getElementById("mat-course")?.value || ""};
+  document.getElementById("timer-assignment").textContent = name;
+  document.getElementById("timer-materials-panel").style.display = "none";
+  timerReset();
+  toggleTimerOverlay(true);
+}
+
+function timerReset() {
+  clearInterval(timerInterval); timerRunning = false; timerElapsed = 0;
+  document.getElementById("timer-display").textContent = "00:00";
+  document.getElementById("timer-display").className = "timer-digits";
+  document.getElementById("timer-bar").style.width = "0%";
+  document.getElementById("timer-bar").className = "timer-bar";
+  document.getElementById("timer-status").textContent = "Ready to start";
+  document.getElementById("timer-start-btn").disabled = false;
+  document.getElementById("timer-pause-btn").disabled = true;
+  document.getElementById("timer-done-btn").disabled = true;
+  document.getElementById("timer-pause-btn").textContent = "⏸ Pause";
+}
+
+function fmtTime(s) {
+  const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
+  if(h>0) return `${h}:${pad(m)}:${pad(sec)}`;
+  return `${pad(m)}:${pad(sec)}`;
+}
+function pad(n){return String(n).padStart(2,"0")}
 
 function updateTimerUI() {
-  const display = document.getElementById("timerDisplay");
-  const bar     = document.getElementById("timerBar");
-  const status  = document.getElementById("timerStatus");
-
-  display.textContent = formatTime(elapsedSeconds);
-
-  const pct = estimatedMinutes
-    ? Math.min((elapsedSeconds / (estimatedMinutes * 60)) * 100, 100)
-    : 0;
-  bar.style.width = pct + "%";
-
-  if (estimatedMinutes) {
-    const remaining = (estimatedMinutes * 60) - elapsedSeconds;
-    if (remaining > 0) {
-      display.className = remaining < 300 ? "timer-digits near-estimate" : "timer-digits";
-      bar.className = "timer-bar";
-      status.textContent = `${formatTime(remaining)} remaining of estimated ${estimatedMinutes} min`;
+  const pill = document.getElementById("timer-pill-display");
+  if (pill) pill.textContent = fmtTime(timerElapsed);
+  // Update PDF modal timer bar
+  const pdfDisp = document.getElementById("pdf-timer-display");
+  if (pdfDisp) pdfDisp.textContent = fmtTime(timerElapsed);
+  const pdfBar = document.getElementById("pdf-timer-bar");
+  if (pdfBar) pdfBar.style.display = timerRunning ? "flex" : "none";
+  const disp = document.getElementById("timer-display");
+  const bar  = document.getElementById("timer-bar");
+  const stat = document.getElementById("timer-status");
+  disp.textContent = fmtTime(timerElapsed);
+  if (timerEstMinutes) {
+    const total = timerEstMinutes * 60;
+    const pct   = Math.min((timerElapsed / total) * 100, 100);
+    bar.style.width = pct + "%";
+    const rem = total - timerElapsed;
+    if (rem > 0) {
+      disp.className = rem < 300 ? "timer-digits near" : "timer-digits";
+      bar.className  = "timer-bar";
+      stat.textContent = `${fmtTime(rem)} remaining of ${timerEstMinutes} min estimate`;
     } else {
-      display.className = "timer-digits over-estimate";
-      bar.className = "timer-bar over";
-      bar.style.width = "100%";
-      status.textContent = `${formatTime(Math.abs(remaining))} over estimate`;
+      disp.className = "timer-digits over";
+      bar.className  = "timer-bar over";
+      stat.textContent = `${fmtTime(-rem)} over estimate`;
     }
   }
 }
 
-function startTimer() {
-  if (isRunning) return;
-  isRunning = true;
-  document.getElementById("startBtn").disabled = true;
-  document.getElementById("pauseBtn").disabled = false;
-  document.getElementById("doneBtn").disabled = false;
-  document.getElementById("timerStatus").textContent = "Running...";
-
-  timerInterval = setInterval(() => {
-    elapsedSeconds++;
-    updateTimerUI();
-  }, 1000);
+function timerStart() {
+  if (timerRunning) return;
+  timerRunning = true;
+  document.getElementById("timer-start-btn").disabled = true;
+  document.getElementById("timer-pause-btn").disabled = false;
+  document.getElementById("timer-done-btn").disabled  = false;
+  document.getElementById("timer-status").textContent = "Running...";
+  timerInterval = setInterval(() => { timerElapsed++; updateTimerUI(); }, 1000);
 }
 
-function pauseTimer() {
-  if (!isRunning) {
-    // Resume
-    isRunning = true;
-    document.getElementById("pauseBtn").textContent = "⏸ Pause";
-    document.getElementById("startBtn").disabled = true;
-    timerInterval = setInterval(() => { elapsedSeconds++; updateTimerUI(); }, 1000);
+function timerPause() {
+  if (timerRunning) {
+    clearInterval(timerInterval); timerRunning = false;
+    document.getElementById("timer-pause-btn").textContent = "▶ Resume";
+    document.getElementById("timer-status").textContent = "Paused";
   } else {
-    // Pause
-    isRunning = false;
-    clearInterval(timerInterval);
-    document.getElementById("pauseBtn").textContent = "▶ Resume";
-    document.getElementById("timerStatus").textContent = "Paused";
+    timerRunning = true;
+    document.getElementById("timer-pause-btn").textContent = "⏸ Pause";
+    timerInterval = setInterval(() => { timerElapsed++; updateTimerUI(); }, 1000);
   }
 }
 
-async function finishSession() {
-  if (timerInterval) clearInterval(timerInterval);
-  isRunning = false;
-
-  const actualMinutes = Math.round(elapsedSeconds / 60) || 1;
-  const uniqname = document.getElementById("uniqname").value.trim() || "anonymous";
-  const course   = document.getElementById("course").value.trim();
-
-  document.getElementById("startBtn").disabled = false;
-  document.getElementById("pauseBtn").disabled = true;
-  document.getElementById("doneBtn").disabled = true;
-  document.getElementById("timerStatus").textContent =
-    `Session saved: ${actualMinutes} min actual vs ${estimatedMinutes || "?"} min estimated`;
-
-  // Save to server
+async function timerDone() {
+  clearInterval(timerInterval); timerRunning = false;
+  const actual = Math.max(Math.round(timerElapsed/60), 1);
+  document.getElementById("timer-status").textContent = `Session complete: ${actual} min`;
+  document.getElementById("timer-start-btn").disabled = false;
+  document.getElementById("timer-pause-btn").disabled = true;
+  document.getElementById("timer-done-btn").disabled  = true;
+  // Save session
   try {
-    await fetch(`${API}/sessions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        uniqname,
-        course,
-        actual_minutes: actualMinutes,
-        estimated_minutes: currentEstimate?.estimated_minutes,
-        assignment_summary: currentEstimate?.assignment_summary || "",
-        primary_concept: currentEstimate?.primary_concept || "",
-      })
-    });
-    if (uniqname) loadHistory(uniqname);
-  } catch (e) {
-    console.error("Could not save session:", e);
-  }
-
-  // Reset timer for potential next use
-  elapsedSeconds = 0;
-  updateTimerUI();
-  document.getElementById("pauseBtn").textContent = "⏸ Pause";
+    await fetch(`${API}/sessions`, {method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      course:              timerCurrentAssignment?.course || "",
+      assignment_summary:  timerCurrentAssignment?.title || timerCurrentAssignment?.assignment_name || "",
+      primary_concept:     timerCurrentAssignment?.primary_concept || "",
+      estimated_minutes:   timerEstMinutes,
+      actual_minutes:      actual,
+    })});
+  } catch(e) { console.error("Could not save session",e); }
 }
 
-// ── History ───────────────────────────────────────────────────────────────────
-async function loadHistory(uniqname) {
-  if (!uniqname) return;
+// ══════════════════════════════════════════════════════════════════
+// SETTINGS
+// ══════════════════════════════════════════════════════════════════
+async function loadSettings() {
   try {
-    const res  = await fetch(`${API}/sessions?uniqname=${encodeURIComponent(uniqname)}`);
+    const res  = await fetch(`${API}/sessions`, {credentials:"include"});
     const data = await res.json();
+    const el   = document.getElementById("settings-history");
+    if (!data.length) { el.innerHTML = '<p style="color:#94a3b8;font-size:.85rem">No sessions yet.</p>'; return; }
+    el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:.8rem">
+      <thead><tr>${["Course","Assignment","Est.","Actual","Diff","Date"].map(h=>`<th style="text-align:left;padding:6px 10px;border-bottom:1px solid #f1f5f9;color:#94a3b8;font-weight:500">${h}</th>`).join("")}</tr></thead>
+      <tbody>${[...data].reverse().map(s => {
+        const diff = s.actual_minutes && s.estimated_minutes ? s.actual_minutes - s.estimated_minutes : null;
+        return `<tr>
+          <td style="padding:7px 10px">${esc(s.course||"—")}</td>
+          <td style="padding:7px 10px">${esc((s.assignment_summary||"—").slice(0,30))}</td>
+          <td style="padding:7px 10px">${s.estimated_minutes ? s.estimated_minutes+" min" : "—"}</td>
+          <td style="padding:7px 10px">${s.actual_minutes} min</td>
+          <td style="padding:7px 10px;color:${diff===null?"inherit":diff>0?"#dc2626":"#059669"}">${diff===null?"—":(diff>0?"+":"")+diff+" min"}</td>
+          <td style="padding:7px 10px;color:#94a3b8">${s.timestamp?new Date(s.timestamp).toLocaleDateString():"—"}</td>
+        </tr>`;
+      }).join("")}</tbody></table>`;
+  } catch(e) { document.getElementById("settings-history").innerHTML = '<p style="color:#dc2626;font-size:.85rem">Could not load history.</p>'; }
+}
 
-    const empty = document.getElementById("historyEmpty");
-    const table = document.getElementById("historyTable");
-    const body  = document.getElementById("historyBody");
+// ══════════════════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════════════════
+function esc(str) { return String(str||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function fmtHours(hrs) {
+  if (!hrs) return "—";
+  const h = Math.floor(hrs);
+  const m = Math.round((hrs - h) * 60);
+  if (h === 0) return `${m} min`;
+  if (m === 0) return `${h} hr`;
+  return `${h} hr ${m} min`;
+}
+function showMsg(el, msg, type) {
+  el.innerHTML = `<div class="alert alert-${type}">${esc(msg)}</div>`;
+}
 
-    if (!data.length) {
-      empty.textContent = "No sessions recorded yet.";
-      empty.style.display = "block";
-      table.style.display = "none";
+
+// ══════════════════════════════════════════════════════════════════
+// FILE VIEWER — with page memory + recently opened + timer visibility
+// ══════════════════════════════════════════════════════════════════
+const pdfPageMemory = {};      // url -> last page (stored as #page=N hash)
+const recentlyOpened = [];     // [{url, name, openedAt}]
+const MAX_RECENT = 8;
+
+function openFile(url, name) {
+  // Save to recently opened
+  const existing = recentlyOpened.findIndex(r => r.url === url);
+  if (existing >= 0) recentlyOpened.splice(existing, 1);
+  recentlyOpened.unshift({url, name, openedAt: new Date().toISOString()});
+  if (recentlyOpened.length > MAX_RECENT) recentlyOpened.pop();
+  renderRecentlyOpened();
+
+  // Restore last page if remembered
+  const rememberedPage = pdfPageMemory[url];
+  const fullUrl = rememberedPage ? `${url}#page=${rememberedPage}` : url;
+
+  document.getElementById("file-modal-title").textContent = name;
+  document.getElementById("file-modal-frame").src = fullUrl;
+  document.getElementById("file-modal").classList.remove("hidden");
+
+  // Show timer bar inside modal if timer is running
+  updatePdfTimerBar();
+}
+
+function closeFileModal() {
+  // Save current page before closing
+  const frame = document.getElementById("file-modal-frame");
+  const src   = frame.src;
+  if (src && src !== "about:blank") {
+    try {
+      // Try to get page from hash or iframe location
+      const hash = frame.contentWindow?.location?.hash;
+      const pageMatch = hash?.match(/#page=(\d+)/);
+      if (pageMatch) {
+        const baseUrl = src.split("#")[0];
+        pdfPageMemory[baseUrl] = parseInt(pageMatch[1]);
+      }
+    } catch(e) { /* cross-origin, ignore */ }
+  }
+  document.getElementById("file-modal").classList.add("hidden");
+  frame.src = "about:blank";
+}
+
+function updatePdfTimerBar() {
+  const bar = document.getElementById("pdf-timer-bar");
+  if (!bar) return;
+  if (timerRunning) {
+    bar.style.display = "flex";
+    document.getElementById("pdf-timer-display").textContent = fmtTime(timerElapsed);
+    document.getElementById("pdf-timer-status").textContent  =
+      timerEstMinutes ? `of ${timerEstMinutes} min` : "Running";
+  } else {
+    bar.style.display = "none";
+  }
+}
+
+// Hook into timer updates to also update the PDF timer bar
+const _baseUpdateTimerUI = updateTimerUI;
+
+document.addEventListener("keydown", e => { if(e.key==="Escape") closeFileModal(); });
+
+function renderRecentlyOpened() {
+  // Update in settings page
+  const el = document.getElementById("recently-opened-list");
+  if (!el) return;
+  if (!recentlyOpened.length) { el.innerHTML = '<p style="font-size:.8rem;color:#94a3b8">No files opened yet.</p>'; return; }
+  el.innerHTML = recentlyOpened.map(r => {
+    const ext  = r.name.split(".").pop().toUpperCase();
+    const time = new Date(r.openedAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+    return `<div class="file-item">
+      <div class="file-item-name"><span class="file-ext">${ext}</span>${esc(r.name)}</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:.7rem;color:#94a3b8">${time}</span>
+        <button class="btn btn-secondary btn-sm" onclick="openFile('${r.url}','${esc(r.name)}')">Open</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// Upload a file to server and get a viewable URL back
+async function uploadForView(file) {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API}/uploaded/file`, {method:"POST",credentials:"include",body:form});
+  const data = await res.json();
+  return data.url || null;
+}
+
+// Store uploaded file URLs for viewing after estimate
+const uploadedFileURLs = {}; // filename -> url
+// ── Show pre-computed matched materials for an assignment ─────────────────────
+function showMatchedMaterials(assignment) {
+  timerCurrentAssignment = assignment;
+  document.getElementById("timer-assignment").textContent = (assignment.title||"") + " · " + (assignment.course||"");
+  document.getElementById("timer-label").textContent = "📄 " + (assignment.title || "Assignment");
+  toggleTimerOverlay(true);
+
+  const panel  = document.getElementById("timer-materials-panel");
+  const listEl = document.getElementById("timer-materials-list");
+  panel.style.display = "block";
+
+  const uid      = appUser?.id || "";
+  const courseId = assignment.course_id || "";
+  const notes    = (assignment.matched_notes || []).filter(m => m.relevance === "high" || m.relevance === "medium");
+
+  // ── Section 1: Assignment PDF itself ──────────────────────────────────────
+  let assignmentSection = "";
+  if (assignment.canvas_url || courseId) {
+    // Try to find a cached file whose name matches the assignment title
+    const titleLower = (assignment.title||"").toLowerCase().replace(/[^a-z0-9]/g," ").trim();
+    const cachedMatch = Object.keys(uploadedFileURLs).find(fname => {
+      const fLower = fname.toLowerCase().replace(/[^a-z0-9]/g," ").trim();
+      return titleLower.split(" ").some(w => w.length > 3 && fLower.includes(w));
+    });
+    const assignUrl = cachedMatch ? uploadedFileURLs[cachedMatch] : null;
+    if (assignUrl) {
+      assignmentSection = `
+        <div style="margin-bottom:14px">
+          <div class="section-title" style="margin-bottom:6px">Assignment</div>
+          <div class="file-item" style="background:#f0fdf4;border-radius:10px;padding:10px 12px">
+            <div class="file-item-name"><span class="file-ext">PDF</span>${esc(cachedMatch)}</div>
+            <button class="btn btn-primary btn-sm" onclick="openFile('${assignUrl}','${esc(cachedMatch)}')">Open</button>
+          </div>
+        </div>`;
+    } else if (assignment.canvas_url) {
+      assignmentSection = `
+        <div style="margin-bottom:14px">
+          <div class="section-title" style="margin-bottom:6px">Assignment</div>
+          <div class="file-item" style="background:#f0fdf4;border-radius:10px;padding:10px 12px">
+            <div class="file-item-name"><span class="file-ext">URL</span>${esc(assignment.title)}</div>
+            <a class="btn btn-primary btn-sm" href="${assignment.canvas_url}" target="_blank">Open in Canvas</a>
+          </div>
+        </div>`;
+    }
+  }
+
+  // ── Section 2: Relevant materials ─────────────────────────────────────────
+  let notesSection = "";
+  if (notes.length) {
+    notesSection = `
+      <div class="section-title" style="margin-bottom:6px">Relevant Materials</div>
+      ${notes.map(m => {
+        const ext = (m.filename||"").split(".").pop().toUpperCase();
+        const url = courseId
+          ? `/api/canvas/file/${uid}/${courseId}/${encodeURIComponent(m.filename)}`
+          : uploadedFileURLs[m.filename];
+        return `<div class="file-item">
+          <div>
+            <div class="file-item-name"><span class="file-ext">${ext}</span>${esc(m.filename)}</div>
+            <div style="font-size:.72rem;color:#64748b;margin-top:2px">${esc(m.reason||"")}</div>
+          </div>
+          ${url ? `<button class="btn btn-secondary btn-sm" onclick="openFile('${url}','${esc(m.filename)}')">Open</button>` : '<span style="font-size:.72rem;color:#94a3b8">Not cached</span>'}
+        </div>`;
+      }).join("")}`;
+  } else {
+    notesSection = '<p style="font-size:.82rem;color:#94a3b8">No matched materials found.</p>';
+  }
+
+  listEl.innerHTML = assignmentSection + notesSection;
+}
+
+
+// ══════════════════════════════════════════════════════════════════
+// STATS & SOCIAL
+// ══════════════════════════════════════════════════════════════════
+
+function calcStreak(sessions) {
+  // sessions sorted by timestamp descending
+  if (!sessions.length) return 0;
+  const sorted = [...sessions].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+  const days = new Set(sorted.map(s => s.timestamp?.slice(0,10)));
+  const today = new Date().toISOString().slice(0,10);
+  let streak = 0, cur = new Date(today);
+  while (true) {
+    const d = cur.toISOString().slice(0,10);
+    if (days.has(d)) { streak++; cur.setDate(cur.getDate()-1); }
+    else break;
+  }
+  return streak;
+}
+
+function sessionsThisWeek(sessions) {
+  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate()-7);
+  return sessions.filter(s => s.timestamp && new Date(s.timestamp) >= weekAgo).length;
+}
+
+function totalFocusHours(sessions) {
+  const mins = sessions.reduce((acc,s) => acc + (s.actual_minutes||0), 0);
+  return (mins/60).toFixed(1);
+}
+
+async function loadStats() {
+  try {
+    const res  = await fetch(`${API}/sessions`, {credentials:"include"});
+    const data = await res.json();
+    const sessions = Array.isArray(data) ? data : [];
+
+    const streak  = calcStreak(sessions);
+    const weekly  = sessionsThisWeek(sessions);
+    const hrs     = totalFocusHours(sessions);
+
+    // Dashboard stat cards
+    document.getElementById("stat-streak").textContent   = `${streak} day streak`;
+    document.getElementById("stat-sessions").textContent = `${weekly} sessions`;
+    document.getElementById("stat-hours").textContent    = `${hrs} hrs`;
+    document.getElementById("stat-streak-footer").textContent  = streak > 0 ? "Keep going!" : "Start a session today";
+    document.getElementById("stat-sessions-footer").textContent = `${sessions.length} total sessions`;
+    document.getElementById("stat-hours-footer").textContent   = `${sessions.length} sessions logged`;
+
+    return sessions;
+  } catch(e) { return []; }
+}
+
+async function loadSocialPage() {
+  const sessions = await loadStats();
+  const streak = calcStreak(sessions);
+  const weekly = sessionsThisWeek(sessions);
+  const hrs    = totalFocusHours(sessions);
+
+  document.getElementById("social-streak").textContent     = `${streak} day${streak!==1?"s":""} streak`;
+  document.getElementById("social-streak-sub").textContent = streak > 0
+    ? `You've completed at least one session every day for ${streak} day${streak!==1?"s":""}.`
+    : "Complete a session today to start your streak!";
+  document.getElementById("social-sessions-week").textContent = weekly;
+  document.getElementById("social-focus-hours").textContent   = hrs;
+
+  // Leaderboard — fetch all users' stats from server
+  try {
+    const res  = await fetch(`${API}/social/leaderboard`, {credentials:"include"});
+    const data = await res.json();
+    const friends = data.friends || [];
+    const listEl  = document.getElementById("social-leaderboard");
+    document.getElementById("social-friends-count").textContent = `${friends.length} active`;
+
+    if (!friends.length) {
+      listEl.innerHTML = '<p style="color:#94a3b8;font-size:.85rem">No friends added yet. Add friends below!</p>';
       return;
     }
-
-    empty.style.display = "none";
-    table.style.display = "table";
-    body.innerHTML = "";
-
-    // Show most recent first
-    [...data].reverse().forEach(s => {
-      const diff = s.actual_minutes && s.estimated_minutes
-        ? s.actual_minutes - s.estimated_minutes : null;
-      const diffStr = diff !== null
-        ? `${diff > 0 ? "+" : ""}${diff} min`
-        : "—";
-      const diffClass = diff === null ? "" : diff > 0 ? "diff-positive" : "diff-negative";
-      const date = s.timestamp ? new Date(s.timestamp).toLocaleDateString() : "—";
-
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${s.course || "—"}</td>
-        <td>${s.primary_concept || "—"}</td>
-        <td>${s.estimated_minutes ? s.estimated_minutes + " min" : "—"}</td>
-        <td>${s.actual_minutes} min</td>
-        <td class="${diffClass}">${diffStr}</td>
-        <td>${date}</td>
-      `;
-      body.appendChild(tr);
-    });
-  } catch (e) {
-    console.error("Could not load history:", e);
+    listEl.innerHTML = friends.map((f,i) => `
+      <div class="friend-row">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="friend-avatar">#${i+1}</div>
+          <div>
+            <div style="font-weight:600;font-size:.9rem">${esc(f.name||f.email)}</div>
+            <div style="font-size:.75rem;color:#64748b">${esc(f.status||"")}</div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:700;color:#065f46">${f.streak} day${f.streak!==1?"s":""}</div>
+          <div style="font-size:.72rem;color:#94a3b8">streak · ${f.sessions_week} this week</div>
+        </div>
+      </div>`).join("");
+  } catch(e) {
+    document.getElementById("social-leaderboard").innerHTML = '<p style="color:#94a3b8;font-size:.85rem">Could not load leaderboard.</p>';
   }
 }
 
-// Load history on uniqname blur
-document.getElementById("uniqname").addEventListener("blur", e => {
-  if (e.target.value.trim()) loadHistory(e.target.value.trim());
-});
+async function addFriend() {
+  const email = document.getElementById("social-add-email").value.trim();
+  const msgEl = document.getElementById("social-add-msg");
+  if (!email) { showMsg(msgEl, "Enter an email address", "error"); return; }
+  try {
+    const res  = await fetch(`${API}/social/friends`, {method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})});
+    const data = await res.json();
+    if (data.error) { showMsg(msgEl, data.error, "error"); return; }
+    showMsg(msgEl, `✅ Added ${email}`, "success");
+    document.getElementById("social-add-email").value = "";
+    loadSocialPage();
+  } catch(e) { showMsg(msgEl, "Could not add friend.", "error"); }
+}
+
+// ── Dashboard quick-upload (sends to /api/estimate as notes for all assignments)
+async function handleDashUpload(input) {
+  const files = [...input.files];
+  if (!files.length) return;
+  const msgEl = document.getElementById("dash-upload-msg");
+  const resEl = document.getElementById("dash-upload-results");
+  const label = document.getElementById("dash-upload-label");
+  label.style.borderColor = "#059669";
+  label.style.background  = "#f0fdf4";
+  showMsg(msgEl, `⏳ Uploading ${files.length} file(s) and running estimates...`, "info");
+  resEl.innerHTML = "";
+
+  // Pre-upload for viewing
+  for (const f of files) {
+    try { const url = await uploadForView(f); if (url) uploadedFileURLs[f.name] = url; } catch(e) {}
+  }
+
+  // If there are assignments, run estimate against each one pairing with these notes
+  if (!appAssignments.length) {
+    showMsg(msgEl, "✅ Files uploaded. Add assignments first to get estimates.", "success");
+    return;
+  }
+
+  const form = new FormData();
+  // Use the first assignment's course
+  form.append("course", appAssignments[0]?.course || "");
+  // Upload the files as both assignments (PDFs that look like assignments) and notes
+  for (const f of files) {
+    const name = f.name.toLowerCase();
+    if (name.includes("hw") || name.includes("homework") || name.includes("assignment") || name.includes("proj")) {
+      form.append("assignments", f);
+    } else {
+      form.append("notes", f);
+    }
+  }
+  // If nothing classified as assignment, treat all as notes and show file list
+  const assignCount = form.getAll("assignments").length;
+  if (assignCount === 0) {
+    // Just register files for viewing
+    resEl.innerHTML = files.map(f => {
+      const ext = f.name.split(".").pop().toUpperCase();
+      const url = uploadedFileURLs[f.name];
+      return `<div class="file-item"><div class="file-item-name"><span class="file-ext">${ext}</span>${esc(f.name)}</div>${url?`<button class="btn btn-secondary btn-sm" onclick="openFile('${url}','${esc(f.name)}')">Open</button>`:""}</div>`;
+    }).join("");
+    showMsg(msgEl, `✅ ${files.length} file(s) uploaded as course materials.`, "success");
+    return;
+  }
+
+  try {
+    const res  = await fetch(`${API}/estimate`, {method:"POST",credentials:"include",body:form});
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    lastEstimateResults = data.results || [];
+    showMsg(msgEl, `✅ Estimates complete for ${lastEstimateResults.length} assignment(s).`, "success");
+    resEl.innerHTML = lastEstimateResults.map(r => `
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          <div style="font-weight:600;font-size:.85rem">${esc(r.assignment)}</div>
+          ${r.primary_concept?`<span class="badge badge-blue" style="margin-top:4px">${esc(r.primary_concept)}</span>`:""}
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:1.3rem;font-weight:800;color:#065f46">${r.estimated_minutes||"?"} min</div>
+          <div style="font-size:.7rem;color:#64748b">${r.low_minutes||"?"}–${r.high_minutes||"?"} min range</div>
+        </div>
+      </div>`).join("");
+    // Refresh dashboard
+    const freshRes = await fetch(`${API}/assignments`, {credentials:"include"});
+    const freshData = await freshRes.json();
+    appAssignments = freshData.assignments || [];
+    renderDashboardAssignments();
+    renderStudyPlan();
+  } catch(e) {
+    showMsg(msgEl, `❌ ${e.message}`, "error");
+  }
+}
+
+// ── Remove assignment ─────────────────────────────────────────────────────────
+async function removeAssignment(id) {
+  try {
+    const res  = await fetch(`${API}/assignments/${encodeURIComponent(id)}`, {method:"DELETE",credentials:"include"});
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+    appAssignments = appAssignments.filter(a => a.id !== id);
+    renderDashboardAssignments();
+    renderStudyPlan();
+  } catch(e) { alert("Could not remove assignment."); }
+}
+
+// ── Clear Canvas cache ───────────────────────────────────────────────────────
+async function clearCanvasCache() {
+  if (!confirm("This will delete all cached Canvas files and remove Canvas assignments. Manual assignments are kept. Continue?")) return;
+  const btn = document.getElementById("clear-cache-btn");
+  const msg = document.getElementById("set-sync-msg");
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-dark spinner"></span> Clearing...';
+  try {
+    const res  = await fetch(`${API}/canvas/cache/clear`, {method:"POST",credentials:"include"});
+    const data = await res.json();
+    if (data.error) { showMsg(msg, data.error, "error"); return; }
+
+    // Refresh user + assignments
+    const meRes = await fetch(`${API}/auth/me`, {credentials:"include"});
+    const meData = await meRes.json();
+    if (meData.user) appUser = meData.user;
+    const aRes = await fetch(`${API}/assignments`, {credentials:"include"});
+    const aData = await aRes.json();
+    appAssignments = aData.assignments || [];
+    renderDashboardAssignments();
+    renderStudyPlan();
+
+    showMsg(msg, `✅ Cleared ${data.deleted_files} cached file(s) and all Canvas assignments.`, "success");
+  } catch(e) {
+    showMsg(msg, "Failed to clear cache.", "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "🗑 Clear Cache & Assignments";
+  }
+}
+
+// ── Dark mode ──────────────────────────────────────────────────────────────
+function toggleDarkMode() {
+  const isDark = document.body.classList.toggle("dark");
+  localStorage.setItem("darkMode", isDark ? "1" : "0");
+  const track = document.getElementById("dark-track");
+  const thumb = document.getElementById("dark-thumb");
+  if (track) track.style.background = isDark ? "#059669" : "#e2e8f0";
+  if (thumb) thumb.style.transform  = isDark ? "translateX(20px)" : "translateX(0)";
+}
+
+function applyStoredDarkMode() {
+  if (localStorage.getItem("darkMode") === "1") {
+    document.body.classList.add("dark");
+  }
+}
+
+// Update dark mode toggle UI when settings page opens
+const _origLoadSettings = loadSettings;
+async function loadSettings() {
+  await _origLoadSettings();
+  renderRecentlyOpened();
+  const isDark = document.body.classList.contains("dark");
+  const track  = document.getElementById("dark-track");
+  const thumb  = document.getElementById("dark-thumb");
+  if (track) track.style.background = isDark ? "#059669" : "#e2e8f0";
+  if (thumb) thumb.style.transform  = isDark ? "translateX(20px)" : "translateX(0)";
+}
+
+// ── Boot ──
+applyStoredDarkMode();
+init();
 </script>
+
+
+<!-- ══════════════ SOCIAL PAGE ══════════════ -->
+<div id="page-social" class="page hidden">
+  <div class="max-7xl">
+    <div style="margin-bottom:24px;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div class="logo-row" style="margin-bottom:8px">
+          <div class="logo-icon">📘</div>
+          <span class="logo-text">Syllabot</span>
+        </div>
+        <h1 style="font-size:2rem">Social</h1>
+        <p style="margin-top:4px">Streaks, friends, and study accountability.</p>
+      </div>
+      <button class="btn btn-secondary btn-md" onclick="showPage('dashboard')">← Dashboard</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 2fr;gap:20px;margin-bottom:20px">
+      <!-- Your streak -->
+      <div class="card">
+        <div class="section-title" style="color:#059669">Your Streak</div>
+        <div style="font-size:2.2rem;font-weight:800;color:#065f46;margin-bottom:6px" id="social-streak">— days</div>
+        <p style="font-size:.82rem;color:#64748b" id="social-streak-sub">Complete a session today to keep your streak!</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px">
+          <div class="stat-card green">
+            <div class="stat-icon">📅</div>
+            <div class="stat-title" id="social-sessions-week">—</div>
+            <div class="stat-subtitle">Sessions this week</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-icon">⏱</div>
+            <div class="stat-title" id="social-focus-hours">—</div>
+            <div class="stat-subtitle">Focus hours total</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Leaderboard -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div>
+            <div class="section-title" style="color:#059669">Friends</div>
+            <h2 style="font-size:1.3rem">Leaderboard</h2>
+          </div>
+          <span class="badge badge-emerald" id="social-friends-count">— active</span>
+        </div>
+        <div id="social-leaderboard">
+          <p style="color:#94a3b8;font-size:.85rem">Loading...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shared accountability -->
+    <div class="card">
+      <div class="section-title" style="color:#059669">Study Together</div>
+      <h2 style="font-size:1.3rem;margin-bottom:6px">Shared Accountability</h2>
+      <p style="font-size:.85rem;color:#64748b;margin-bottom:16px;max-width:600px">Add friends by their email to compare streaks and keep each other motivated.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+        <input type="text" id="social-add-email" placeholder="friend@umich.edu" style="max-width:260px"/>
+        <button class="btn btn-primary btn-md" onclick="addFriend()">+ Add Friend</button>
+      </div>
+      <div id="social-add-msg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── File viewer modal ── -->
+<div class="modal-overlay hidden" id="file-modal" onclick="if(event.target===this)closeFileModal()">
+  <div style="display:flex;flex-direction:column;width:100%;max-width:960px;height:90vh;gap:10px">
+    <!-- Timer bar shown inside PDF modal when timer is running -->
+    <div id="pdf-timer-bar" style="display:none;background:#065f46;border-radius:14px;padding:10px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="width:8px;height:8px;border-radius:50%;background:#4ade80;animation:pulse 1s infinite"></span>
+        <span style="color:#fff;font-weight:700" id="pdf-timer-display">00:00</span>
+        <span style="color:#d1fae5;font-size:.8rem" id="pdf-timer-status">Running</span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:none" onclick="timerPause()">⏸</button>
+        <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:none" onclick="closeFileModal();toggleTimerOverlay(true)">Open Timer</button>
+      </div>
+    </div>
+    <div class="modal" style="flex:1;min-height:0">
+      <div class="modal-header">
+        <h3 id="file-modal-title">File</h3>
+        <button class="modal-close" onclick="closeFileModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <iframe id="file-modal-frame" src="about:blank"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
