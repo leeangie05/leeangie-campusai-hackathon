@@ -4,16 +4,17 @@ Handles: auth, Canvas sync+caching, material matching, AI estimation,
          scheduling, timer sessions, and file storage.
 
 Install:
-    pip install flask flask-cors google-genai pypdf2 requests
+    pip install flask flask-cors google-generativeai pypdf2 requests
 
 Run:
     export GEMINI_API_KEY=your_key
     python server.py
 """
 
-import os, json, time, re, io, hashlib, tempfile, shutil
+import os, json, time, re, io, hashlib, tempfile, shutil, threading, urllib.parse
 from datetime import datetime, timedelta
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from flask import Flask, request, jsonify, session, send_from_directory
 from flask_cors import CORS
@@ -115,9 +116,10 @@ def extract_pdf_text_from_path(path: str) -> str:
 def gemini(prompt: str) -> str:
     if not GEMINI_API_KEY:
         raise ValueError("GEMINI_API_KEY not set")
-    from google import genai
-    client = genai.Client(api_key=GEMINI_API_KEY)
-    resp = client.models.generate_content(model="gemini-2.5-flash-lite", contents=prompt)
+    import google.generativeai as genai_mod
+    genai_mod.configure(api_key=GEMINI_API_KEY)
+    model = genai_mod.GenerativeModel("gemini-3.1-flash-lite-preview")
+    resp = model.generate_content(prompt)
     return resp.text.strip()
 
 def gemini_parse_json(prompt: str) -> any:
@@ -189,100 +191,33 @@ def save_canvas_cache_manifest(user_id, course_id, manifest):
     p.write_text(json.dumps(manifest, indent=2))
 
 # ── Material matcher ──────────────────────────────────────────────────────────
-def match_assignment_to_notes(assignment_text: str, assignment_name: str,
-                               notes: list[dict],
-                               assignment_path: str = None) -> dict:
-    """
-    Upload actual PDF files to Gemini and match assignment to notes.
-    notes: list of {"filename": str, "text": str, "path": str (optional)}
-    assignment_path: local path to the assignment PDF (optional, falls back to text)
 
-    Returns:
-      {
-        "topics": [{"topic": "Problem 1a: ...", "matches": [...]}],
-        "files":  [{"filename": "...", "relevance": "...", "reason": "...", "problems": [...]}]
-      }
-    """
-    if not notes:
-        return {"topics": [], "files": []}
+# Thread-local Gemini upload helpers (mirrors better_optimized.py approach)
+_GEMINI_UPLOAD_WORKERS = 6
 
-    if not GEMINI_API_KEY:
-        return {"topics": [], "files": []}
+def _upload_one_file_to_gemini(genai_mod, fpath: str, fname: str) -> tuple[str, object] | tuple[str, None]:
+    """Upload a single file to Gemini with retry; return (fname, file_ref) or (fname, None)."""
+    for attempt in range(1, 4):
+        try:
+            ref = genai_mod.upload_file(fpath)
+            print(f"  [upload] {fname}")
+            return fname, ref
+        except Exception as e:
+            if attempt < 3:
+                wait = attempt * 2
+                print(f"  ⚠️  Upload attempt {attempt} failed for {fname} ({e}), retrying in {wait}s...")
+                time.sleep(wait)
+            else:
+                print(f"  ⚠️  Gemini upload failed for {fname}: {e}")
+    return fname, None
 
-    # Only use notes that have a local file path (can be uploaded to Gemini)
-    # Fall back to text-only notes for those without paths
-    notes_with_path    = [n for n in notes if n.get("path") and Path(n["path"]).exists()]
-    notes_without_path = [n for n in notes if not (n.get("path") and Path(n["path"]).exists())]
 
-    try:
-        from google import genai as _genai
-        from google.genai import types as _gtypes
-
-        client = _genai.Client(api_key=GEMINI_API_KEY)
-
-        # Upload course files to Gemini — use cached URI when available
-        uploaded_refs   = {}   # filename -> object with .uri and .mime_type
-        file_list_lines = []
-        gcache          = load_gemini_cache()
-        cache_updated   = False
-
-        class _CachedRef:
-            def __init__(self, uri, mime): self.uri = uri; self.mime_type = mime
-
-        for i, n in enumerate(notes_with_path, 1):
-            fname  = n["filename"]
-            fpath  = n["path"]
-            ext    = os.path.splitext(fpath)[1].lower()
-            mime   = MIME_MAP.get(ext, "application/pdf")
-            ckey   = gemini_cache_key(fpath)
-
-            # Use cached URI if available and still valid
-            if ckey in gcache:
-                uri = gcache[ckey]["uri"]
-                try:
-                    # Verify URI is still alive (Gemini files expire after 48h)
-                    existing = client.files.get(name=uri.split("/")[-1])
-                    uploaded_refs[fname] = _CachedRef(existing.uri, existing.mime_type or mime)
-                    file_list_lines.append(f"{i}. {fname}")
-                    print(f"  [cache] {fname}")
-                    continue
-                except Exception:
-                    del gcache[ckey]  # expired, re-upload
-
-            try:
-                ref = client.files.upload(
-                    file=fpath,
-                    config=_gtypes.UploadFileConfig(display_name=fname, mime_type=mime)
-                )
-                uploaded_refs[fname] = ref
-                file_list_lines.append(f"{i}. {fname}")
-                gcache[ckey]   = {"uri": ref.uri, "fname": fname}
-                cache_updated  = True
-                time.sleep(0.3)
-                print(f"  [upload] {fname}")
-            except Exception as e:
-                print(f"  Gemini upload failed for {fname}: {e}")
-
-        if cache_updated:
-            save_gemini_cache(gcache)
-
-        # For notes without paths, we can't upload — include their names in the list
-        # but Gemini won't see their content (handled separately via text fallback)
-        offset = len(file_list_lines)
-        for i, n in enumerate(notes_without_path, offset + 1):
-            file_list_lines.append(f"{i}. {n['filename']} [text only]")
-
-        if not uploaded_refs and not notes_without_path:
-            return {"topics": [], "files": []}
-
-        file_list = "\n".join(file_list_lines)
-
-        # Build prompt (from new.py approach)
-        prompt = f"""You are a study assistant. The first document is a student's assignment.
+def _build_match_prompt(lines: list[str]) -> str:
+    return f"""You are a study assistant. The first document is a student's assignment.
 The remaining documents are their course lecture/material files.
 
 Course files:
-{file_list}
+{chr(10).join(lines)}
 
 Instructions:
 - Identify each individual problem or question in the assignment using its exact number/label from the assignment.
@@ -306,54 +241,127 @@ Return ONLY valid JSON, no markdown, no explanation:
 ]
 Order matches by relevance descending. Empty matches array if nothing relevant."""
 
-        # Build content list: assignment first, then course files, then prompt
-        contents = []
 
-        # Add assignment — prefer actual file (with cache), fall back to text
+def match_assignment_to_notes(assignment_text: str, assignment_name: str,
+                               notes: list[dict],
+                               assignment_path: str = None) -> dict:
+    """
+    Upload actual files to Gemini in parallel and match assignment to notes.
+    Uses google.generativeai (genai.upload_file) with ThreadPoolExecutor.
+
+    notes: list of {"filename": str, "text": str, "path": str (optional)}
+    assignment_path: local path to the assignment PDF (optional, falls back to text)
+
+    Returns:
+      {
+        "topics": [{"topic": "Problem 1a: ...", "matches": [...]}],
+        "files":  [{"filename": "...", "relevance": "...", "reason": "...", "problems": [...]}]
+      }
+    """
+    if not notes:
+        return {"topics": [], "files": []}
+    if not GEMINI_API_KEY:
+        return {"topics": [], "files": []}
+
+    notes_with_path    = [n for n in notes if n.get("path") and Path(n["path"]).exists()]
+    notes_without_path = [n for n in notes if not (n.get("path") and Path(n["path"]).exists())]
+
+    try:
+        import google.generativeai as genai_mod
+        genai_mod.configure(api_key=GEMINI_API_KEY)
+        model = genai_mod.GenerativeModel("gemini-2.5-flash-lite")
+
+        # ── Upload course files in parallel (with URI cache) ──────────────────
+        uploaded_refs   = {}   # filename -> genai file ref
+        file_list_lines = []
+        gcache          = load_gemini_cache()
+        cache_updated   = False
+
+        # Separate cached vs needs-upload
+        to_upload = []
+        for n in notes_with_path:
+            fname = n["filename"]
+            fpath = n["path"]
+            ckey  = gemini_cache_key(fpath)
+            if ckey in gcache:
+                try:
+                    existing = genai_mod.get_file(gcache[ckey]["uri"].split("/")[-1])
+                    uploaded_refs[fname] = existing
+                    print(f"  [cache] {fname}")
+                    continue
+                except Exception:
+                    del gcache[ckey]  # expired, re-upload
+            to_upload.append(n)
+
+        # Parallel uploads for files not in cache
+        if to_upload:
+            with ThreadPoolExecutor(max_workers=_GEMINI_UPLOAD_WORKERS) as ex:
+                futures = {
+                    ex.submit(_upload_one_file_to_gemini, genai_mod, n["path"], n["filename"]): n
+                    for n in to_upload
+                }
+                for fut in as_completed(futures):
+                    fname, ref = fut.result()
+                    if ref:
+                        uploaded_refs[fname] = ref
+                        ckey = gemini_cache_key(futures[fut]["path"])
+                        gcache[ckey] = {"uri": ref.uri, "fname": fname}
+                        cache_updated = True
+
+        if cache_updated:
+            save_gemini_cache(gcache)
+
+        # Build numbered file list for prompt
+        for i, fname in enumerate(uploaded_refs.keys(), 1):
+            file_list_lines.append(f"{i}. {fname}")
+        offset = len(file_list_lines)
+        for i, n in enumerate(notes_without_path, offset + 1):
+            file_list_lines.append(f"{i}. {n['filename']} [text only]")
+
+        if not uploaded_refs and not notes_without_path:
+            return {"topics": [], "files": []}
+
+        # ── Upload assignment file (with cache) ───────────────────────────────
+        asgn_ref = None
         if assignment_path and Path(assignment_path).exists():
-            ext    = os.path.splitext(assignment_path)[1].lower()
-            mime   = MIME_MAP.get(ext, "application/pdf")
             ackey  = gemini_cache_key(assignment_path)
             gcache = load_gemini_cache()
-            aref   = None
             if ackey in gcache:
                 try:
-                    existing = client.files.get(name=gcache[ackey]["uri"].split("/")[-1])
-                    aref = existing
+                    asgn_ref = genai_mod.get_file(gcache[ackey]["uri"].split("/")[-1])
                 except Exception:
                     del gcache[ackey]
-            if not aref:
+            if not asgn_ref:
                 try:
-                    aref = client.files.upload(
-                        file=assignment_path,
-                        config=_gtypes.UploadFileConfig(display_name=assignment_name, mime_type=mime)
-                    )
-                    gcache[ackey] = {"uri": aref.uri, "fname": assignment_name}
+                    asgn_ref = genai_mod.upload_file(assignment_path)
+                    gcache[ackey] = {"uri": asgn_ref.uri, "fname": assignment_name}
                     save_gemini_cache(gcache)
                     time.sleep(0.3)
-                except Exception:
-                    aref = None
-            if aref:
-                contents.append(_gtypes.Part.from_uri(file_uri=aref.uri, mime_type=aref.mime_type or mime))
-            else:
-                contents.append(f"Assignment: {assignment_name}\n\n{assignment_text[:3000]}")
+                    print(f"  [upload] assignment: {assignment_name}")
+                except Exception as e:
+                    print(f"  Assignment upload failed: {e}")
+
+        # ── Build content list and call Gemini ────────────────────────────────
+        content = []
+
+        # Assignment first
+        if asgn_ref:
+            content.append(asgn_ref)
         else:
-            contents.append(f"Assignment: {assignment_name}\n\n{assignment_text[:3000]}")
+            content.append(f"Assignment: {assignment_name}\n\n{assignment_text[:3000]}")
 
-        # Add uploaded course files
-        for fname, ref in uploaded_refs.items():
-            contents.append(_gtypes.Part.from_uri(
-                file_uri=ref.uri, mime_type=ref.mime_type
-            ))
+        # Course files
+        for ref in uploaded_refs.values():
+            content.append(ref)
 
-        # Add text-only notes as inline text
+        # Text-only fallback notes
         for n in notes_without_path:
-            contents.append(f"=== {n['filename']} (text excerpt) ===\n{n.get('text','')[:1500]}")
+            content.append(f"=== {n['filename']} (text excerpt) ===\n{n.get('text','')[:1500]}")
 
-        contents.append(prompt)
+        content.append(_build_match_prompt(file_list_lines))
 
-        resp   = client.models.generate_content(model="gemini-2.5-flash-lite", contents=contents)
-        raw    = resp.text.strip()
+        resp = model.generate_content(content)
+        raw  = resp.text.strip()
         if raw.startswith("```"):
             raw = raw.split("```")[1]
             if raw.startswith("json"): raw = raw[4:]
@@ -365,22 +373,22 @@ Order matches by relevance descending. Empty matches array if nothing relevant."
         print(f"  match_assignment_to_notes error: {e}")
         return {"topics": [], "files": [{"error": str(e)}]}
 
-    # Build flat files list sorted by first problem appearance
+    # ── Build flat files list sorted by first problem appearance ──────────────
     RANK       = {"high": 0, "medium": 1, "low": 2}
     file_order = {}
     file_best  = {}
 
     for t_idx, t in enumerate(topics):
         for m in t.get("matches", []):
-            fn = m.get("filename","")
+            fn = m.get("filename", "")
             if not fn: continue
             if fn not in file_order:
                 file_order[fn] = t_idx
                 file_best[fn]  = {
                     "filename":  fn,
-                    "relevance": m.get("relevance","low"),
-                    "reason":    m.get("reason",""),
-                    "problems":  [t.get("topic","")]
+                    "relevance": m.get("relevance", "low"),
+                    "reason":    m.get("reason", ""),
+                    "problems":  [t.get("topic", "")]
                 }
             else:
                 if RANK.get(m.get("relevance","low"),2) < RANK.get(file_best[fn]["relevance"],2):
@@ -391,7 +399,7 @@ Order matches by relevance descending. Empty matches array if nothing relevant."
 
     files_sorted = sorted(
         file_best.values(),
-        key=lambda f: (file_order.get(f["filename"],99), RANK.get(f["relevance"],2))
+        key=lambda f: (file_order.get(f["filename"], 99), RANK.get(f["relevance"], 2))
     )
 
     # Server-side duplicate filter: remove files with >72% word overlap with assignment
@@ -402,7 +410,7 @@ Order matches by relevance descending. Empty matches array if nothing relevant."
         if not a_w or not n_w: return False
         return len(a_w & n_w) / max(len(a_w), 1) > 0.72
 
-    notes_text_map = {n["filename"]: n.get("text","") for n in notes}
+    notes_text_map = {n["filename"]: n.get("text", "") for n in notes}
     files_sorted   = [f for f in files_sorted if not is_duplicate(notes_text_map.get(f["filename"],""))]
 
     return {"topics": topics, "files": files_sorted}
