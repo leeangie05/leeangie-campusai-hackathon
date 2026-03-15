@@ -210,23 +210,26 @@ File contents:
 
 Instructions:
 - Identify each distinct problem, question, or topic in the assignment.
-- For EACH problem, find which course files contain content that helps with it.
+- If a problem has sub-parts (e.g. (a), (b), (c) or i, ii, iii), create a separate topic entry for EACH sub-part that has meaningfully different content requirements. Label them "Problem 1a", "Problem 1b", etc. Only split into sub-parts if they actually require different course material — if all sub-parts use the same material, keep it as one "Problem 1".
+- For EACH problem or sub-part, find which course files contain content that directly helps a student complete it.
+- EXCLUDE any file that appears to be the same document as the assignment itself (i.e. the file contains the same problem statements, instructions, or questions as the assignment — even if named differently or stored in a different folder). These are duplicates and should never appear as reference material.
 - Only include a file if it contains content that genuinely and directly helps a student complete that specific problem.
-- "high" = the file covers this exact topic in depth. "medium" = the file has meaningful related content. "low" = only include if it contains at least one specific concept, formula, or example that applies directly to this problem. Omit files that are only tangentially related.
+- "high" = the file covers this exact topic in depth. "medium" = the file has meaningful related content. "low" = only include if it contains at least one specific concept, formula, or example that applies directly. Omit files that are only tangentially related.
 - Base matches on actual file content, not filenames.
-- A file may match multiple problems. It is better to omit a file than to include a weakly relevant one.
+- It is better to omit a file than to include a weakly relevant or duplicate one.
 
 Return ONLY valid JSON, no markdown:
 [
   {{
-    "topic": "Problem 1: <brief description>",
+    "topic": "Problem 1a: <brief description of this sub-part>",
     "matches": [
-      {{ "filename": "exact filename", "relevance": "high" | "medium" | "low", "reason": "one sentence citing specific content" }}
+      {{ "filename": "exact filename", "relevance": "high" | "medium" | "low", "reason": "one sentence citing specific content from the file" }}
     ]
   }}
 ]
 
-Only include files that are directly useful. Order matches within each topic by relevance descending."""
+Use sub-part labels (1a, 1b, 2a, etc.) only when sub-parts genuinely require different materials.
+Order matches within each topic by relevance descending."""
 
     try:
         topics = gemini_parse_json(prompt)
@@ -264,6 +267,25 @@ Only include files that are directly useful. Order matches within each topic by 
             key=lambda f: (file_order.get(f["filename"], 99), RANK.get(f["relevance"], 2))
         )
 
+        # Server-side safety net: remove files whose text is very similar to the assignment
+        # (catches cases where Gemini misses the duplicate despite instructions)
+        def looks_like_duplicate(note_text: str, assignment_text: str) -> bool:
+            if not note_text or not assignment_text: return False
+            # Extract first 500 chars of meaningful words from each
+            import re as _re
+            def words(t): return set(_re.findall(r"\b[a-zA-Z]{4,}\b", t[:1500].lower()))
+            a_words = words(assignment_text)
+            n_words = words(note_text)
+            if not a_words or not n_words: return False
+            overlap = len(a_words & n_words) / max(len(a_words), 1)
+            return overlap > 0.72   # >72% word overlap = very likely the same doc
+
+        notes_map = {n["filename"]: n.get("text","") for n in notes}
+        files_sorted = [
+            f for f in files_sorted
+            if not looks_like_duplicate(notes_map.get(f["filename"],""), assignment_text)
+        ]
+
         return {"topics": topics, "files": files_sorted}
 
     except Exception as e:
@@ -272,6 +294,18 @@ Only include files that are directly useful. Order matches within each topic by 
 # ── AI time estimator ─────────────────────────────────────────────────────────
 def ai_estimate(assignment_text: str, assignment_name: str,
                 course: str, notes_text: str, history_summary: str) -> dict:
+
+    # Detect if the assignment name is generic/nondescript
+    generic_patterns = [
+        "homework", "hw", "assignment", "problem set", "pset",
+        "lab", "quiz", "exam", "project", "worksheet", "exercise"
+    ]
+    name_lower = assignment_name.lower().replace("_"," ").replace("-"," ")
+    is_generic = any(name_lower.strip().startswith(p) or name_lower.strip() == p
+                     for p in generic_patterns)
+
+    course_known = bool(course and course.strip() and course.strip().lower() not in ("unknown",""))
+
     prompt = f"""You are an academic workload estimator for University of Michigan students.
 Estimate how many minutes a prepared student needs to complete this assignment.
 
@@ -280,26 +314,42 @@ Key assumptions:
 - Only estimate time to actually DO the assignment (reading the prompt, solving problems, writing, coding, etc.).
 - Be concise and realistic. Most homework assignments take 30–180 minutes. Only exceed 3 hours for large projects or exams.
 
-Course: {course or "Unknown"}
+Course provided: {course if course_known else "NOT PROVIDED — infer from assignment content"}
 Historical timing data: {history_summary}
 
-Assignment: {assignment_name}
+Assignment filename: {assignment_name}
+Assignment content:
 {assignment_text[:2000]}
 
-Relevant notes summary (for context only — student already knows this material):
+Relevant notes summary (for context only):
 {notes_text[:1000] if notes_text else "None provided."}
 
 Return ONLY valid JSON, no markdown:
 {{
-  "estimated_minutes": <integer, time to complete the assignment itself>,
+  "estimated_minutes": <integer>,
   "low_minutes": <integer, fast student>,
   "high_minutes": <integer, slower student>,
   "primary_concept": "<3-5 word topic label>",
-  "reasoning": "<1-2 sentences explaining the estimate>",
-  "confidence": "low" | "medium" | "high"
+  "reasoning": "<1-2 sentences>",
+  "confidence": "low" | "medium" | "high",
+  "inferred_course": "<course code e.g. EECS 281, MATH 217 — infer from content if not provided, else repeat the provided course, null if truly unknown>",
+  "inferred_course_confidence": "low" | "medium" | "high",
+  "display_title": "<friendly display title: if assignment name is generic like Homework 3 or HW2, prefix with inferred course code, e.g. EECS 281 — Homework 3; if name is already descriptive keep it as-is>"
 }}"""
     try:
-        return gemini_parse_json(prompt)
+        result = gemini_parse_json(prompt)
+        # If course wasn't provided and AI is confident, use the inferred one
+        if not course_known:
+            ic   = result.get("inferred_course") or ""
+            icc  = result.get("inferred_course_confidence","low")
+            if ic and icc in ("medium","high"):
+                result["course"] = ic
+        else:
+            result["course"] = course
+        # Always ensure display_title is set
+        if not result.get("display_title"):
+            result["display_title"] = assignment_name
+        return result
     except Exception as e:
         return {"error": str(e)}
 
@@ -579,48 +629,103 @@ def canvas_sync():
         cname = course["name"]
         ccode = course.get("course_code", "")
 
-        # Assignments
+        # Assignments — request with submission details to get attachments
         try:
             canvas_assignments = canvas_get(domain, token,
                 f"/api/v1/courses/{cid}/assignments",
-                {"per_page": 50, "order_by": "due_at"})
+                {"per_page": 50, "order_by": "due_at",
+                 "include[]": ["submission", "overrides"]})
         except Exception as e:
             print(f"  Could not fetch assignments for {cname}: {e}")
             canvas_assignments = []
 
-        for a in canvas_assignments:
-            desc = re.sub(r"<[^>]+>", " ", a.get("description") or "").strip()
+        def download_and_cache_file(file_info: dict, cid: int, label: str = "") -> str | None:
+            """Download a Canvas file dict and cache it. Returns filename or None."""
+            fname = file_info.get("filename") or file_info.get("display_name", "")
+            if not fname: return None
+            ext = os.path.splitext(fname)[1].lower()
+            if ext not in ALLOWED_EXTENSIONS: return None
+            cache_dir_a = get_canvas_cache_dir(u["id"], cid)
+            dest = cache_dir_a / fname
+            if dest.exists():
+                return fname
+            print(f"  Downloading {label or fname}...")
+            file_bytes = canvas_download_file(file_info, token)
+            if not file_bytes: return None
+            dest.write_bytes(file_bytes)
+            manifest_a = canvas_cache_manifest(u["id"], cid)
+            manifest_a[str(file_info.get("id", "f_" + fname))] = {
+                "filename":     fname,
+                "cached_at":    datetime.utcnow().isoformat(),
+                "size":         len(file_bytes),
+                "content_type": MIME_MAP.get(ext, "application/octet-stream"),
+            }
+            save_canvas_cache_manifest(u["id"], cid, manifest_a)
+            nonlocal total_files
+            total_files += 1
+            return fname
 
-            # Download any PDFs attached directly to this assignment
+        def extract_embedded_file_ids(html: str) -> list[str]:
+            """Extract Canvas file IDs from embedded links/iframes in assignment HTML."""
+            ids = []
+            # data-api-endpoint="/api/v1/files/12345"
+            ids += re.findall(r'data-api-endpoint="[^"]*?/files/(\d+)"', html)
+            # href="/courses/X/files/Y" or href="/files/Y"
+            ids += re.findall(r'href="[^"]*?/files/(\d+)"', html)
+            # src= iframes
+            ids += re.findall(r'src="[^"]*?/files/(\d+)', html)
+            # canvas file preview URLs
+            ids += re.findall(r'/api/v1/files/(\d+)', html)
+            return list(dict.fromkeys(ids))  # deduplicate, preserve order
+
+        for a in canvas_assignments:
+            raw_desc = a.get("description") or ""
+            desc     = re.sub(r"<[^>]+>", " ", raw_desc).strip()
+
             assignment_pdf_filename = None
+
+            # ── Source 1: direct attachments on assignment object ─────────────
             attachments = a.get("attachments") or []
             for att in attachments:
-                fname = att.get("filename") or att.get("display_name", "")
-                ext   = os.path.splitext(fname)[1].lower()
-                if ext in ALLOWED_EXTENSIONS:
-                    cache_dir_a = get_canvas_cache_dir(u["id"], cid)
-                    dest = cache_dir_a / fname
-                    if not dest.exists():
-                        print(f"  Downloading assignment attachment: {fname}")
-                        file_bytes = canvas_download_file(att, token)
-                        if file_bytes:
-                            dest.write_bytes(file_bytes)
-                            manifest_a = canvas_cache_manifest(u["id"], cid)
-                            manifest_a[str(att.get("id","att_"+fname))] = {
-                                "filename":     fname,
-                                "cached_at":    datetime.utcnow().isoformat(),
-                                "size":         len(file_bytes),
-                                "content_type": MIME_MAP.get(ext, "application/octet-stream"),
-                            }
-                            save_canvas_cache_manifest(u["id"], cid, manifest_a)
-                            total_files += 1
-                    if dest.exists():
+                fname = download_and_cache_file(att, cid, att.get("display_name","attachment"))
+                if fname:
+                    assignment_pdf_filename = fname
+                    break
+
+            # ── Source 2: embedded Canvas file links in description HTML ──────
+            if not assignment_pdf_filename and raw_desc:
+                embedded_ids = extract_embedded_file_ids(raw_desc)
+                for fid in embedded_ids:
+                    try:
+                        file_meta = canvas_get(domain, token, f"/api/v1/files/{fid}")
+                        if isinstance(file_meta, dict):
+                            fname = download_and_cache_file(file_meta, cid, file_meta.get("display_name",""))
+                            if fname:
+                                assignment_pdf_filename = fname
+                                break
+                    except Exception as fe:
+                        print(f"  Could not fetch embedded file {fid}: {fe}")
+
+            # ── Source 3: submission attachments ─────────────────────────────
+            if not assignment_pdf_filename:
+                submission = a.get("submission") or {}
+                for att in (submission.get("attachments") or []):
+                    fname = download_and_cache_file(att, cid, att.get("display_name","sub_attachment"))
+                    if fname:
                         assignment_pdf_filename = fname
-                    break  # only use first attachment
+                        break
+
+            raw_title = a.get("name", "Unnamed")
+            # Build display title: prefix course code if name is generic
+            generic_words = ("homework","hw","assignment","problem set","pset","lab","quiz","exam","project","worksheet")
+            title_lower   = raw_title.lower().strip()
+            course_code   = (ccode or cname or "").split()[0] if (ccode or cname) else ""
+            is_generic    = any(title_lower.startswith(w) or title_lower == w for w in generic_words)
+            display_title = f"{course_code} — {raw_title}" if (is_generic and course_code and not raw_title.lower().startswith(course_code.lower())) else raw_title
 
             all_assignments.append({
                 "id":                     f"canvas_{a['id']}",
-                "title":                  a.get("name", "Unnamed"),
+                "title":                  display_title,
                 "course":                 cname,
                 "course_id":              cid,
                 "description":            desc,
@@ -812,23 +917,62 @@ def estimate():
         estimate_result["matched_topics"] = matched_topics # per-problem breakdown
         results.append(estimate_result)
 
-    # Save estimates back to matching assignments in users.json
+    # Save estimates back — update existing or CREATE new assignment
     if results:
         users = load_users()
         for user in users:
             if user["id"] == u["id"]:
                 for r in results:
                     if r.get("error"): continue
+
+                    aname_base = os.path.splitext(r["assignment"])[0].lower().replace("_"," ").replace("-"," ")
+
+                    # Try to find an existing assignment that matches
+                    matched_existing = None
                     for a in user.get("assignments", []):
-                        # Match by filename (strip extension) or exact title
-                        aname_base = os.path.splitext(r["assignment"])[0].lower().replace("_"," ").replace("-"," ")
-                        atitle     = a.get("title","").lower().strip()
-                        if aname_base in atitle or atitle in aname_base or a.get("id","") == r.get("assignment_id",""):
-                            a["estimated_minutes"] = r.get("estimated_minutes")
-                            a["estimated_hours"]   = round((r.get("estimated_minutes") or 180) / 60, 2)
-                            a["primary_concept"]   = r.get("primary_concept", "")
-                            a["matched_notes"]     = r.get("matched_notes", [])
-                            a["ai_reasoning"]      = r.get("reasoning", "")
+                        atitle = a.get("title","").lower().strip()
+                        if aname_base in atitle or atitle in aname_base:
+                            matched_existing = a
+                            break
+
+                    # Use AI-inferred course if user didn't provide one
+                    effective_course = r.get("course") or course or ""
+                    # Use AI display_title (may prefix course to generic names)
+                    display_title = r.get("display_title") or                         os.path.splitext(r["assignment"])[0].replace("_"," ").replace("-"," ").strip()
+
+                    estimate_fields = {
+                        "estimated_minutes": r.get("estimated_minutes"),
+                        "estimated_hours":   round((r.get("estimated_minutes") or 180) / 60, 2),
+                        "primary_concept":   r.get("primary_concept", ""),
+                        "matched_notes":     r.get("matched_notes", []),
+                        "matched_topics":    r.get("matched_topics", []),
+                        "ai_reasoning":      r.get("reasoning", ""),
+                        "course":            effective_course,
+                    }
+
+                    if matched_existing:
+                        # Update title if it was generic and we now have a better one
+                        old_title = matched_existing.get("title","")
+                        if display_title and display_title != old_title and len(display_title) > len(old_title):
+                            matched_existing["title"] = display_title
+                        if effective_course and not matched_existing.get("course"):
+                            matched_existing["course"] = effective_course
+                        matched_existing.update(estimate_fields)
+                    else:
+                        # Create a new manual assignment from the uploaded PDF
+                        new_assignment = {
+                            "id":       f"manual_{int(time.time()*1000)}_{r['assignment']}",
+                            "title":    display_title,
+                            "course":   effective_course,
+                            "source":   "manual",
+                            "due_date": "",
+                            "points":   100,
+                            **estimate_fields,
+                        }
+                        user.setdefault("assignments", []).append(new_assignment)
+                        r["assignment_id"] = new_assignment["id"]
+                        r["display_title"] = display_title
+                        r["course"]        = effective_course
                 break
         save_users(users)
 
@@ -1500,15 +1644,10 @@ def suggest_schedule():
 
     return jsonify({"suggested": suggested})
 
-#if __name__ == "__main__":
-#    print("="*50)
-#    print("  Syllabot server starting...")
-#    print("  Set: export GEMINI_API_KEY=your_key")
-#    print("  Open: http://localhost:5000")
-#    print("="*50)
-#    app.run(debug=True, port=5000)
-
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
-
+    print("="*50)
+    print("  Syllabot server starting...")
+    print("  Set: export GEMINI_API_KEY=your_key")
+    print("  Open: http://localhost:5000")
+    print("="*50)
+    app.run(debug=True, port=5000)
