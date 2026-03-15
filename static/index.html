@@ -1145,6 +1145,7 @@ function renderObCourses() {
 }
 
 function renderObAssignments() {
+  // Added upload file upon login
   const el = document.getElementById("ob-assignments");
   el.innerHTML = obAssignments.map((a,i) => `
     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:16px;margin-bottom:10px">
@@ -1162,6 +1163,7 @@ function renderObAssignments() {
           </select>
         </div>
       </div>
+
       <div class="grid-2" style="margin-bottom:10px">
         <div>
           <label>Title</label>
@@ -1172,9 +1174,19 @@ function renderObAssignments() {
           <input type="datetime-local" value="${a.due_date}" oninput="obAssignments[${i}].due_date=this.value"/>
         </div>
       </div>
-      <div>
+
+      <div style="margin-bottom:10px">
         <label>Description</label>
         <textarea placeholder="What is this assignment about?" oninput="obAssignments[${i}].description=this.value">${esc(a.description)}</textarea>
+      </div>
+
+      <div>
+        <label>Upload Assignment File</label>
+        <input
+          type="file"
+          accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.md"
+          onchange="obAssignments[${i}].file=this.files[0]"
+        />
       </div>
     </div>`).join("");
 }

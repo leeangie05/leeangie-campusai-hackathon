@@ -329,18 +329,40 @@
     "created_at": "2026-03-15T02:20:31.284624",
     "courses": [
       {
-        "course_name": "EECS 281",
-        "course_code": "Data Structures"
+        "course_name": "eecs 281",
+        "course_code": "ds"
       }
     ],
     "assignments": [
       {
+        "courseIndex": 0,
+        "title": "hw 1",
+        "due_date": "2026-03-17T22:55",
+        "description": "coding",
+        "type": "homework",
+        "points": 100,
+        "difficulty": 3,
+        "id": "manual_17735434809820.7008382097140239",
+        "course": "eecs 281",
+        "source": "manual",
+        "estimated_minutes": 60,
+        "estimated_hours": 1.0,
+        "primary_concept": "basic data structures",
+        "matched_notes": [],
+        "matched_topics": [],
+        "ai_reasoning": "The assignment is labeled 'hw 1' and is described as 'coding,' suggesting an introductory programming task likely involving fundamental data structures. The historical data for EECS 281 is extremely limited, so this estimate relies more on typical EECS 281 introductory homework scope."
+      },
+      {
+        "courseIndex": 0,
         "id": "manual_1773543795970_Homework_3.pdf",
         "title": "EECS 484 - Homework 3",
         "course": "EECS 484",
         "source": "manual",
         "due_date": "",
+        "description": "",
+        "type": "homework",
         "points": 100,
+        "difficulty": 3,
         "estimated_minutes": 75,
         "estimated_hours": 1.25,
         "primary_concept": "Relational Algebra Queries",
@@ -349,18 +371,57 @@
         "ai_reasoning": "The assignment involves writing relational algebra expressions for four distinct queries based on a given schema. This requires understanding joins, selections, and projections. Question 2 on normalization is not fully detailed but would likely add to the time."
       },
       {
+        "courseIndex": 0,
         "id": "manual_1773544361261_fake_hw.pdf",
         "title": "fake_hw.pdf",
         "course": "",
         "source": "manual",
         "due_date": "",
+        "description": "",
+        "type": "homework",
         "points": 100,
+        "difficulty": 3,
         "estimated_minutes": 1,
         "estimated_hours": 0.02,
         "primary_concept": "Basic arithmetic",
         "matched_notes": [],
         "matched_topics": [],
         "ai_reasoning": "The assignment consists of a single, very simple addition problem. A prepared student would instantly know the answer."
+      }
+    ],
+    "canvas": {},
+    "onboarded": true
+  },
+  {
+    "id": "d26f3e02085a6f1032061c640017f355",
+    "email": "yoana@umich.edu",
+    "password": "8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4",
+    "name": "ana",
+    "created_at": "2026-03-15T03:01:11.921592",
+    "courses": [
+      {
+        "course_name": "eecs",
+        "course_code": "ds"
+      }
+    ],
+    "assignments": [
+      {
+        "courseIndex": 0,
+        "title": "1",
+        "due_date": "",
+        "description": "1",
+        "type": "homework",
+        "points": 100,
+        "difficulty": 3,
+        "id": "manual_17735442149840.5799723934209424",
+        "course": "eecs",
+        "source": "manual",
+        "estimated_minutes": 45,
+        "estimated_hours": 0.75,
+        "primary_concept": "Basic programming logic",
+        "matched_notes": [],
+        "matched_topics": [],
+        "ai_reasoning": "The assignment involves a single, simple problem likely requiring fundamental programming concepts. The estimated time reflects reading, understanding, and implementing a straightforward solution."
       }
     ],
     "canvas": {},
