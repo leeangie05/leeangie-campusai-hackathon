@@ -1,49 +1,109 @@
 {
+  "340013985": {
+    "filename": "Homework_3.pdf",
+    "cached_at": "2026-03-15T00:48:25.480970",
+    "size": 535938,
+    "content_type": "application/pdf"
+  },
+  "340012791": {
+    "filename": "lec00-info.pdf",
+    "cached_at": "2026-03-15T00:48:26.762291",
+    "size": 1468373,
+    "content_type": "application/pdf"
+  },
+  "340012799": {
+    "filename": "lec01-intro-pre.pdf",
+    "cached_at": "2026-03-15T00:48:27.632270",
+    "size": 692303,
+    "content_type": "application/pdf"
+  },
+  "340012797": {
+    "filename": "lec01-intro.pdf",
+    "cached_at": "2026-03-15T00:48:28.444000",
+    "size": 722818,
+    "content_type": "application/pdf"
+  },
+  "340012801": {
+    "filename": "lec02-ER-pre.pdf",
+    "cached_at": "2026-03-15T00:48:29.315915",
+    "size": 1734141,
+    "content_type": "application/pdf"
+  },
+  "340012809": {
+    "filename": "lec03-reln.pdf",
+    "cached_at": "2026-03-15T00:48:30.265738",
+    "size": 1348065,
+    "content_type": "application/pdf"
+  },
+  "340012811": {
+    "filename": "lec04-ER2reln.pdf",
+    "cached_at": "2026-03-15T00:48:31.080279",
+    "size": 816824,
+    "content_type": "application/pdf"
+  },
+  "340012805": {
+    "filename": "lec05-RA-pre.pdf",
+    "cached_at": "2026-03-15T00:48:34.376505",
+    "size": 2011516,
+    "content_type": "application/pdf"
+  },
+  "340012815": {
+    "filename": "lec07-SQL-pre.pdf",
+    "cached_at": "2026-03-15T00:48:35.226240",
+    "size": 1006929,
+    "content_type": "application/pdf"
+  },
+  "340012813": {
+    "filename": "lec07-SQL.pdf",
+    "cached_at": "2026-03-15T00:48:36.063695",
+    "size": 928429,
+    "content_type": "application/pdf"
+  },
   "340012817": {
     "filename": "lec08-dbApp.pdf",
-    "cached_at": "2026-03-14T21:16:58.636287",
+    "cached_at": "2026-03-15T00:48:37.019708",
     "size": 703987,
     "content_type": "application/pdf"
   },
   "340012823": {
     "filename": "lec09-norm-pre.pdf",
-    "cached_at": "2026-03-14T21:16:59.502775",
+    "cached_at": "2026-03-15T00:48:37.905565",
     "size": 1587200,
     "content_type": "application/pdf"
   },
   "340012821": {
     "filename": "lec09-norm.pdf",
-    "cached_at": "2026-03-14T21:17:00.431856",
+    "cached_at": "2026-03-15T00:48:38.844379",
     "size": 1216909,
     "content_type": "application/pdf"
   },
   "340012825": {
     "filename": "lec10-storage-and-indexing-pre.pdf",
-    "cached_at": "2026-03-14T21:17:01.242767",
+    "cached_at": "2026-03-15T00:48:39.697137",
     "size": 437702,
     "content_type": "application/pdf"
   },
   "340012827": {
     "filename": "lec12-B%2Btrees.pdf",
-    "cached_at": "2026-03-14T21:17:02.084346",
+    "cached_at": "2026-03-15T00:48:40.578662",
     "size": 879252,
     "content_type": "application/pdf"
   },
   "340012829": {
     "filename": "lec12-treeidx-pre.pdf",
-    "cached_at": "2026-03-14T21:17:02.888195",
+    "cached_at": "2026-03-15T00:48:41.397006",
     "size": 864346,
     "content_type": "application/pdf"
   },
   "340012831": {
     "filename": "lec13-lsm-trees.pdf",
-    "cached_at": "2026-03-14T21:17:03.701968",
+    "cached_at": "2026-03-15T00:48:42.287437",
     "size": 583813,
     "content_type": "application/pdf"
   },
   "340012807": {
     "filename": "lec14-hash-idx-pre.pdf",
-    "cached_at": "2026-03-14T21:17:04.586355",
+    "cached_at": "2026-03-15T00:48:43.186529",
     "size": 1186030,
     "content_type": "application/pdf"
   }

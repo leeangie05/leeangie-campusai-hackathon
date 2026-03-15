@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Syllabot</title>
+<title>Tempo</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -247,11 +247,15 @@ body.dark .assignment-card p{color:#94a3b8}
 
 /* ── Schedule / Calendar ── */
 .sched-panel{}
-.cal-day-grid{display:flex;flex-direction:column;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}
-.cal-hour-row{display:grid;grid-template-columns:52px 1fr;min-height:56px;border-bottom:1px solid #f1f5f9;position:relative}
+.cal-day-grid{border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}
+.cal-day-inner{position:relative}
+.cal-hour-row{display:grid;grid-template-columns:52px 1fr;height:60px;border-bottom:1px solid #f1f5f9;pointer-events:none}
 .cal-hour-row:last-child{border-bottom:none}
 .cal-hour-label{font-size:.7rem;color:#94a3b8;padding:6px 8px 0;text-align:right;font-variant-numeric:tabular-nums;flex-shrink:0}
-.cal-hour-slot{position:relative;border-left:1px solid #f1f5f9}
+.cal-hour-line{border-left:1px solid #f1f5f9}
+.cal-events-overlay{position:absolute;top:0;left:52px;right:0;bottom:0;pointer-events:none}
+.cal-events-overlay > *{pointer-events:all}
+.cal-event,.cal-gcal-ev,.cal-suggest-ev{position:absolute;left:4px;right:4px}
 .cal-event{position:absolute;left:4px;right:4px;border-radius:8px;padding:4px 8px;font-size:.75rem;font-weight:600;overflow:hidden;cursor:pointer;z-index:1;transition:opacity .15s}
 .cal-event:hover{opacity:.85}
 .cal-event .ev-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -259,7 +263,7 @@ body.dark .assignment-card p{color:#94a3b8}
 .cal-now-line{position:absolute;left:0;right:0;height:2px;background:#ef4444;z-index:2;pointer-events:none}
 .cal-now-line::before{content:'';position:absolute;left:-4px;top:-4px;width:10px;height:10px;border-radius:50%;background:#ef4444}
 /* Week grid */
-.cal-week-grid{display:grid;grid-template-columns:52px repeat(7,1fr);border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}
+.cal-week-grid{display:grid;grid-template-columns:44px repeat(7,1fr);border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}
 .cal-week-header{display:contents}
 .cal-week-day-hdr{padding:8px 4px;text-align:center;font-size:.72rem;font-weight:600;border-bottom:1px solid #e2e8f0;border-left:1px solid #f1f5f9;background:#f8fafc}
 .cal-week-day-hdr.today{background:#ecfdf5;color:#059669}
@@ -279,6 +283,23 @@ body.dark .cal-week-day-hdr.today{background:#0d2318;color:#4ade80}
 body.dark .cal-week-cell{border-color:#2d3748}
 body.dark .cal-week-cell.today-col{background:#0d2318}
 body.dark .cal-week-hour-label{border-color:#2d3748;color:#4a5568}
+.cal-week-corner{border-bottom:1px solid #e2e8f0;background:#f8fafc}
+/* Month calendar */
+.cal-month-grid{display:grid;grid-template-columns:repeat(7,1fr);border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}
+.cal-month-hdr{padding:8px 4px;text-align:center;font-size:.72rem;font-weight:700;background:#f8fafc;border-bottom:1px solid #e2e8f0;color:#64748b;text-transform:uppercase;letter-spacing:.05em}
+.cal-month-cell{min-height:90px;border-right:1px solid #f1f5f9;border-bottom:1px solid #f1f5f9;padding:4px;vertical-align:top;position:relative}
+.cal-month-cell:nth-child(7n){border-right:none}
+.cal-month-other{background:#fafafa;opacity:.5}
+.cal-month-today{background:#f0fdf4}
+.cal-month-day-num{font-size:.75rem;font-weight:600;color:#64748b;margin-bottom:3px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:50%}
+.cal-month-day-num.today{background:#059669;color:#fff}
+.cal-month-ev{font-size:.65rem;font-weight:600;padding:1px 5px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.cal-month-more{font-size:.6rem;color:#94a3b8;padding:1px 4px}
+body.dark .cal-month-hdr{background:#1e2330;color:#64748b;border-color:#2d3748}
+body.dark .cal-month-cell{border-color:#2d3748}
+body.dark .cal-month-other{background:#161b27}
+body.dark .cal-month-today{background:#0d2318}
+body.dark .cal-week-corner{background:#1e2330;border-color:#2d3748}
 /* upload choose button */
 .upload-choose-btn{margin-top:12px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:6px 16px;font-size:.82rem;font-weight:500;color:#374151;box-shadow:0 1px 2px rgba(0,0,0,.05)}
 body.dark .upload-choose-btn{background:#2d3748;border-color:#4a5568;color:#e2e8f0}
@@ -320,7 +341,7 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
     <div class="card fade-up">
       <div class="logo-row" style="margin-bottom:24px">
         <div class="logo-icon">📘</div>
-        <span class="logo-text">Syllabot</span>
+        <span class="logo-text">Tempo</span>
       </div>
       <h1 style="font-size:1.8rem;margin-bottom:6px">Welcome back</h1>
       <p style="margin-bottom:28px">Sign in to your study plan.</p>
@@ -356,7 +377,7 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
     <div class="card fade-up">
       <div class="logo-row" style="margin-bottom:8px">
         <div class="logo-icon">📘</div>
-        <span class="logo-text">Syllabot</span>
+        <span class="logo-text">Tempo</span>
       </div>
       <h1 style="margin-bottom:6px">Let's get you set up</h1>
       <p style="margin-bottom:32px">Add your courses and assignments — or sync directly from Canvas.</p>
@@ -418,7 +439,7 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
       <nav>
         <div class="logo-row">
           <div class="logo-icon">📘</div>
-          <span class="logo-text">Syllabot</span>
+          <span class="logo-text">Tempo</span>
         </div>
         <div class="nav-links">
           <button class="btn btn-outline btn-sm" onclick="showPage('materials')">📎 Materials</button>
@@ -431,7 +452,7 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
       <!-- ── Greeting ── -->
       <div style="margin-bottom:28px">
         <h1 id="dash-greeting">Good afternoon 👋</h1>
-        <p class="muted-text" style="margin-top:6px">Here's your study plan for today.</p>
+        <p class="muted-text" style="margin-top:6px">Work at your own tempo.</p>
       </div>
 
       <!-- ── 1. Summary Statistics ── -->
@@ -476,8 +497,9 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
           <h2>Study Schedule</h2>
           <div class="tab-bar" style="width:auto;gap:4px;padding:3px">
-            <button class="tab active" id="sched-tab-day"  onclick="switchSchedule('day')">Today</button>
-            <button class="tab"        id="sched-tab-week" onclick="switchSchedule('week')">This Week</button>
+            <button class="tab active" id="sched-tab-day"   onclick="switchSchedule('day')">Today</button>
+            <button class="tab"        id="sched-tab-week"  onclick="switchSchedule('week')">This Week</button>
+            <button class="tab"        id="sched-tab-month" onclick="switchSchedule('month')">Month</button>
           </div>
         </div>
 
@@ -497,6 +519,11 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
         <div id="sched-week" class="sched-panel" style="display:none">
           <div class="cal-week-grid" id="cal-week-grid"></div>
         </div>
+
+        <!-- Month calendar -->
+        <div id="sched-month" class="sched-panel" style="display:none">
+          <div class="cal-month-grid" id="cal-month-grid"></div>
+        </div>
       </section>
 
       <!-- ── 4. Recently Opened ── -->
@@ -508,7 +535,13 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
         <div id="dash-recent-files"></div>
       </div>
 
-      <!-- ── 5. Upload Assignments ── -->
+      <!-- ── 5. Completed Assignments ── -->
+      <section id="completed-assignments-section" style="display:none;margin-bottom:32px">
+        <h2 style="margin-bottom:16px">✓ Completed</h2>
+        <div id="completed-assignments-list" style="display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))"></div>
+      </section>
+
+      <!-- ── 6. Upload Assignments ── -->
       <section>
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap">
           <div>
@@ -539,7 +572,7 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
       <nav style="margin-bottom:24px">
         <div class="logo-row">
           <div class="logo-icon">📘</div>
-          <span class="logo-text">Syllabot</span>
+          <span class="logo-text">Tempo</span>
         </div>
         <button class="btn btn-secondary btn-sm" onclick="showPage('dashboard')">← Dashboard</button>
       </nav>
@@ -636,7 +669,7 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
     <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:20px">
       <button class="btn btn-primary btn-lg" id="timer-start-btn" onclick="timerStart()">▶ Start</button>
       <button class="btn btn-secondary btn-lg" id="timer-pause-btn" onclick="timerPause()" disabled>⏸ Pause</button>
-      <button class="btn btn-emerald-light btn-lg" id="timer-done-btn" onclick="timerDone()" disabled>✓ Done</button>
+      <button class="btn btn-emerald-light btn-lg" id="timer-done-btn" onclick="timerDone()" disabled>🎉 Complete</button>
     </div>
 
     <hr class="divider" style="margin:16px 0"/>
@@ -763,11 +796,15 @@ body.dark .assignment-card p{color:#94a3b8}
 
 /* ── Schedule / Calendar ── */
 .sched-panel{}
-.cal-day-grid{display:flex;flex-direction:column;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}
-.cal-hour-row{display:grid;grid-template-columns:52px 1fr;min-height:56px;border-bottom:1px solid #f1f5f9;position:relative}
+.cal-day-grid{border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}
+.cal-day-inner{position:relative}
+.cal-hour-row{display:grid;grid-template-columns:52px 1fr;height:60px;border-bottom:1px solid #f1f5f9;pointer-events:none}
 .cal-hour-row:last-child{border-bottom:none}
 .cal-hour-label{font-size:.7rem;color:#94a3b8;padding:6px 8px 0;text-align:right;font-variant-numeric:tabular-nums;flex-shrink:0}
-.cal-hour-slot{position:relative;border-left:1px solid #f1f5f9}
+.cal-hour-line{border-left:1px solid #f1f5f9}
+.cal-events-overlay{position:absolute;top:0;left:52px;right:0;bottom:0;pointer-events:none}
+.cal-events-overlay > *{pointer-events:all}
+.cal-event,.cal-gcal-ev,.cal-suggest-ev{position:absolute;left:4px;right:4px}
 .cal-event{position:absolute;left:4px;right:4px;border-radius:8px;padding:4px 8px;font-size:.75rem;font-weight:600;overflow:hidden;cursor:pointer;z-index:1;transition:opacity .15s}
 .cal-event:hover{opacity:.85}
 .cal-event .ev-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -775,7 +812,7 @@ body.dark .assignment-card p{color:#94a3b8}
 .cal-now-line{position:absolute;left:0;right:0;height:2px;background:#ef4444;z-index:2;pointer-events:none}
 .cal-now-line::before{content:'';position:absolute;left:-4px;top:-4px;width:10px;height:10px;border-radius:50%;background:#ef4444}
 /* Week grid */
-.cal-week-grid{display:grid;grid-template-columns:52px repeat(7,1fr);border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}
+.cal-week-grid{display:grid;grid-template-columns:44px repeat(7,1fr);border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}
 .cal-week-header{display:contents}
 .cal-week-day-hdr{padding:8px 4px;text-align:center;font-size:.72rem;font-weight:600;border-bottom:1px solid #e2e8f0;border-left:1px solid #f1f5f9;background:#f8fafc}
 .cal-week-day-hdr.today{background:#ecfdf5;color:#059669}
@@ -795,6 +832,23 @@ body.dark .cal-week-day-hdr.today{background:#0d2318;color:#4ade80}
 body.dark .cal-week-cell{border-color:#2d3748}
 body.dark .cal-week-cell.today-col{background:#0d2318}
 body.dark .cal-week-hour-label{border-color:#2d3748;color:#4a5568}
+.cal-week-corner{border-bottom:1px solid #e2e8f0;background:#f8fafc}
+/* Month calendar */
+.cal-month-grid{display:grid;grid-template-columns:repeat(7,1fr);border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}
+.cal-month-hdr{padding:8px 4px;text-align:center;font-size:.72rem;font-weight:700;background:#f8fafc;border-bottom:1px solid #e2e8f0;color:#64748b;text-transform:uppercase;letter-spacing:.05em}
+.cal-month-cell{min-height:90px;border-right:1px solid #f1f5f9;border-bottom:1px solid #f1f5f9;padding:4px;vertical-align:top;position:relative}
+.cal-month-cell:nth-child(7n){border-right:none}
+.cal-month-other{background:#fafafa;opacity:.5}
+.cal-month-today{background:#f0fdf4}
+.cal-month-day-num{font-size:.75rem;font-weight:600;color:#64748b;margin-bottom:3px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:50%}
+.cal-month-day-num.today{background:#059669;color:#fff}
+.cal-month-ev{font-size:.65rem;font-weight:600;padding:1px 5px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.cal-month-more{font-size:.6rem;color:#94a3b8;padding:1px 4px}
+body.dark .cal-month-hdr{background:#1e2330;color:#64748b;border-color:#2d3748}
+body.dark .cal-month-cell{border-color:#2d3748}
+body.dark .cal-month-other{background:#161b27}
+body.dark .cal-month-today{background:#0d2318}
+body.dark .cal-week-corner{background:#1e2330;border-color:#2d3748}
 /* upload choose button */
 .upload-choose-btn{margin-top:12px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:6px 16px;font-size:.82rem;font-weight:500;color:#374151;box-shadow:0 1px 2px rgba(0,0,0,.05)}
 body.dark .upload-choose-btn{background:#2d3748;border-color:#4a5568;color:#e2e8f0}
@@ -835,7 +889,7 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
       <nav style="margin-bottom:24px">
         <div class="logo-row">
           <div class="logo-icon">📘</div>
-          <span class="logo-text">Syllabot</span>
+          <span class="logo-text">Tempo</span>
         </div>
         <button class="btn btn-secondary btn-sm" onclick="showPage('dashboard')">← Dashboard</button>
       </nav>
@@ -850,6 +904,18 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
         </label>
       </div>
 
+      <h3 style="margin-bottom:12px">Profile</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px">
+        <div style="flex:1;min-width:180px">
+          <label>Display Name</label>
+          <input type="text" id="settings-name" placeholder="Your name"/>
+        </div>
+        <button class="btn btn-primary btn-md" onclick="saveName()">Save</button>
+      </div>
+      <div id="settings-name-msg" style="margin-bottom:8px"></div>
+      <button class="btn btn-danger btn-sm" onclick="deleteAccount()" style="margin-bottom:4px">🗑 Delete Account</button>
+
+      <hr class="divider"/>
       <h3 style="margin-bottom:12px">Google Calendar</h3>
       <div class="gcal-panel" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:14px;padding:20px;margin-bottom:8px">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
@@ -904,7 +970,7 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
 // ══════════════════════════════════════════════════════════════════
 // STATE
 // ══════════════════════════════════════════════════════════════════
-const API = "http://localhost:5000/api";
+const API = `${window.location.protocol}//${window.location.hostname}:${window.location.port}/api`;
 let appUser = null;
 let appAssignments = [];
 let timerInterval = null;
@@ -1590,39 +1656,43 @@ function timerReset() {
 }
 
 function fmtTime(s) {
-  const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
-  if(h>0) return `${h}:${pad(m)}:${pad(sec)}`;
-  return `${pad(m)}:${pad(sec)}`;
+  const neg = s < 0; const abs = Math.abs(s);
+  const h=Math.floor(abs/3600),m=Math.floor((abs%3600)/60),sec=abs%60;
+  const str = h>0 ? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
+  return neg ? `-${str}` : str;
 }
 function pad(n){return String(n).padStart(2,"0")}
 
 function updateTimerUI() {
   const pill = document.getElementById("timer-pill-display");
-  if (pill) pill.textContent = fmtTime(timerElapsed);
-  // Update PDF modal timer bar
-  const pdfDisp = document.getElementById("pdf-timer-display");
-  if (pdfDisp) pdfDisp.textContent = fmtTime(timerElapsed);
-  const pdfBar = document.getElementById("pdf-timer-bar");
-  if (pdfBar) pdfBar.style.display = timerRunning ? "flex" : "none";
   const disp = document.getElementById("timer-display");
   const bar  = document.getElementById("timer-bar");
   const stat = document.getElementById("timer-status");
-  disp.textContent = fmtTime(timerElapsed);
+
+  // Countdown: show time remaining (goes negative)
   if (timerEstMinutes) {
-    const total = timerEstMinutes * 60;
-    const pct   = Math.min((timerElapsed / total) * 100, 100);
-    bar.style.width = pct + "%";
-    const rem = total - timerElapsed;
-    if (rem > 0) {
-      disp.className = rem < 300 ? "timer-digits near" : "timer-digits";
-      bar.className  = "timer-bar";
-      stat.textContent = `${fmtTime(rem)} remaining of ${timerEstMinutes} min estimate`;
-    } else {
-      disp.className = "timer-digits over";
-      bar.className  = "timer-bar over";
-      stat.textContent = `${fmtTime(-rem)} over estimate`;
+    const total   = timerEstMinutes * 60;
+    const remaining = total - timerElapsed;  // negative when over
+    if (pill) pill.textContent = fmtTime(remaining);
+    if (disp) disp.textContent = fmtTime(remaining);
+    const pdfDisp = document.getElementById("pdf-timer-display");
+    if (pdfDisp) pdfDisp.textContent = fmtTime(remaining);
+    if (bar) {
+      const pct = Math.min((timerElapsed / total) * 100, 100);
+      bar.style.width = pct + "%";
+      bar.className   = remaining > 0 ? "timer-bar" : "timer-bar over";
     }
+    if (disp) disp.className = remaining > 0 ? (remaining < 300 ? "timer-digits near" : "timer-digits") : "timer-digits over";
+    if (stat) stat.textContent = remaining > 0 ? `${fmtTime(remaining)} remaining` : `${fmtTime(-remaining)} over estimate`;
+  } else {
+    // No estimate — count up
+    if (pill) pill.textContent = fmtTime(timerElapsed);
+    if (disp) { disp.textContent = fmtTime(timerElapsed); disp.className = "timer-digits"; }
+    const pdfDisp = document.getElementById("pdf-timer-display");
+    if (pdfDisp) pdfDisp.textContent = fmtTime(timerElapsed);
   }
+  const pdfBar = document.getElementById("pdf-timer-bar");
+  if (pdfBar) pdfBar.style.display = timerRunning ? "flex" : "none";
 }
 
 function timerStart() {
@@ -1647,23 +1717,93 @@ function timerPause() {
   }
 }
 
+let completedAssignments = [];
+
 async function timerDone() {
   clearInterval(timerInterval); timerRunning = false;
   const actual = Math.max(Math.round(timerElapsed/60), 1);
-  document.getElementById("timer-status").textContent = `Session complete: ${actual} min`;
+  document.getElementById("timer-status").textContent = `Complete! ${actual} min`;
   document.getElementById("timer-start-btn").disabled = false;
   document.getElementById("timer-pause-btn").disabled = true;
   document.getElementById("timer-done-btn").disabled  = true;
+
   // Save session
   try {
     await fetch(`${API}/sessions`, {method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-      course:              timerCurrentAssignment?.course || "",
-      assignment_summary:  timerCurrentAssignment?.title || timerCurrentAssignment?.assignment_name || "",
-      primary_concept:     timerCurrentAssignment?.primary_concept || "",
-      estimated_minutes:   timerEstMinutes,
-      actual_minutes:      actual,
+      course:             timerCurrentAssignment?.course || "",
+      assignment_summary: timerCurrentAssignment?.title || "",
+      primary_concept:    timerCurrentAssignment?.primary_concept || "",
+      estimated_minutes:  timerEstMinutes,
+      actual_minutes:     actual,
     })});
   } catch(e) { console.error("Could not save session",e); }
+
+  // Move assignment to completed list
+  const a = timerCurrentAssignment;
+  if (a) {
+    completedAssignments.unshift({...a, completedAt: new Date().toISOString(), actual_minutes: actual});
+    // Remove from active list
+    appAssignments = appAssignments.filter(x => x.id !== a.id);
+    try { await fetch(`${API}/assignments/${encodeURIComponent(a.id)}`, {method:"DELETE",credentials:"include"}); } catch(e){}
+    // Confetti animation, then close overlay and refresh
+    showConfetti();
+    setTimeout(() => {
+      toggleTimerOverlay(false);
+      renderDashboardAssignments();
+      renderStudyPlan();
+      renderCompletedAssignments();
+    }, 2200);
+  }
+}
+
+function showConfetti() {
+  const overlay = document.getElementById("timer-overlay");
+  const container = document.createElement("div");
+  container.id = "confetti-container";
+  container.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden";
+  document.body.appendChild(container);
+  const colors = ["#4ade80","#34d399","#059669","#fbbf24","#f472b6","#60a5fa","#a78bfa"];
+  for (let i = 0; i < 80; i++) {
+    const piece = document.createElement("div");
+    const color = colors[Math.floor(Math.random()*colors.length)];
+    const size  = 6 + Math.random()*8;
+    const left  = Math.random()*100;
+    const delay = Math.random()*0.8;
+    const dur   = 1.2 + Math.random()*0.8;
+    const rot   = Math.random()*360;
+    piece.style.cssText = `position:absolute;top:-20px;left:${left}%;width:${size}px;height:${size}px;
+      background:${color};border-radius:${Math.random()>0.5?"50%":"2px"};opacity:1;
+      animation:confettiFall ${dur}s ${delay}s ease-in forwards;transform:rotate(${rot}deg)`;
+    container.appendChild(piece);
+  }
+  // Add keyframe dynamically if not present
+  if (!document.getElementById("confetti-style")) {
+    const style = document.createElement("style");
+    style.id = "confetti-style";
+    style.textContent = `@keyframes confettiFall{to{top:110vh;opacity:0;transform:rotate(720deg) translateX(${Math.random()>0.5?"+":"-"}60px)}}`;
+    document.head.appendChild(style);
+  }
+  setTimeout(() => container.remove(), 2500);
+}
+
+function renderCompletedAssignments() {
+  const section = document.getElementById("completed-assignments-section");
+  const list    = document.getElementById("completed-assignments-list");
+  if (!section || !list) return;
+  if (!completedAssignments.length) { section.style.display="none"; return; }
+  section.style.display = "block";
+  list.innerHTML = completedAssignments.map(a => {
+    const when = new Date(a.completedAt).toLocaleDateString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});
+    const col  = getCourseColor(a.course||"");
+    return `<div class="assignment-card" style="opacity:.75">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+        <span class="badge" style="background:${col.bg};color:${col.text}">${esc(a.course||"")}</span>
+        <span class="badge badge-emerald">✓ Done · ${a.actual_minutes} min</span>
+      </div>
+      <h3 style="font-size:1rem;margin-bottom:2px">${esc(a.title||"")}</h3>
+      <p style="font-size:.75rem;color:#94a3b8">${when}</p>
+    </div>`;
+  }).join("");
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -2041,6 +2181,7 @@ async function checkGCalStatus() {
     updateGCalUI();
     if (gcalConnected) {
       await loadGCalEvents();
+      renderSchedule();
     }
   } catch(e) { /* not critical */ }
 }
@@ -2063,39 +2204,52 @@ async function connectGCal() {
     const res  = await fetch(`${API}/gcal/connect`, {credentials:"include"});
     const data = await res.json();
     if (data.error) { showMsg(msgEl, data.error, "error"); return; }
+
     // Open OAuth popup
     const popup = window.open(data.auth_url, "gcal_auth", "width=520,height=640,scrollbars=yes");
-    // Listen for the postMessage from callback
+    showMsg(msgEl, "⏳ Waiting for Google sign-in...", "info");
+
+    // After popup closes, poll /api/gcal/status to confirm connection
+    // Do this continuously for up to 5 minutes
+    let done = false;
+
     const handler = async (event) => {
-      if (event.data === "gcal_connected") {
+      if (event.data === "gcal_connected" && !done) {
+        done = true;
         window.removeEventListener("message", handler);
-        popup?.close();
-        showMsg(msgEl, "✅ Google Calendar connected!", "success");
-        gcalConnected = true;
-        updateGCalUI();
-        await loadGCalEvents();
-        renderSchedule();
+        clearInterval(poll);
+        await onGCalConnected(msgEl);
       }
     };
     window.addEventListener("message", handler);
-    // Fallback: poll for popup close
+
     const poll = setInterval(async () => {
-      if (popup?.closed) {
+      // Check if popup closed
+      if (popup && popup.closed && !done) {
         clearInterval(poll);
         window.removeEventListener("message", handler);
-        // Check if auth succeeded
+        // Small delay to let the server finish saving the token
+        await new Promise(r => setTimeout(r, 800));
         const st = await fetch(`${API}/gcal/status`, {credentials:"include"});
         const sd = await st.json();
-        if (sd.connected) {
-          showMsg(msgEl, "✅ Google Calendar connected!", "success");
-          gcalConnected = true;
-          updateGCalUI();
-          await loadGCalEvents();
-          renderSchedule();
+        if (sd.connected && !done) {
+          done = true;
+          await onGCalConnected(msgEl);
+        } else if (!done) {
+          showMsg(msgEl, "Sign-in cancelled or failed. Try again.", "error");
         }
       }
-    }, 1000);
+    }, 500);
+
   } catch(e) { showMsg(document.getElementById("gcal-connect-msg"), e.message, "error"); }
+}
+
+async function onGCalConnected(msgEl) {
+  gcalConnected = true;
+  updateGCalUI();
+  await loadGCalEvents();
+  renderSchedule();
+  showMsg(msgEl || document.getElementById("gcal-connect-msg"), "✅ Google Calendar connected!", "success");
 }
 
 async function disconnectGCal() {
@@ -2164,10 +2318,10 @@ function getCourseColor(course) {
 
 function switchSchedule(view) {
   scheduleView = view;
-  document.getElementById("sched-tab-day").classList.toggle("active",  view === "day");
-  document.getElementById("sched-tab-week").classList.toggle("active", view === "week");
-  document.getElementById("sched-day").style.display  = view === "day"  ? "block" : "none";
-  document.getElementById("sched-week").style.display = view === "week" ? "block" : "none";
+  ["day","week","month"].forEach(v => {
+    document.getElementById(`sched-tab-${v}`)?.classList.toggle("active", v === view);
+    document.getElementById(`sched-${v}`)?.style && (document.getElementById(`sched-${v}`).style.display = v === view ? "block" : "none");
+  });
   renderSchedule();
 }
 
@@ -2180,26 +2334,14 @@ function assignmentToEvent(a) {
 }
 
 function renderSchedule() {
-  if (scheduleView === "day") renderDayCalendar();
-  else renderWeekCalendar();
+  if (scheduleView === "day")   renderDayCalendar();
+  else if (scheduleView === "week")  renderWeekCalendar();
+  else                          renderMonthCalendar();
 }
 
 const PX_PER_HOUR = 60;
 const CAL_START   = 7;
 const CAL_END     = 23;
-
-function hourToTop(h, rowStart) { return (h - rowStart) * PX_PER_HOUR; }
-
-function placeCalEvent(slot, startH, endH, className, bgColor, textColor, borderColor, titleHtml, onClick) {
-  const el = document.createElement("div");
-  el.className = className;
-  const top = ((startH % 1)) * PX_PER_HOUR;
-  const height = Math.max((endH - startH) * PX_PER_HOUR - 3, 18);
-  el.style.cssText = `top:${top}px;height:${height}px;background:${bgColor};color:${textColor};border-left-color:${borderColor}`;
-  el.innerHTML = titleHtml;
-  if (onClick) el.onclick = onClick;
-  slot.appendChild(el);
-}
 
 function renderDayCalendar() {
   const grid = document.getElementById("cal-day-grid");
@@ -2208,52 +2350,50 @@ function renderDayCalendar() {
   const today    = new Date();
   const todayStr = today.toISOString().slice(0,10);
 
-  // Build hour grid
-  let html = "";
+  // Build hour grid with a single absolute-positioned overlay column
+  let html = `<div class="cal-day-inner">`;
+  // Hour labels + lines
   for (let h = CAL_START; h < CAL_END; h++) {
     const label = h === 12 ? "12 PM" : h < 12 ? `${h} AM` : `${h-12} PM`;
     html += `<div class="cal-hour-row">
       <div class="cal-hour-label">${label}</div>
-      <div class="cal-hour-slot" data-hour="${h}" style="height:${PX_PER_HOUR}px;position:relative"></div>
+      <div class="cal-hour-line"></div>
     </div>`;
   }
+  // Single overlay for all events
+  html += `<div class="cal-events-overlay" id="cal-events-overlay"></div>`;
+  html += `</div>`;
   grid.innerHTML = html;
-  const slots = grid.querySelectorAll(".cal-hour-slot");
-  const slotByHour = {};
-  slots.forEach(s => { slotByHour[parseInt(s.dataset.hour)] = s; });
+
+  const overlay = document.getElementById("cal-events-overlay");
+  const totalH  = CAL_END - CAL_START;
+
+  // Helper: place one event as a single absolute block
+  function addEvent(startH, endH, className, bg, color, border, titleHtml, onClick) {
+    if (endH <= CAL_START || startH >= CAL_END) return;
+    startH = Math.max(startH, CAL_START);
+    endH   = Math.min(endH,   CAL_END);
+    const top    = (startH - CAL_START) * PX_PER_HOUR;
+    const height = Math.max((endH - startH) * PX_PER_HOUR - 3, 20);
+    const el = document.createElement("div");
+    el.className = className;
+    el.style.cssText = `top:${top}px;height:${height}px;background:${bg};color:${color};border-left-color:${border}`;
+    el.innerHTML = titleHtml;
+    if (onClick) el.onclick = onClick;
+    overlay.appendChild(el);
+  }
 
   // Now-line
   const nowH = today.getHours() + today.getMinutes()/60;
   if (nowH >= CAL_START && nowH < CAL_END) {
     const line = document.createElement("div");
     line.className = "cal-now-line";
-    line.style.top = (nowH % 1) * PX_PER_HOUR + "px";
-    slotByHour[Math.floor(nowH)]?.appendChild(line);
+    line.style.top  = (nowH - CAL_START) * PX_PER_HOUR + "px";
+    line.style.left = "0"; line.style.right = "0"; line.style.position = "absolute";
+    overlay.appendChild(line);
   }
 
-  function addSpanningEvent(startH, endH, className, bg, color, border, titleHtml, onClick) {
-    // Event may span multiple hour rows — place in each
-    const hStart = Math.floor(startH);
-    const hEnd   = Math.ceil(endH);
-    for (let h = Math.max(hStart, CAL_START); h < Math.min(hEnd, CAL_END); h++) {
-      const slot = slotByHour[h];
-      if (!slot) continue;
-      const rowStartH = h;
-      const rowEndH   = h + 1;
-      const visStart  = Math.max(startH, rowStartH);
-      const visEnd    = Math.min(endH,   rowEndH);
-      const top    = (visStart - rowStartH) * PX_PER_HOUR;
-      const height = Math.max((visEnd - visStart) * PX_PER_HOUR - 2, 16);
-      const el = document.createElement("div");
-      el.className = className;
-      el.style.cssText = `top:${top}px;height:${height}px;background:${bg};color:${color};border-left-color:${border}`;
-      el.innerHTML = titleHtml;
-      if (onClick) el.onclick = onClick;
-      slot.appendChild(el);
-    }
-  }
-
-  // ── Google Calendar events (purple/gray) ─────────────────────────────────
+  // ── Google Calendar events (purple) ──────────────────────────────────────
   gcalEvents.forEach(ev => {
     if (ev.allDay) return;
     try {
@@ -2261,12 +2401,9 @@ function renderDayCalendar() {
       if (s.toISOString().slice(0,10) !== todayStr) return;
       const sH = s.getHours() + s.getMinutes()/60;
       const eH = e.getHours() + e.getMinutes()/60;
-      const dur = ((eH - sH) * 60).toFixed(0);
-      addSpanningEvent(sH, eH, "cal-gcal-ev",
-        "#f3e8ff", "#6b21a8", "#a855f7",
-        `<div class="ev-title">📅 ${esc(ev.title)}</div><div style="font-size:.65rem;opacity:.7">${dur} min</div>`,
-        null
-      );
+      const dur = Math.round((eH - sH) * 60);
+      addEvent(sH, eH, "cal-gcal-ev", "#f3e8ff", "#6b21a8", "#a855f7",
+        `<div class="ev-title">📅 ${esc(ev.title)}</div><div style="font-size:.65rem;opacity:.7">${dur} min</div>`, null);
     } catch(e2) {}
   });
 
@@ -2278,53 +2415,44 @@ function renderDayCalendar() {
       const sH = s.getHours() + s.getMinutes()/60;
       const eH = e.getHours() + e.getMinutes()/60;
       const col = getCourseColor(b.course||"");
-      addSpanningEvent(sH, eH, "cal-suggest-ev",
-        "transparent", col.text, col.text,
-        `<div class="ev-title">✨ ${esc(b.assignment_title)}</div><div style="font-size:.65rem;opacity:.8">${esc(b.course)} · ${(b.hours*60).toFixed(0)} min suggested</div>`,
-        null
-      );
+      addEvent(sH, eH, "cal-suggest-ev", "transparent", col.text, col.text,
+        `<div class="ev-title">✨ ${esc(b.assignment_title)}</div><div style="font-size:.65rem;opacity:.8">${esc(b.course)} · ${Math.round(b.hours*60)} min</div>`, null);
     } catch(e2) {}
   });
 
-  // ── Syllabot study blocks (colored) ─────────────────────────────────────
+  // ── Tempo study blocks (colored, only if no suggestion covers it) ─────
   let nextSlot = 9;
   const sorted = [...appAssignments].sort((a,b) => (a.due_in_days??99) - (b.due_in_days??99));
   sorted.forEach(a => {
     if ((a.due_in_days??99) > 7) return;
-    const hrs  = a.estimated_hours || 1;
-    const dur  = Math.min(hrs, 2);
-    const col  = getCourseColor(a.course||"");
-    // Skip if suggested block already covers this assignment today
+    const dur = a.estimated_hours || 1;   // full duration, no cap
+    const col = getCourseColor(a.course||"");
     const alreadySuggested = suggestedBlocks.some(b =>
-      b.assignment_id === a.id &&
-      new Date(b.start).toISOString().slice(0,10) === todayStr
+      b.assignment_id === a.id && new Date(b.start).toISOString().slice(0,10) === todayStr
     );
     if (alreadySuggested) return;
-    // Skip if overlaps with a GCal event
-    const blocked = gcalEvents.some(ev => {
-      if (ev.allDay) return false;
+    // Advance nextSlot past any overlapping GCal event
+    for (const ev of gcalEvents) {
+      if (ev.allDay) continue;
       try {
         const es = new Date(ev.start).getHours() + new Date(ev.start).getMinutes()/60;
         const ee = new Date(ev.end).getHours()   + new Date(ev.end).getMinutes()/60;
-        return nextSlot < ee && nextSlot + dur > es;
-      } catch { return false; }
-    });
-    if (blocked) { nextSlot += 0.5; }
+        if (nextSlot < ee && nextSlot + dur > es) nextSlot = ee + 0.25;
+      } catch {}
+    }
     if (nextSlot + dur > CAL_END) return;
     const due = a.due_date ? new Date(a.due_date).toLocaleDateString("en-US",{month:"short",day:"numeric"}) : "";
-    addSpanningEvent(nextSlot, nextSlot + dur, "cal-event",
-      col.bg, col.text, col.text,
+    addEvent(nextSlot, nextSlot + dur, "cal-event", col.bg, col.text, col.text,
       `<div class="ev-title">${esc(a.title||"")}</div><div class="ev-sub">${esc(a.course||"")}${due?" · Due "+due:""}</div>`,
-      () => showMatchedMaterials(a)
-    );
+      () => showMatchedMaterials(a));
     nextSlot += dur + 0.25;
   });
 
-  if (!sorted.some(a => (a.due_in_days??99) <= 7) && !gcalEvents.length) {
+  if (!sorted.some(a => (a.due_in_days??99) <= 7) && !gcalEvents.length && !suggestedBlocks.length) {
     const empty = document.createElement("div");
     empty.style.cssText = "text-align:center;padding:32px;color:#94a3b8;font-size:.85rem";
     empty.textContent = "No assignments due in the next 7 days 🎉";
-    grid.appendChild(empty);
+    overlay.appendChild(empty);
   }
 }
 
@@ -2332,84 +2460,176 @@ function renderWeekCalendar() {
   const grid = document.getElementById("cal-week-grid");
   if (!grid) return;
 
-  const today   = new Date();
-  const dayOfWk = today.getDay(); // 0=Sun
-  const weekStart = new Date(today); weekStart.setDate(today.getDate() - dayOfWk);
-
-  const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const today      = new Date();
+  const dayOfWk    = today.getDay();
+  const weekStart  = new Date(today.getFullYear(), today.getMonth(), today.getDate() - dayOfWk);
+  const DAYS       = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   const START_HOUR = 7, END_HOUR = 22;
 
-  // Header row
-  let html = `<div class="cal-week-day-hdr" style="background:transparent;border-bottom:1px solid #e2e8f0"></div>`;
-  const dayDates = [];
-  for (let d = 0; d < 7; d++) {
-    const dt = new Date(weekStart); dt.setDate(weekStart.getDate() + d);
-    dayDates.push(dt);
-    const isToday = dt.toDateString() === today.toDateString();
-    const label   = `${DAYS[d]}<br/><span style="font-size:.9rem;font-weight:700">${dt.getDate()}</span>`;
-    html += `<div class="cal-week-day-hdr${isToday?" today":""}">${label}</div>`;
+  // Helper: get local date index (0=Sun of this week) for a Date object
+  function dayIdx(dt) {
+    const d = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+    const diff = Math.round((d - weekStart) / 86400000);
+    return (diff >= 0 && diff < 7) ? diff : -1;
   }
 
-  // Build day event maps
-  const dayStudy   = Array.from({length:7}, () => []);
-  const dayGcal    = Array.from({length:7}, () => []);
-  const daySuggest = Array.from({length:7}, () => []);
+  // Build per-day event buckets: day index -> array of html strings
+  const dayEvts = Array.from({length:7}, () => []);
 
+  // Assignments (show on study day = due day - 1)
   appAssignments.forEach(a => {
     if (!a.due_date) return;
-    const due = new Date(a.due_date);
-    const diff = Math.round((due - weekStart) / 86400000);
-    if (diff >= 0 && diff < 7) {
-      const studyDay = Math.max(0, diff - 1);
-      dayStudy[studyDay].push(a);
-    }
+    const due  = new Date(a.due_date);
+    const idx  = dayIdx(due);
+    if (idx < 0) return;
+    const studyIdx = Math.max(0, idx - 1);
+    const col = getCourseColor(a.course||"");
+    dayEvts[studyIdx].push(
+      `<div class="cal-week-ev" style="background:${col.bg};color:${col.text}"
+        onclick="showMatchedMaterials(${JSON.stringify(a).replace(/"/g,'&quot;')})"
+        title="${esc(a.title)}">${esc(a.title||"")}</div>`
+    );
   });
+
+  // Google Calendar events
   gcalEvents.forEach(ev => {
     if (ev.allDay) return;
     try {
-      const s    = new Date(ev.start);
-      const diff = Math.round((new Date(s.toDateString()) - new Date(weekStart.toDateString())) / 86400000);
-      if (diff >= 0 && diff < 7) dayGcal[diff].push(ev);
-    } catch {}
-  });
-  suggestedBlocks.forEach(b => {
-    try {
-      const s    = new Date(b.start);
-      const diff = Math.round((new Date(s.toDateString()) - new Date(weekStart.toDateString())) / 86400000);
-      if (diff >= 0 && diff < 7) daySuggest[diff].push(b);
+      const s   = new Date(ev.start);
+      const idx = dayIdx(s);
+      if (idx < 0) return;
+      const dur = Math.round((new Date(ev.end) - s) / 60000);
+      dayEvts[idx].push(
+        `<div class="cal-week-ev" style="background:#f3e8ff;color:#6b21a8"
+          title="${esc(ev.title)}">📅 ${esc(ev.title)} (${dur}m)</div>`
+      );
     } catch {}
   });
 
+  // Suggested blocks
+  suggestedBlocks.forEach(b => {
+    try {
+      const s   = new Date(b.start);
+      const idx = dayIdx(s);
+      if (idx < 0) return;
+      const col = getCourseColor(b.course||"");
+      dayEvts[idx].push(
+        `<div class="cal-week-ev" style="border:2px dashed ${col.text};color:${col.text};background:transparent"
+          title="✨ ${esc(b.assignment_title)}">✨ ${esc(b.assignment_title)}</div>`
+      );
+    } catch {}
+  });
+
+  // Build grid HTML
+  // Row 1: header (empty corner + 7 day labels)
+  let html = `<div class="cal-week-corner"></div>`;
+  for (let d = 0; d < 7; d++) {
+    const dt      = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + d);
+    const isToday = dt.toDateString() === today.toDateString();
+    html += `<div class="cal-week-day-hdr${isToday?" today":""}">${DAYS[d]}<br/>
+      <span style="font-size:.9rem;font-weight:700">${dt.getDate()}</span></div>`;
+  }
+
+  // Rows 2+: one row per hour
   for (let h = START_HOUR; h < END_HOUR; h++) {
     const label = h === 12 ? "12p" : h < 12 ? `${h}a` : `${h-12}p`;
     html += `<div class="cal-week-hour-label">${label}</div>`;
     for (let d = 0; d < 7; d++) {
-      const dt      = dayDates[d];
+      const dt      = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + d);
       const isToday = dt.toDateString() === today.toDateString();
-      let evHtml = "";
-      if (h === 9) {
-        dayStudy[d].forEach(a => {
-          const col = getCourseColor(a.course||"");
-          evHtml += `<div class="cal-week-ev" style="background:${col.bg};color:${col.text}" onclick="showMatchedMaterials(${JSON.stringify(a).replace(/"/g,"&quot;")})" title="${esc(a.title)}">${esc(a.title||"")}</div>`;
-        });
-        daySuggest[d].forEach(b => {
-          const col = getCourseColor(b.course||"");
-          evHtml += `<div class="cal-week-ev" style="border:2px dashed ${col.text};color:${col.text};background:transparent" title="Suggested: ${esc(b.assignment_title)}">✨ ${esc(b.assignment_title)}</div>`;
-        });
-      }
-      if (h === 10) {
-        dayGcal[d].forEach(ev => {
-          const s = new Date(ev.start); const e = new Date(ev.end);
-          const dur = Math.round((e - s)/60000);
-          evHtml += `<div class="cal-week-ev" style="background:#f3e8ff;color:#6b21a8" title="${esc(ev.title)}">📅 ${esc(ev.title)} (${dur}m)</div>`;
-        });
-      }
+      // Show all events for this day in the 9am row only (summary style)
+      const evHtml  = h === 9 ? (dayEvts[d].join("")) : "";
       html += `<div class="cal-week-cell${isToday?" today-col":""}">${evHtml}</div>`;
     }
   }
 
   grid.innerHTML = html;
 }
+
+function renderMonthCalendar() {
+  const grid = document.getElementById("cal-month-grid");
+  if (!grid) return;
+
+  const today      = new Date();
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const monthEnd   = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  const startDow   = monthStart.getDay(); // 0=Sun
+  const DAYS       = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+  // Helper: local date string yyyy-mm-dd
+  function localStr(dt) {
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
+  }
+
+  // Build event map: dateStr -> [{html, color}]
+  const evMap = {};
+  function addToMap(dateStr, html) {
+    evMap[dateStr] = evMap[dateStr] || [];
+    evMap[dateStr].push(html);
+  }
+
+  appAssignments.forEach(a => {
+    if (!a.due_date) return;
+    const due = new Date(a.due_date);
+    const col = getCourseColor(a.course||"");
+    const ds  = localStr(new Date(due.getFullYear(), due.getMonth(), due.getDate()));
+    addToMap(ds, `<div class="cal-month-ev" style="background:${col.bg};color:${col.text}"
+      onclick="showMatchedMaterials(${JSON.stringify(a).replace(/"/g,'&quot;')})"
+      title="${esc(a.title)}">📚 ${esc(a.title||"")}</div>`);
+  });
+
+  gcalEvents.forEach(ev => {
+    if (ev.allDay) return;
+    try {
+      const s  = new Date(ev.start);
+      const ds = localStr(new Date(s.getFullYear(), s.getMonth(), s.getDate()));
+      addToMap(ds, `<div class="cal-month-ev" style="background:#f3e8ff;color:#6b21a8"
+        title="${esc(ev.title)}">📅 ${esc(ev.title)}</div>`);
+    } catch {}
+  });
+
+  suggestedBlocks.forEach(b => {
+    try {
+      const s   = new Date(b.start);
+      const ds  = localStr(new Date(s.getFullYear(), s.getMonth(), s.getDate()));
+      const col = getCourseColor(b.course||"");
+      addToMap(ds, `<div class="cal-month-ev" style="border:2px dashed ${col.text};color:${col.text};background:transparent"
+        title="✨ ${esc(b.assignment_title)}">✨ ${esc(b.assignment_title)}</div>`);
+    } catch {}
+  });
+
+  // Build HTML
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  let html = "";
+
+  // Day-of-week headers
+  DAYS.forEach(d => { html += `<div class="cal-month-hdr">${d}</div>`; });
+
+  // Leading empty cells
+  for (let i = 0; i < startDow; i++) html += `<div class="cal-month-cell cal-month-other"></div>`;
+
+  // Day cells
+  for (let day = 1; day <= monthEnd.getDate(); day++) {
+    const dt      = new Date(today.getFullYear(), today.getMonth(), day);
+    const ds      = localStr(dt);
+    const isToday = dt.toDateString() === today.toDateString();
+    const evs     = (evMap[ds] || []).slice(0, 3); // max 3 visible
+    const extra   = (evMap[ds] || []).length - 3;
+    html += `<div class="cal-month-cell${isToday?" cal-month-today":""}">
+      <div class="cal-month-day-num${isToday?" today":""}">${day}</div>
+      ${evs.join("")}
+      ${extra > 0 ? `<div class="cal-month-more">+${extra} more</div>` : ""}
+    </div>`;
+  }
+
+  // Trailing cells
+  const totalCells = startDow + monthEnd.getDate();
+  const trailing   = (7 - (totalCells % 7)) % 7;
+  for (let i = 0; i < trailing; i++) html += `<div class="cal-month-cell cal-month-other"></div>`;
+
+  grid.innerHTML = html;
+}
+
 
 // ══════════════════════════════════════════════════════════════════
 // STATS & SOCIAL
@@ -2492,18 +2712,56 @@ async function loadSocialPage() {
         <div style="display:flex;align-items:center;gap:12px">
           <div class="friend-avatar">#${i+1}</div>
           <div>
-            <div style="font-weight:600;font-size:.9rem">${esc(f.name||f.email)}</div>
+            <div style="font-weight:600;font-size:.9rem">${esc(f.name||f.email)}${f.is_self?" <span style='font-size:.65rem;color:#94a3b8'>(you)</span>":""}</div>
             <div style="font-size:.75rem;color:#64748b">${esc(f.status||"")}</div>
           </div>
         </div>
-        <div style="text-align:right">
-          <div style="font-weight:700;color:#065f46">${f.streak} day${f.streak!==1?"s":""}</div>
-          <div style="font-size:.72rem;color:#94a3b8">streak · ${f.sessions_week} this week</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="text-align:right">
+            <div style="font-weight:700;color:#065f46">${f.streak} day${f.streak!==1?"s":""}</div>
+            <div style="font-size:.72rem;color:#94a3b8">streak · ${f.sessions_week} this week</div>
+          </div>
+          ${!f.is_self ? `<button class="btn btn-danger btn-sm" onclick="removeFriend('${esc(f.email)}')">Remove</button>` : ""}
         </div>
       </div>`).join("");
   } catch(e) {
     document.getElementById("social-leaderboard").innerHTML = '<p style="color:#94a3b8;font-size:.85rem">Could not load leaderboard.</p>';
   }
+}
+
+async function saveName() {
+  const name  = document.getElementById("settings-name")?.value.trim();
+  const msgEl = document.getElementById("settings-name-msg");
+  if (!name) { showMsg(msgEl, "Enter a name", "error"); return; }
+  try {
+    const res  = await fetch(`${API}/auth/profile`, {method:"PATCH",credentials:"include",
+      headers:{"Content-Type":"application/json"}, body:JSON.stringify({name})});
+    const data = await res.json();
+    if (data.error) { showMsg(msgEl, data.error, "error"); return; }
+    if (appUser) appUser.name = name;
+    showMsg(msgEl, "✅ Name saved", "success");
+  } catch(e) { showMsg(msgEl, e.message, "error"); }
+}
+
+async function deleteAccount() {
+  if (!confirm("Permanently delete your account and all data? This cannot be undone.")) return;
+  if (!confirm("Are you absolutely sure?")) return;
+  try {
+    await fetch(`${API}/auth/delete`, {method:"DELETE",credentials:"include"});
+    appUser = null; appAssignments = [];
+    showPage("auth");
+  } catch(e) { alert("Could not delete account: " + e.message); }
+}
+
+async function removeFriend(email) {
+  if (!confirm(`Remove ${email} from your friends?`)) return;
+  try {
+    const res  = await fetch(`${API}/social/friends`, {method:"DELETE",credentials:"include",
+      headers:{"Content-Type":"application/json"}, body:JSON.stringify({email})});
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+    loadSocialPage();
+  } catch(e) { alert("Could not remove friend."); }
 }
 
 async function addFriend() {
@@ -2699,6 +2957,9 @@ async function loadSettings() {
   await _origLoadSettings();
   renderRecentlyOpened();
   checkGCalStatus();
+  // Pre-fill display name
+  const nameInput = document.getElementById("settings-name");
+  if (nameInput && appUser) nameInput.value = appUser.name || appUser.email?.split("@")[0] || "";
   const isDark = document.body.classList.contains("dark");
   const track  = document.getElementById("dark-track");
   const thumb  = document.getElementById("dark-thumb");
@@ -2719,7 +2980,7 @@ init();
       <div>
         <div class="logo-row" style="margin-bottom:8px">
           <div class="logo-icon">📘</div>
-          <span class="logo-text">Syllabot</span>
+          <span class="logo-text">Tempo</span>
         </div>
         <h1 style="font-size:2rem">Social</h1>
         <p style="margin-top:4px">Streaks, friends, and study accountability.</p>

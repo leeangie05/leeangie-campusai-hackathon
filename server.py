@@ -26,16 +26,36 @@ app.secret_key = os.environ.get("SECRET_KEY", "syllabot-dev-secret-2024")
 CORS(app, supports_credentials=True)
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+
+# Allow OAuth over plain HTTP for local development
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"]  = "1"
 DATA_DIR        = Path("data")
 CANVAS_CACHE    = Path("canvas_cache")
 for d in [DATA_DIR, CANVAS_CACHE]:
     d.mkdir(exist_ok=True)
 
-USERS_FILE    = DATA_DIR / "users.json"
-SESSIONS_FILE = DATA_DIR / "sessions.json"
+USERS_FILE      = DATA_DIR / "users.json"
+SESSIONS_FILE   = DATA_DIR / "sessions.json"
+GEMINI_URI_CACHE = DATA_DIR / "gemini_uri_cache.json"
 for f in [USERS_FILE, SESSIONS_FILE]:
     if not f.exists():
         f.write_text("[]")
+if not GEMINI_URI_CACHE.exists():
+    GEMINI_URI_CACHE.write_text("{}")
+
+def load_gemini_cache() -> dict:
+    try: return json.loads(GEMINI_URI_CACHE.read_text())
+    except: return {}
+
+def save_gemini_cache(c: dict):
+    GEMINI_URI_CACHE.write_text(json.dumps(c, indent=2))
+
+def gemini_cache_key(fpath: str) -> str:
+    """Hash of file path + mtime + size — changes when file content changes."""
+    p = Path(fpath)
+    stat = p.stat()
+    return hashlib.md5(f"{fpath}:{stat.st_mtime}:{stat.st_size}".encode()).hexdigest()
 
 ALLOWED_EXTENSIONS = {".pdf", ".pptx", ".ppt", ".docx", ".doc", ".txt", ".md"}
 MIME_MAP = {
@@ -170,126 +190,222 @@ def save_canvas_cache_manifest(user_id, course_id, manifest):
 
 # ── Material matcher ──────────────────────────────────────────────────────────
 def match_assignment_to_notes(assignment_text: str, assignment_name: str,
-                               notes: list[dict]) -> dict:
+                               notes: list[dict],
+                               assignment_path: str = None) -> dict:
     """
+    Upload actual PDF files to Gemini and match assignment to notes.
+    notes: list of {"filename": str, "text": str, "path": str (optional)}
+    assignment_path: local path to the assignment PDF (optional, falls back to text)
+
     Returns:
       {
-        "topics": [
-          {
-            "topic": "Problem 1 / Brief description",
-            "matches": [
-              {"filename": "...", "relevance": "high|medium|low", "reason": "..."}
-            ]
-          }
-        ],
-        "files": [
-          {"filename": "...", "relevance": "high|medium|low", "reason": "...", "problems": ["Problem 1", ...]}
-        ]
+        "topics": [{"topic": "Problem 1a: ...", "matches": [...]}],
+        "files":  [{"filename": "...", "relevance": "...", "reason": "...", "problems": [...]}]
       }
-    topics  — problems/topics in the assignment, each with matching files
-    files   — flat list of files sorted by first problem they appear in, includes LOW relevance
     """
     if not notes:
         return {"topics": [], "files": []}
 
-    file_list = "\n".join(f"{i+1}. {n['filename']}" for i, n in enumerate(notes))
-    notes_content = "\n\n".join(
-        f"=== {n['filename']} ===\n{n['text'][:1800]}" for n in notes
-    )
+    if not GEMINI_API_KEY:
+        return {"topics": [], "files": []}
 
-    prompt = f"""You are a study assistant matching an assignment to course notes.
+    # Only use notes that have a local file path (can be uploaded to Gemini)
+    # Fall back to text-only notes for those without paths
+    notes_with_path    = [n for n in notes if n.get("path") and Path(n["path"]).exists()]
+    notes_without_path = [n for n in notes if not (n.get("path") and Path(n["path"]).exists())]
 
-Assignment: {assignment_name}
-{assignment_text[:3000]}
+    try:
+        from google import genai as _genai
+        from google.genai import types as _gtypes
 
-Course files available:
+        client = _genai.Client(api_key=GEMINI_API_KEY)
+
+        # Upload course files to Gemini — use cached URI when available
+        uploaded_refs   = {}   # filename -> object with .uri and .mime_type
+        file_list_lines = []
+        gcache          = load_gemini_cache()
+        cache_updated   = False
+
+        class _CachedRef:
+            def __init__(self, uri, mime): self.uri = uri; self.mime_type = mime
+
+        for i, n in enumerate(notes_with_path, 1):
+            fname  = n["filename"]
+            fpath  = n["path"]
+            ext    = os.path.splitext(fpath)[1].lower()
+            mime   = MIME_MAP.get(ext, "application/pdf")
+            ckey   = gemini_cache_key(fpath)
+
+            # Use cached URI if available and still valid
+            if ckey in gcache:
+                uri = gcache[ckey]["uri"]
+                try:
+                    # Verify URI is still alive (Gemini files expire after 48h)
+                    existing = client.files.get(name=uri.split("/")[-1])
+                    uploaded_refs[fname] = _CachedRef(existing.uri, existing.mime_type or mime)
+                    file_list_lines.append(f"{i}. {fname}")
+                    print(f"  [cache] {fname}")
+                    continue
+                except Exception:
+                    del gcache[ckey]  # expired, re-upload
+
+            try:
+                ref = client.files.upload(
+                    file=fpath,
+                    config=_gtypes.UploadFileConfig(display_name=fname, mime_type=mime)
+                )
+                uploaded_refs[fname] = ref
+                file_list_lines.append(f"{i}. {fname}")
+                gcache[ckey]   = {"uri": ref.uri, "fname": fname}
+                cache_updated  = True
+                time.sleep(0.3)
+                print(f"  [upload] {fname}")
+            except Exception as e:
+                print(f"  Gemini upload failed for {fname}: {e}")
+
+        if cache_updated:
+            save_gemini_cache(gcache)
+
+        # For notes without paths, we can't upload — include their names in the list
+        # but Gemini won't see their content (handled separately via text fallback)
+        offset = len(file_list_lines)
+        for i, n in enumerate(notes_without_path, offset + 1):
+            file_list_lines.append(f"{i}. {n['filename']} [text only]")
+
+        if not uploaded_refs and not notes_without_path:
+            return {"topics": [], "files": []}
+
+        file_list = "\n".join(file_list_lines)
+
+        # Build prompt (from new.py approach)
+        prompt = f"""You are a study assistant. The first document is a student's assignment.
+The remaining documents are their course lecture/material files.
+
+Course files:
 {file_list}
 
-File contents:
-{notes_content}
-
 Instructions:
-- Identify each distinct problem, question, or topic in the assignment.
-- If a problem has sub-parts (e.g. (a), (b), (c) or i, ii, iii), create a separate topic entry for EACH sub-part that has meaningfully different content requirements. Label them "Problem 1a", "Problem 1b", etc. Only split into sub-parts if they actually require different course material — if all sub-parts use the same material, keep it as one "Problem 1".
-- For EACH problem or sub-part, find which course files contain content that directly helps a student complete it.
-- EXCLUDE any file that appears to be the same document as the assignment itself (i.e. the file contains the same problem statements, instructions, or questions as the assignment — even if named differently or stored in a different folder). These are duplicates and should never appear as reference material.
-- Only include a file if it contains content that genuinely and directly helps a student complete that specific problem.
-- "high" = the file covers this exact topic in depth. "medium" = the file has meaningful related content. "low" = only include if it contains at least one specific concept, formula, or example that applies directly. Omit files that are only tangentially related.
-- Base matches on actual file content, not filenames.
-- It is better to omit a file than to include a weakly relevant or duplicate one.
+- Identify each individual problem or question in the assignment using its exact number/label from the assignment.
+- Do NOT invent, combine, or rename problems — use only what appears in the assignment document.
+- If a problem has sub-parts (a), (b), (c) etc. that require genuinely DIFFERENT course material, create separate entries labeled "Problem 1a", "Problem 1b". If sub-parts use the same material, keep as one entry.
+- Read the actual text of every course file provided.
+- For each problem, list the course files whose content is genuinely relevant to completing that specific problem.
+- EXCLUDE any course file that appears to be the same document as the assignment (contains the same problem statements or questions).
+- Base matches ONLY on actual file content, not file names.
+- "high" = covers the exact topic in depth. "medium" = has meaningful related content. "low" = contains at least one specific relevant concept or formula. Omit files that are only tangentially related.
+- It is better to omit a file than to include a weakly relevant one.
 
-Return ONLY valid JSON, no markdown:
+Return ONLY valid JSON, no markdown, no explanation:
 [
   {{
-    "topic": "Problem 1a: <brief description of this sub-part>",
+    "topic": "Problem N — brief description",
     "matches": [
-      {{ "filename": "exact filename", "relevance": "high" | "medium" | "low", "reason": "one sentence citing specific content from the file" }}
+      {{"filename": "exact filename from list", "reason": "one sentence citing specific content from that file", "relevance": "high" | "medium" | "low"}}
     ]
   }}
 ]
+Order matches by relevance descending. Empty matches array if nothing relevant."""
 
-Use sub-part labels (1a, 1b, 2a, etc.) only when sub-parts genuinely require different materials.
-Order matches within each topic by relevance descending."""
+        # Build content list: assignment first, then course files, then prompt
+        contents = []
 
-    try:
-        topics = gemini_parse_json(prompt)
+        # Add assignment — prefer actual file (with cache), fall back to text
+        if assignment_path and Path(assignment_path).exists():
+            ext    = os.path.splitext(assignment_path)[1].lower()
+            mime   = MIME_MAP.get(ext, "application/pdf")
+            ackey  = gemini_cache_key(assignment_path)
+            gcache = load_gemini_cache()
+            aref   = None
+            if ackey in gcache:
+                try:
+                    existing = client.files.get(name=gcache[ackey]["uri"].split("/")[-1])
+                    aref = existing
+                except Exception:
+                    del gcache[ackey]
+            if not aref:
+                try:
+                    aref = client.files.upload(
+                        file=assignment_path,
+                        config=_gtypes.UploadFileConfig(display_name=assignment_name, mime_type=mime)
+                    )
+                    gcache[ackey] = {"uri": aref.uri, "fname": assignment_name}
+                    save_gemini_cache(gcache)
+                    time.sleep(0.3)
+                except Exception:
+                    aref = None
+            if aref:
+                contents.append(_gtypes.Part.from_uri(file_uri=aref.uri, mime_type=aref.mime_type or mime))
+            else:
+                contents.append(f"Assignment: {assignment_name}\n\n{assignment_text[:3000]}")
+        else:
+            contents.append(f"Assignment: {assignment_name}\n\n{assignment_text[:3000]}")
+
+        # Add uploaded course files
+        for fname, ref in uploaded_refs.items():
+            contents.append(_gtypes.Part.from_uri(
+                file_uri=ref.uri, mime_type=ref.mime_type
+            ))
+
+        # Add text-only notes as inline text
+        for n in notes_without_path:
+            contents.append(f"=== {n['filename']} (text excerpt) ===\n{n.get('text','')[:1500]}")
+
+        contents.append(prompt)
+
+        resp   = client.models.generate_content(model="gemini-2.5-flash-lite", contents=contents)
+        raw    = resp.text.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"): raw = raw[4:]
+        topics = json.loads(raw.strip())
         if not isinstance(topics, list):
             topics = []
 
-        # Build flat files list sorted by first problem appearance
-        file_order = {}   # filename -> first problem index it appears in
-        file_best  = {}   # filename -> {"relevance", "reason", "problems": []}
-        RANK = {"high": 0, "medium": 1, "low": 2}
-
-        for t_idx, t in enumerate(topics):
-            for m in t.get("matches", []):
-                fn = m.get("filename","")
-                if not fn: continue
-                if fn not in file_order:
-                    file_order[fn] = t_idx
-                    file_best[fn]  = {
-                        "filename":  fn,
-                        "relevance": m.get("relevance","low"),
-                        "reason":    m.get("reason",""),
-                        "problems":  [t.get("topic","")]
-                    }
-                else:
-                    # Update to best relevance seen
-                    if RANK.get(m.get("relevance","low"), 2) < RANK.get(file_best[fn]["relevance"], 2):
-                        file_best[fn]["relevance"] = m.get("relevance","low")
-                        file_best[fn]["reason"]    = m.get("reason","")
-                    if t.get("topic","") not in file_best[fn]["problems"]:
-                        file_best[fn]["problems"].append(t.get("topic",""))
-
-        # Sort by first appearance then by relevance
-        files_sorted = sorted(
-            file_best.values(),
-            key=lambda f: (file_order.get(f["filename"], 99), RANK.get(f["relevance"], 2))
-        )
-
-        # Server-side safety net: remove files whose text is very similar to the assignment
-        # (catches cases where Gemini misses the duplicate despite instructions)
-        def looks_like_duplicate(note_text: str, assignment_text: str) -> bool:
-            if not note_text or not assignment_text: return False
-            # Extract first 500 chars of meaningful words from each
-            import re as _re
-            def words(t): return set(_re.findall(r"\b[a-zA-Z]{4,}\b", t[:1500].lower()))
-            a_words = words(assignment_text)
-            n_words = words(note_text)
-            if not a_words or not n_words: return False
-            overlap = len(a_words & n_words) / max(len(a_words), 1)
-            return overlap > 0.72   # >72% word overlap = very likely the same doc
-
-        notes_map = {n["filename"]: n.get("text","") for n in notes}
-        files_sorted = [
-            f for f in files_sorted
-            if not looks_like_duplicate(notes_map.get(f["filename"],""), assignment_text)
-        ]
-
-        return {"topics": topics, "files": files_sorted}
-
     except Exception as e:
+        print(f"  match_assignment_to_notes error: {e}")
         return {"topics": [], "files": [{"error": str(e)}]}
+
+    # Build flat files list sorted by first problem appearance
+    RANK       = {"high": 0, "medium": 1, "low": 2}
+    file_order = {}
+    file_best  = {}
+
+    for t_idx, t in enumerate(topics):
+        for m in t.get("matches", []):
+            fn = m.get("filename","")
+            if not fn: continue
+            if fn not in file_order:
+                file_order[fn] = t_idx
+                file_best[fn]  = {
+                    "filename":  fn,
+                    "relevance": m.get("relevance","low"),
+                    "reason":    m.get("reason",""),
+                    "problems":  [t.get("topic","")]
+                }
+            else:
+                if RANK.get(m.get("relevance","low"),2) < RANK.get(file_best[fn]["relevance"],2):
+                    file_best[fn]["relevance"] = m.get("relevance","low")
+                    file_best[fn]["reason"]    = m.get("reason","")
+                if t.get("topic","") not in file_best[fn]["problems"]:
+                    file_best[fn]["problems"].append(t.get("topic",""))
+
+    files_sorted = sorted(
+        file_best.values(),
+        key=lambda f: (file_order.get(f["filename"],99), RANK.get(f["relevance"],2))
+    )
+
+    # Server-side duplicate filter: remove files with >72% word overlap with assignment
+    def is_duplicate(note_text: str) -> bool:
+        if not note_text or not assignment_text: return False
+        def words(t): return set(re.findall(r"\b[a-zA-Z]{4,}\b", t[:1500].lower()))
+        a_w = words(assignment_text); n_w = words(note_text)
+        if not a_w or not n_w: return False
+        return len(a_w & n_w) / max(len(a_w), 1) > 0.72
+
+    notes_text_map = {n["filename"]: n.get("text","") for n in notes}
+    files_sorted   = [f for f in files_sorted if not is_duplicate(notes_text_map.get(f["filename"],""))]
+
+    return {"topics": topics, "files": files_sorted}
 
 # ── AI time estimator ─────────────────────────────────────────────────────────
 def ai_estimate(assignment_text: str, assignment_name: str,
@@ -402,7 +518,7 @@ def run_estimate_for_assignment(user_id: str, assignment: dict) -> dict:
 
     assignment_text = f"Assignment: {title}\n\n{description}"
 
-    # Load cached notes for this course
+    # Load cached notes for this course — include path so Gemini can upload them
     notes = []
     if course_id:
         cache_dir = get_canvas_cache_dir(user_id, course_id)
@@ -412,14 +528,22 @@ def run_estimate_for_assignment(user_id: str, assignment: dict) -> dict:
             if fpath.exists() and os.path.splitext(meta["filename"])[1].lower() in ALLOWED_EXTENSIONS:
                 notes.append({
                     "filename": meta["filename"],
-                    "text":     extract_pdf_text_from_path(str(fpath))
+                    "text":     extract_pdf_text_from_path(str(fpath)),
+                    "path":     str(fpath),
                 })
 
     sessions = load_sessions()
     hist     = history_summary(course, sessions, user_id)
 
     try:
-        match_result   = match_assignment_to_notes(assignment_text, title, notes)
+        # Try to find a cached assignment PDF to pass as file
+        asgn_pdf = assignment.get("assignment_pdf")
+        asgn_path = None
+        if asgn_pdf and course_id:
+            p = get_canvas_cache_dir(user_id, course_id) / asgn_pdf
+            if p.exists(): asgn_path = str(p)
+
+        match_result   = match_assignment_to_notes(assignment_text, title, notes, assignment_path=asgn_path)
         matched_files  = match_result.get("files", [])
         matched_topics = match_result.get("topics", [])
         relevant = "\n\n".join(
@@ -874,11 +998,16 @@ def estimate():
     if not assignment_files:
         return jsonify({"error": "At least one assignment PDF is required"}), 400
 
-    # Build notes list from uploaded files
+    # Build notes list from uploaded files — save to temp dir so Gemini can upload them
+    upload_tmp = DATA_DIR / "uploads" / u["id"]
+    upload_tmp.mkdir(parents=True, exist_ok=True)
     notes = []
     for nf in notes_files:
-        text = extract_pdf_text(nf.read())
-        notes.append({"filename": nf.filename, "text": text})
+        raw   = nf.read()
+        sname = re.sub(r"[^a-zA-Z0-9._-]", "_", nf.filename)
+        tmp_p = upload_tmp / sname
+        tmp_p.write_bytes(raw)
+        notes.append({"filename": nf.filename, "text": extract_pdf_text(raw), "path": str(tmp_p)})
 
     # Also load cached canvas files if a canvas_course_id was provided
     if canvas_cid:
@@ -887,19 +1016,28 @@ def estimate():
         for fid, meta in manifest.items():
             fpath = cache_dir / meta["filename"]
             if fpath.exists() and os.path.splitext(meta["filename"])[1].lower() in ALLOWED_EXTENSIONS:
-                notes.append({"filename": meta["filename"], "text": extract_pdf_text_from_path(str(fpath))})
+                notes.append({
+                    "filename": meta["filename"],
+                    "text":     extract_pdf_text_from_path(str(fpath)),
+                    "path":     str(fpath),
+                })
 
     sessions  = load_sessions()
     hist_sum  = history_summary(course, sessions, u["id"])
     results   = []
 
     for af in assignment_files:
-        aname = af.filename
+        aname  = af.filename
         abytes = af.read()
         atext  = extract_pdf_text(abytes)
 
-        # Material matching
-        match_result  = match_assignment_to_notes(atext, aname, notes)
+        # Save assignment to temp file so Gemini can upload it
+        asname  = re.sub(r"[^a-zA-Z0-9._-]", "_", aname)
+        apath   = str(upload_tmp / asname)
+        Path(apath).write_bytes(abytes)
+
+        # Material matching — pass actual file paths
+        match_result  = match_assignment_to_notes(atext, aname, notes, assignment_path=apath)
         matched_files  = match_result.get("files", [])
         matched_topics = match_result.get("topics", [])
 
@@ -1001,6 +1139,15 @@ def estimate_canvas():
     notes = []
     assignment_text = f"Assignment: {asgn_title}\n\n{asgn_desc}"
 
+    # Also try to get the actual assignment PDF
+    asgn_id_str = request.form.get("canvas_assignment_id","").replace("canvas_","")
+    asgn_pdf    = next((a.get("assignment_pdf") for a in u.get("assignments",[])
+                        if str(a.get("id","")).replace("canvas_","") == asgn_id_str), None)
+    asgn_path   = None
+    if asgn_pdf:
+        p = cache_dir / asgn_pdf
+        if p.exists(): asgn_path = str(p)
+
     for fid, meta in manifest.items():
         fpath = cache_dir / meta["filename"]
         if not fpath.exists():
@@ -1009,7 +1156,7 @@ def estimate_canvas():
         if ext not in ALLOWED_EXTENSIONS:
             continue
         text = extract_pdf_text_from_path(str(fpath))
-        notes.append({"filename": meta["filename"], "text": text})
+        notes.append({"filename": meta["filename"], "text": text, "path": str(fpath)})
 
     if not notes:
         return jsonify({"error": f"No cached files found for this course. Try syncing Canvas again."}), 400
@@ -1018,7 +1165,7 @@ def estimate_canvas():
     hist_sum = history_summary(course, sessions)
 
     # Match notes to assignment
-    match_result   = match_assignment_to_notes(assignment_text, asgn_title, notes)
+    match_result   = match_assignment_to_notes(assignment_text, asgn_title, notes, assignment_path=asgn_path)
     matched_notes  = match_result.get("files", [])
     matched_topics = match_result.get("topics", [])
 
@@ -1077,6 +1224,58 @@ def patch_assignment_estimate(assignment_id):
     save_users(users)
     return jsonify({"ok": updated})
 
+
+
+# ── Update profile (name) ─────────────────────────────────────────────────────
+@app.route("/api/auth/profile", methods=["PATCH"])
+def update_profile():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    d = request.get_json() or {}
+    users = load_users()
+    for user in users:
+        if user["id"] == u["id"]:
+            if d.get("name"): user["name"] = d["name"].strip()
+            break
+    save_users(users)
+    return jsonify({"ok": True})
+
+# ── Delete account ────────────────────────────────────────────────────────────
+@app.route("/api/auth/delete", methods=["DELETE"])
+def delete_account():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    users = load_users()
+    users = [x for x in users if x["id"] != u["id"]]
+    save_users(users)
+    # Clean up sessions
+    sessions = [s for s in load_sessions() if s.get("user_id") != u["id"]]
+    save_sessions(sessions)
+    # Clean up GCal token
+    gcal_token_path(u["id"]).unlink(missing_ok=True)
+    session.clear()
+    return jsonify({"ok": True})
+
+# ── Remove friend ─────────────────────────────────────────────────────────────
+@app.route("/api/social/friends", methods=["DELETE"])
+def remove_friend():
+    err = require_auth()
+    if err: return err
+    u     = current_user()
+    d     = request.get_json() or {}
+    email = d.get("email","").strip().lower()
+    if not email:
+        return jsonify({"error": "Email required"}), 400
+    users = load_users()
+    for user in users:
+        if user["id"] == u["id"]:
+            user["friends"] = [f for f in user.get("friends",[]) if f != email]
+        elif user["email"] == email:
+            user["friends"] = [f for f in user.get("friends",[]) if f != u["email"]]
+    save_users(users)
+    return jsonify({"ok": True})
 
 # ── Delete ALL assignments ────────────────────────────────────────────────────
 @app.route("/api/assignments/all", methods=["DELETE"])
@@ -1404,7 +1603,7 @@ GCAL_TOKENS_DIR.mkdir(exist_ok=True)
 WORK_START      = int(os.environ.get("WORK_START_HOUR", 9))
 WORK_END        = int(os.environ.get("WORK_END_HOUR", 22))
 TZ_STR          = os.environ.get("TIMEZONE", "America/Detroit")
-APP_BASE_URL    = os.environ.get("APP_BASE_URL", "http://localhost:5000")
+APP_BASE_URL    = os.environ.get("APP_BASE_URL", "http://localhost:8080")
 
 def gcal_token_path(user_id: str) -> Path:
     return GCAL_TOKENS_DIR / f"{user_id}.json"
@@ -1446,18 +1645,28 @@ def gcal_connect():
         return jsonify({"error": "credentials.json not found on server"}), 500
     try:
         from google_auth_oauthlib.flow import Flow
-        os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
+        redirect_uri = f"{APP_BASE_URL}/api/gcal/callback"
         flow = Flow.from_client_secrets_file(
             str(GCAL_CREDS_FILE), scopes=GCAL_SCOPES,
-            redirect_uri=f"{APP_BASE_URL}/api/gcal/callback"
+            redirect_uri=redirect_uri
         )
+        # Suppress PKCE entirely — not needed for confidential server-side clients
+        flow.oauth2session._client.code_challenge_method = None
+        flow.oauth2session.code_challenge_method = None
         auth_url, state = flow.authorization_url(
-            access_type="offline", include_granted_scopes="true", prompt="consent"
+            access_type="offline",
+            prompt="consent",
+            include_granted_scopes="true",
         )
-        # Store state + user_id in session for callback
+        # Strip any code_challenge params the library may have injected
+        from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+        parsed = urlparse(auth_url)
+        params = {k: v for k, v in parse_qs(parsed.query, keep_blank_values=True).items()
+                  if k not in ("code_challenge", "code_challenge_method")}
+        clean_url = urlunparse(parsed._replace(query=urlencode(params, doseq=True)))
         session["gcal_state"]   = state
         session["gcal_user_id"] = u["id"]
-        return jsonify({"auth_url": auth_url})
+        return jsonify({"auth_url": clean_url})
     except ImportError:
         return jsonify({"error": "google-auth-oauthlib not installed. Run: pip install google-auth-oauthlib google-api-python-client"}), 500
     except Exception as e:
@@ -1468,23 +1677,22 @@ def gcal_callback():
     state   = session.get("gcal_state")
     user_id = session.get("gcal_user_id")
     if not state or not user_id:
-        return "Session expired. Please try again.", 400
+        return "Session expired. Please try connecting again.", 400
     try:
         from google_auth_oauthlib.flow import Flow
-        os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
+        redirect_uri = f"{APP_BASE_URL}/api/gcal/callback"
         flow = Flow.from_client_secrets_file(
             str(GCAL_CREDS_FILE), scopes=GCAL_SCOPES,
-            state=state, redirect_uri=f"{APP_BASE_URL}/api/gcal/callback"
+            state=state, redirect_uri=redirect_uri
         )
         flow.fetch_token(authorization_response=request.url)
-        creds = flow.credentials
-        gcal_token_path(user_id).write_text(creds.to_json())
+        gcal_token_path(user_id).write_text(flow.credentials.to_json())
         return """<script>
-          window.opener && window.opener.postMessage('gcal_connected', '*');
-          window.close();
-        </script><p>Connected! You can close this window.</p>"""
+          if (window.opener) { window.opener.postMessage('gcal_connected', '*'); window.close(); }
+          else { document.write('<p>Connected! You can close this tab and return to Syllabot.</p>'); }
+        </script>"""
     except Exception as e:
-        return f"Error: {e}", 500
+        return f"Error: {e} — Please close this tab and try again.", 500
 
 @app.route("/api/gcal/disconnect", methods=["POST"])
 def gcal_disconnect():
@@ -1648,6 +1856,6 @@ if __name__ == "__main__":
     print("="*50)
     print("  Syllabot server starting...")
     print("  Set: export GEMINI_API_KEY=your_key")
-    print("  Open: http://localhost:5000")
+    print("  Open: http://localhost:8080")
     print("="*50)
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=8080)

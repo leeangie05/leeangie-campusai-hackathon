@@ -24,164 +24,8 @@
     ],
     "assignments": [
       {
-        "id": "canvas_63162661",
-        "title": "HW 3",
-        "course": "EECS 484",
-        "course_id": 14399537,
-        "description": "Homework_3-1.pdf",
-        "due_date": "2026-03-19T05:59:59Z",
-        "points": 100.0,
-        "type": "homework",
-        "difficulty": 3,
-        "source": "canvas",
-        "canvas_url": "https://canvas.instructure.com/courses/14399537/assignments/63162661",
-        "assignment_pdf": null,
-        "estimated_minutes": 75,
-        "estimated_hours": 1.25,
-        "primary_concept": "JDBC database applications",
-        "matched_notes": [
-          {
-            "filename": "lec08-dbApp.pdf",
-            "relevance": "high",
-            "reason": "This file explicitly discusses database application programming, client-server architectures, multi-tiered systems, and the challenge of embedding SQL in application code.",
-            "problems": [
-              "Database Application Programming and embedding SQL"
-            ]
-          },
-          {
-            "filename": "lec09-norm.pdf",
-            "relevance": "high",
-            "reason": "This file is titled 'Normalization' and details the process of normalizing relations to avoid redundancy and anomalies, including discussions on normal forms and schema refinement.",
-            "problems": [
-              "Normalization and Schema Refinement"
-            ]
-          },
-          {
-            "filename": "lec09-norm-pre.pdf",
-            "relevance": "high",
-            "reason": "This file covers the topic of 'Normalization' and discusses the process of improving database table design by avoiding redundancy and capturing data dependencies.",
-            "problems": [
-              "Normalization and Schema Refinement"
-            ]
-          },
-          {
-            "filename": "lec10-storage-and-indexing-pre.pdf",
-            "relevance": "high",
-            "reason": "This file is titled 'Storage and Indexing' and covers the memory hierarchy, disk structure, performance implications of disk I/O, and arranging blocks on disk.",
-            "problems": [
-              "Storage and Indexing Fundamentals (Disks and Memory Hierarchy)"
-            ]
-          },
-          {
-            "filename": "lec12-B%2Btrees.pdf",
-            "relevance": "high",
-            "reason": "This file is titled 'Tree-Structured Indexes' and provides a detailed explanation of B+ Trees, their structure, searching, and page format.",
-            "problems": [
-              "B+ Tree Indexes"
-            ]
-          },
-          {
-            "filename": "lec12-treeidx-pre.pdf",
-            "relevance": "high",
-            "reason": "This file discusses 'Tree-Structured Indexes' and specifically details the characteristics, motivation, and page format of B+ Trees.",
-            "problems": [
-              "B+ Tree Indexes"
-            ]
-          },
-          {
-            "filename": "lec13-lsm-trees.pdf",
-            "relevance": "high",
-            "reason": "This file is dedicated to 'Log-Structured Merge Trees (LSM Trees)', explaining their motivation, architecture, and adoption in various systems.",
-            "problems": [
-              "LSM Trees (Log-Structured Merge Trees)"
-            ]
-          },
-          {
-            "filename": "lec14-hash-idx-pre.pdf",
-            "relevance": "high",
-            "reason": "This file focuses on 'Hash-Based Indexes', explaining their concept, comparison with B+ Trees, and practical usage in DBMS.",
-            "problems": [
-              "Hash-Based Indexes"
-            ]
-          }
-        ],
-        "matched_topics": [
-          {
-            "topic": "Database Application Programming and embedding SQL",
-            "matches": [
-              {
-                "filename": "lec08-dbApp.pdf",
-                "relevance": "high",
-                "reason": "This file explicitly discusses database application programming, client-server architectures, multi-tiered systems, and the challenge of embedding SQL in application code."
-              }
-            ]
-          },
-          {
-            "topic": "Normalization and Schema Refinement",
-            "matches": [
-              {
-                "filename": "lec09-norm.pdf",
-                "relevance": "high",
-                "reason": "This file is titled 'Normalization' and details the process of normalizing relations to avoid redundancy and anomalies, including discussions on normal forms and schema refinement."
-              },
-              {
-                "filename": "lec09-norm-pre.pdf",
-                "relevance": "high",
-                "reason": "This file covers the topic of 'Normalization' and discusses the process of improving database table design by avoiding redundancy and capturing data dependencies."
-              }
-            ]
-          },
-          {
-            "topic": "Storage and Indexing Fundamentals (Disks and Memory Hierarchy)",
-            "matches": [
-              {
-                "filename": "lec10-storage-and-indexing-pre.pdf",
-                "relevance": "high",
-                "reason": "This file is titled 'Storage and Indexing' and covers the memory hierarchy, disk structure, performance implications of disk I/O, and arranging blocks on disk."
-              }
-            ]
-          },
-          {
-            "topic": "B+ Tree Indexes",
-            "matches": [
-              {
-                "filename": "lec12-B%2Btrees.pdf",
-                "relevance": "high",
-                "reason": "This file is titled 'Tree-Structured Indexes' and provides a detailed explanation of B+ Trees, their structure, searching, and page format."
-              },
-              {
-                "filename": "lec12-treeidx-pre.pdf",
-                "relevance": "high",
-                "reason": "This file discusses 'Tree-Structured Indexes' and specifically details the characteristics, motivation, and page format of B+ Trees."
-              }
-            ]
-          },
-          {
-            "topic": "LSM Trees (Log-Structured Merge Trees)",
-            "matches": [
-              {
-                "filename": "lec13-lsm-trees.pdf",
-                "relevance": "high",
-                "reason": "This file is dedicated to 'Log-Structured Merge Trees (LSM Trees)', explaining their motivation, architecture, and adoption in various systems."
-              }
-            ]
-          },
-          {
-            "topic": "Hash-Based Indexes",
-            "matches": [
-              {
-                "filename": "lec14-hash-idx-pre.pdf",
-                "relevance": "high",
-                "reason": "This file focuses on 'Hash-Based Indexes', explaining their concept, comparison with B+ Trees, and practical usage in DBMS."
-              }
-            ]
-          }
-        ],
-        "ai_reasoning": "This homework involves programming a database application using JDBC, which typically requires time for coding, debugging, and testing. The historical data is not representative of actual assignment completion time."
-      },
-      {
         "id": "canvas_63165855",
-        "title": "Homework 3",
+        "title": "MATH \u2014 Homework 3",
         "course": "MATH 423",
         "course_id": 14400555,
         "description": "Homework 3.pdf",
@@ -191,360 +35,267 @@
         "difficulty": 3,
         "source": "canvas",
         "canvas_url": "https://canvas.instructure.com/courses/14400555/assignments/63165855",
-        "assignment_pdf": null,
-        "estimated_minutes": 90,
-        "estimated_hours": 1.5,
-        "primary_concept": "Financial Market Basics",
+        "assignment_pdf": "Homework+3.pdf",
+        "estimated_minutes": 75,
+        "estimated_hours": 1.25,
+        "primary_concept": "Linear Algebra Properties",
         "matched_notes": [
           {
-            "filename": "Lecture+9.pdf",
+            "filename": "Lecture 7.pdf",
             "relevance": "high",
-            "reason": "Defines European call and put options and their payoffs.",
+            "reason": "Defines forward contracts, forward price, and discusses their value.",
             "problems": [
-              "Problem 1: Pricing European Call and Put Options",
-              "Problem 2: Pricing American Call and Put Options"
+              "Problem 1a \u2014 Forward price and value of forward contract",
+              "Problem 1b \u2014 Forward price and value of forward contract at a later time"
             ]
           },
           {
-            "filename": "Lecture+10.pdf",
+            "filename": "Lecture 1.pdf",
             "relevance": "high",
-            "reason": "Discusses bounds on European option prices and their dependence on strike price, stock price, and time to expiration.",
+            "reason": "Covers basic notions, no-arbitrage principle, and forward contracts.",
             "problems": [
-              "Problem 1: Pricing European Call and Put Options",
-              "Problem 2: Pricing American Call and Put Options"
+              "Problem 1a \u2014 Forward price and value of forward contract",
+              "Problem 1b \u2014 Forward price and value of forward contract at a later time",
+              "Problem 1c \u2014 Selling long positions and calculating investment and arbitrage",
+              "Problem 1d \u2014 Calculating minimum stock price for a target profit",
+              "Problem 4a \u2014 Interval for no arbitrage opportunity for a European put option with dividends",
+              "Problem 4b \u2014 Constructing a portfolio for arbitrage opportunity",
+              "Problem 6 \u2014 Constructing a portfolio for arbitrage opportunity with American options",
+              "Problem 7 \u2014 Proving upper bounds for American call and put prices"
             ]
           },
           {
-            "filename": "Lecture+12.pdf",
+            "filename": "Lecture 9.pdf",
             "relevance": "high",
-            "reason": "Introduces the binomial tree model and risk-neutral probability, which are fundamental for option pricing.",
+            "reason": "Defines call options and their payoffs.",
             "problems": [
-              "Problem 1: Pricing European Call and Put Options",
-              "Problem 2: Pricing American Call and Put Options"
+              "Problem 2 \u2014 Chooser option pricing",
+              "Problem 3a \u2014 Payoff of a gap call option",
+              "Problem 3b \u2014 Comparing gap call option price with European call option price"
             ]
           },
           {
-            "filename": "Lecture+8.pdf",
+            "filename": "Lecture 10.pdf",
             "relevance": "high",
-            "reason": "Explains forward contracts with continuous dividends and provides a formula for the forward price.",
+            "reason": "Discusses bounds on European option prices, including those with dividends.",
             "problems": [
-              "Problem 1: Pricing European Call and Put Options",
-              "Problem 3: Forward Contracts"
+              "Problem 2 \u2014 Chooser option pricing",
+              "Problem 4a \u2014 Interval for no arbitrage opportunity for a European put option with dividends",
+              "Problem 5a \u2014 Proving convexity of a function",
+              "Problem 5b \u2014 Proving convexity of a function involving put option prices"
             ]
           },
           {
-            "filename": "Lecture+1.pdf",
+            "filename": "Lecture 11.pdf",
+            "relevance": "high",
+            "reason": "Discusses bounds on American option prices and provides exercises related to proving them.",
+            "problems": [
+              "Problem 2 \u2014 Chooser option pricing",
+              "Problem 6 \u2014 Constructing a portfolio for arbitrage opportunity with American options",
+              "Problem 7 \u2014 Proving upper bounds for American call and put prices"
+            ]
+          },
+          {
+            "filename": "Lecture 2.pdf",
             "relevance": "medium",
-            "reason": "Introduces basic notions of financial markets, including risky assets like shares of stock, which are underlying assets for options.",
+            "reason": "Covers time value of money and interest rates, essential for present value calculations.",
             "problems": [
-              "Problem 1: Pricing European Call and Put Options",
-              "Problem 3: Forward Contracts"
-            ]
-          },
-          {
-            "filename": "Lecture+2.pdf",
-            "relevance": "medium",
-            "reason": "Covers time value of money and interest rates, which are essential for discounting future payoffs in option pricing.",
-            "problems": [
-              "Problem 1: Pricing European Call and Put Options",
-              "Problem 2: Pricing American Call and Put Options",
-              "Problem 3: Forward Contracts"
-            ]
-          },
-          {
-            "filename": "Lecture+3.pdf",
-            "relevance": "medium",
-            "reason": "Introduces probability concepts like random variables, expectation, and variance, which are used in option pricing models.",
-            "problems": [
-              "Problem 1: Pricing European Call and Put Options",
-              "Problem 4: Portfolio Management and CAPM"
-            ]
-          },
-          {
-            "filename": "Lecture+11.pdf",
-            "relevance": "high",
-            "reason": "Defines American options and discusses bounds on their prices, comparing them to European options.",
-            "problems": [
-              "Problem 2: Pricing American Call and Put Options"
-            ]
-          },
-          {
-            "filename": "Lecture+7.pdf",
-            "relevance": "high",
-            "reason": "Defines forward contracts, their payoff graphs, and pricing without dividends.",
-            "problems": [
-              "Problem 3: Forward Contracts"
-            ]
-          },
-          {
-            "filename": "Lecture+4.pdf",
-            "relevance": "high",
-            "reason": "Discusses portfolio management for two securities, including weights, risk, and expected return.",
-            "problems": [
-              "Problem 4: Portfolio Management and CAPM"
-            ]
-          },
-          {
-            "filename": "Lecture+5.pdf",
-            "relevance": "high",
-            "reason": "Extends portfolio management to several securities and introduces concepts like the efficient frontier.",
-            "problems": [
-              "Problem 4: Portfolio Management and CAPM"
-            ]
-          },
-          {
-            "filename": "Lecture+6.pdf",
-            "relevance": "high",
-            "reason": "Explains the Beta factor, Capital Asset Pricing Model (CAPM), and the Security Market Line.",
-            "problems": [
-              "Problem 4: Portfolio Management and CAPM"
+              "Problem 4a \u2014 Interval for no arbitrage opportunity for a European put option with dividends"
             ]
           }
         ],
         "matched_topics": [
           {
-            "topic": "Problem 1: Pricing European Call and Put Options",
+            "topic": "Problem 1a \u2014 Forward price and value of forward contract",
             "matches": [
               {
-                "filename": "Lecture+9.pdf",
-                "relevance": "high",
-                "reason": "Defines European call and put options and their payoffs."
+                "filename": "Lecture 7.pdf",
+                "reason": "Defines forward contracts, forward price, and discusses their value.",
+                "relevance": "high"
               },
               {
-                "filename": "Lecture+10.pdf",
-                "relevance": "high",
-                "reason": "Discusses bounds on European option prices and their dependence on strike price, stock price, and time to expiration."
-              },
-              {
-                "filename": "Lecture+12.pdf",
-                "relevance": "high",
-                "reason": "Introduces the binomial tree model and risk-neutral probability, which are fundamental for option pricing."
-              },
-              {
-                "filename": "Lecture+1.pdf",
-                "relevance": "medium",
-                "reason": "Introduces basic notions of financial markets, including risky assets like shares of stock, which are underlying assets for options."
-              },
-              {
-                "filename": "Lecture+2.pdf",
-                "relevance": "medium",
-                "reason": "Covers time value of money and interest rates, which are essential for discounting future payoffs in option pricing."
-              },
-              {
-                "filename": "Lecture+3.pdf",
-                "relevance": "medium",
-                "reason": "Introduces probability concepts like random variables, expectation, and variance, which are used in option pricing models."
-              },
-              {
-                "filename": "Lecture+8.pdf",
-                "relevance": "low",
-                "reason": "Discusses forward contracts with continuous dividends, which provides context for derivatives pricing but not directly option pricing."
+                "filename": "Lecture 1.pdf",
+                "reason": "Introduces financial markets and forward contracts.",
+                "relevance": "medium"
               }
             ]
           },
           {
-            "topic": "Problem 2: Pricing American Call and Put Options",
+            "topic": "Problem 1b \u2014 Forward price and value of forward contract at a later time",
             "matches": [
               {
-                "filename": "Lecture+11.pdf",
-                "relevance": "high",
-                "reason": "Defines American options and discusses bounds on their prices, comparing them to European options."
+                "filename": "Lecture 7.pdf",
+                "reason": "Discusses forward contracts and their value, implying the concept applies at different points in time.",
+                "relevance": "high"
               },
               {
-                "filename": "Lecture+9.pdf",
-                "relevance": "medium",
-                "reason": "Defines the characteristics of options, including the distinction between European and American types."
-              },
-              {
-                "filename": "Lecture+10.pdf",
-                "relevance": "medium",
-                "reason": "Provides bounds on European option prices, which serve as a baseline for understanding American option pricing."
-              },
-              {
-                "filename": "Lecture+12.pdf",
-                "relevance": "medium",
-                "reason": "Introduces the binomial tree model and risk-neutral probability, which can be adapted for pricing American options."
-              },
-              {
-                "filename": "Lecture+2.pdf",
-                "relevance": "low",
-                "reason": "Covers time value of money and interest rates, necessary for discounting in option pricing."
+                "filename": "Lecture 1.pdf",
+                "reason": "Introduces financial markets and forward contracts.",
+                "relevance": "medium"
               }
             ]
           },
           {
-            "topic": "Problem 3: Forward Contracts",
+            "topic": "Problem 1c \u2014 Selling long positions and calculating investment and arbitrage",
             "matches": [
               {
-                "filename": "Lecture+7.pdf",
-                "relevance": "high",
-                "reason": "Defines forward contracts, their payoff graphs, and pricing without dividends."
-              },
-              {
-                "filename": "Lecture+8.pdf",
-                "relevance": "high",
-                "reason": "Explains forward contracts with continuous dividends and provides a formula for the forward price."
-              },
-              {
-                "filename": "Lecture+1.pdf",
-                "relevance": "medium",
-                "reason": "Introduces basic financial market concepts and distinguishes between risk-free and risky assets."
-              },
-              {
-                "filename": "Lecture+2.pdf",
-                "relevance": "medium",
-                "reason": "Covers time value of money and interest rates, which are used in calculating forward prices."
+                "filename": "Lecture 1.pdf",
+                "reason": "Covers basic notions, no-arbitrage principle, and forward contracts.",
+                "relevance": "high"
               }
             ]
           },
           {
-            "topic": "Problem 4: Portfolio Management and CAPM",
+            "topic": "Problem 1d \u2014 Calculating minimum stock price for a target profit",
             "matches": [
               {
-                "filename": "Lecture+4.pdf",
-                "relevance": "high",
-                "reason": "Discusses portfolio management for two securities, including weights, risk, and expected return."
+                "filename": "Lecture 1.pdf",
+                "reason": "Discusses forward contracts and implies calculations based on asset prices.",
+                "relevance": "high"
+              }
+            ]
+          },
+          {
+            "topic": "Problem 2 \u2014 Chooser option pricing",
+            "matches": [
+              {
+                "filename": "Lecture 9.pdf",
+                "reason": "Covers main types of options, payoffs of European options, and Put-Call parity.",
+                "relevance": "medium"
               },
               {
-                "filename": "Lecture+5.pdf",
-                "relevance": "high",
-                "reason": "Extends portfolio management to several securities and introduces concepts like the efficient frontier."
+                "filename": "Lecture 10.pdf",
+                "reason": "Discusses bounds on European option prices, which are related to option pricing.",
+                "relevance": "medium"
               },
               {
-                "filename": "Lecture+6.pdf",
-                "relevance": "high",
-                "reason": "Explains the Beta factor, Capital Asset Pricing Model (CAPM), and the Security Market Line."
+                "filename": "Lecture 11.pdf",
+                "reason": "Discusses American options and their general properties, including bounds and dependence on parameters.",
+                "relevance": "medium"
+              }
+            ]
+          },
+          {
+            "topic": "Problem 3a \u2014 Payoff of a gap call option",
+            "matches": [
+              {
+                "filename": "Lecture 9.pdf",
+                "reason": "Defines call options and their payoffs.",
+                "relevance": "high"
+              }
+            ]
+          },
+          {
+            "topic": "Problem 3b \u2014 Comparing gap call option price with European call option price",
+            "matches": [
+              {
+                "filename": "Lecture 9.pdf",
+                "reason": "Covers call options, their payoffs, and European options.",
+                "relevance": "high"
+              }
+            ]
+          },
+          {
+            "topic": "Problem 4a \u2014 Interval for no arbitrage opportunity for a European put option with dividends",
+            "matches": [
+              {
+                "filename": "Lecture 10.pdf",
+                "reason": "Discusses bounds on European option prices, including those with dividends.",
+                "relevance": "high"
               },
               {
-                "filename": "Lecture+3.pdf",
-                "relevance": "medium",
-                "reason": "Introduces probability concepts like random variables, expectation, variance, and covariance, which are foundational for portfolio theory."
+                "filename": "Lecture 2.pdf",
+                "reason": "Covers time value of money and interest rates, essential for present value calculations.",
+                "relevance": "medium"
+              },
+              {
+                "filename": "Lecture 1.pdf",
+                "reason": "Introduces the no-arbitrage principle.",
+                "relevance": "medium"
+              }
+            ]
+          },
+          {
+            "topic": "Problem 4b \u2014 Constructing a portfolio for arbitrage opportunity",
+            "matches": [
+              {
+                "filename": "Lecture 1.pdf",
+                "reason": "Explains the no-arbitrage principle and provides an example of arbitrage.",
+                "relevance": "high"
+              }
+            ]
+          },
+          {
+            "topic": "Problem 5a \u2014 Proving convexity of a function",
+            "matches": [
+              {
+                "filename": "Lecture 10.pdf",
+                "reason": "Defines convexity and discusses functions related to option prices.",
+                "relevance": "high"
+              }
+            ]
+          },
+          {
+            "topic": "Problem 5b \u2014 Proving convexity of a function involving put option prices",
+            "matches": [
+              {
+                "filename": "Lecture 10.pdf",
+                "reason": "Defines convexity and discusses put option prices in relation to strike price.",
+                "relevance": "high"
+              }
+            ]
+          },
+          {
+            "topic": "Problem 6 \u2014 Constructing a portfolio for arbitrage opportunity with American options",
+            "matches": [
+              {
+                "filename": "Lecture 1.pdf",
+                "reason": "Explains the no-arbitrage principle and provides an example of arbitrage.",
+                "relevance": "high"
+              },
+              {
+                "filename": "Lecture 11.pdf",
+                "reason": "Discusses American options and put-call parity estimates, relevant for arbitrage arguments.",
+                "relevance": "medium"
+              }
+            ]
+          },
+          {
+            "topic": "Problem 7 \u2014 Proving upper bounds for American call and put prices",
+            "matches": [
+              {
+                "filename": "Lecture 11.pdf",
+                "reason": "Discusses bounds on American option prices and provides exercises related to proving them.",
+                "relevance": "high"
+              },
+              {
+                "filename": "Lecture 1.pdf",
+                "reason": "Covers the no-arbitrage principle, which is the basis for proving option price bounds.",
+                "relevance": "medium"
               }
             ]
           }
         ],
-        "ai_reasoning": "Based on the PDF title and common assignment structures for introductory financial math courses, this homework likely involves understanding basic concepts and applying them to simple problems. The time estimate reflects reading and solving a moderate number of problems."
+        "ai_reasoning": "Homework 3 in MATH 423 likely involves proving properties and solving problems related to concepts covered in the first few weeks of an advanced linear algebra course. This typically requires careful logical deduction and algebraic manipulation."
       },
       {
-        "id": "canvas_63166171",
-        "title": "Problem Set 6",
-        "course": "STATS 413",
-        "course_id": 14399699,
-        "description": "STATS_413_problem_set_6.pdf",
-        "due_date": "2026-03-21T05:59:59Z",
-        "points": 100.0,
-        "type": "homework",
-        "difficulty": 3,
-        "source": "canvas",
-        "canvas_url": "https://canvas.instructure.com/courses/14399699/assignments/63166171",
-        "assignment_pdf": null,
-        "estimated_minutes": 90,
-        "estimated_hours": 1.5,
-        "primary_concept": "Regression and hypothesis testing",
-        "matched_notes": [
-          {
-            "filename": "STATS_413_Lecture10.pdf",
-            "relevance": "high",
-            "reason": "This lecture explicitly covers 'Inference for the regression function' and discusses testing null hypotheses about linear combinations of slope coefficients, including calculating standard errors and test statistics.",
-            "problems": [
-              "Problem 1: Testing linear combinations of regression coefficients",
-              "Problem 2: Inference for the regression function and prediction intervals"
-            ]
-          },
-          {
-            "filename": "STATS_413_Lecture11.pdf",
-            "relevance": "high",
-            "reason": "This lecture is entirely dedicated to 'Regression diagnostics', including 'Assessing linearity', 'Assessing homoskedasticity', and 'Assessing normality'.",
-            "problems": [
-              "Problem 2: Inference for the regression function and prediction intervals",
-              "Problem 3: Assessing the assumptions of the linear model (linearity, homoskedasticity, normality)",
-              "Problem 4: Understanding the impact of assumption violations on statistical inference"
-            ]
-          },
-          {
-            "filename": "STATS_413_Lecture12.pdf",
-            "relevance": "high",
-            "reason": "This lecture revisits the 'stronger linear model' assumptions and specifically asks about diagnostic plots used to assess linearity, homoskedasticity, and normality.",
-            "problems": [
-              "Problem 3: Assessing the assumptions of the linear model (linearity, homoskedasticity, normality)",
-              "Problem 4: Understanding the impact of assumption violations on statistical inference",
-              "Problem 5: Influential observations and outliers"
-            ]
-          }
-        ],
-        "matched_topics": [
-          {
-            "topic": "Problem 1: Testing linear combinations of regression coefficients",
-            "matches": [
-              {
-                "filename": "STATS_413_Lecture10.pdf",
-                "relevance": "high",
-                "reason": "This lecture explicitly covers 'Inference for the regression function' and discusses testing null hypotheses about linear combinations of slope coefficients, including calculating standard errors and test statistics."
-              }
-            ]
-          },
-          {
-            "topic": "Problem 2: Inference for the regression function and prediction intervals",
-            "matches": [
-              {
-                "filename": "STATS_413_Lecture10.pdf",
-                "relevance": "high",
-                "reason": "This lecture covers 'Inference for the regression function' and 'Prediction intervals', which are central to conducting statistical inference in regression."
-              },
-              {
-                "filename": "STATS_413_Lecture11.pdf",
-                "relevance": "medium",
-                "reason": "This lecture mentions that hypothesis tests/confidence intervals for slope coefficients, confidence intervals for the conditional expectation, and prediction intervals for future observations are derived under the assumption that the linear model holds."
-              }
-            ]
-          },
-          {
-            "topic": "Problem 3: Assessing the assumptions of the linear model (linearity, homoskedasticity, normality)",
-            "matches": [
-              {
-                "filename": "STATS_413_Lecture11.pdf",
-                "relevance": "high",
-                "reason": "This lecture is entirely dedicated to 'Regression diagnostics', including 'Assessing linearity', 'Assessing homoskedasticity', and 'Assessing normality'."
-              },
-              {
-                "filename": "STATS_413_Lecture12.pdf",
-                "relevance": "high",
-                "reason": "This lecture revisits the 'stronger linear model' assumptions and specifically asks about diagnostic plots used to assess linearity, homoskedasticity, and normality."
-              }
-            ]
-          },
-          {
-            "topic": "Problem 4: Understanding the impact of assumption violations on statistical inference",
-            "matches": [
-              {
-                "filename": "STATS_413_Lecture11.pdf",
-                "relevance": "high",
-                "reason": "This lecture discusses how violations of linearity, homoskedasticity, and normality can invalidate hypothesis tests, confidence intervals, and prediction intervals."
-              },
-              {
-                "filename": "STATS_413_Lecture12.pdf",
-                "relevance": "high",
-                "reason": "This lecture discusses the importance of the assumptions for the test statistic for testing the null hypothesis, explaining where linearity and homoskedasticity play a role."
-              }
-            ]
-          },
-          {
-            "topic": "Problem 5: Influential observations and outliers",
-            "matches": [
-              {
-                "filename": "STATS_413_Lecture12.pdf",
-                "relevance": "high",
-                "reason": "This lecture is titled 'Influential observations' and covers 'Leverage scores' and 'Testing for outliers', which are directly relevant to this problem."
-              }
-            ]
-          }
-        ],
-        "ai_reasoning": "Problem sets in STATS courses typically involve applying statistical concepts to solve numerical problems and interpret results, which aligns with regression and hypothesis testing. The time is estimated based on the typical complexity of such problems."
+        "id": "manual_1773539184458_Basic Arithmetic.pdf",
+        "title": "Basic Arithmetic.pdf",
+        "course": "",
+        "source": "manual",
+        "due_date": "",
+        "points": 100,
+        "estimated_minutes": 5,
+        "estimated_hours": 0.08,
+        "primary_concept": "Basic arithmetic operations",
+        "matched_notes": [],
+        "matched_topics": [],
+        "ai_reasoning": "The assignment involves simple arithmetic calculations. Even with a slow pace and careful checking, the time required would be minimal."
       }
     ],
     "canvas": {
       "domain": "canvas.instructure.com",
-      "synced_at": "2026-03-14T21:17:51.585515"
+      "synced_at": "2026-03-15T00:52:34.406955"
     },
     "onboarded": true,
     "friends": [

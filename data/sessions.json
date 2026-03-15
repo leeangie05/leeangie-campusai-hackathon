@@ -73,5 +73,38 @@
     "estimated_minutes": 10,
     "actual_minutes": 1,
     "timestamp": "2026-03-14T19:57:50.393723"
+  },
+  {
+    "id": "1773524472773",
+    "user_id": "2c4f8f2b8c43852745055840ce235193",
+    "email": "albeyuchen@gmail.com",
+    "course": "",
+    "assignment_summary": "Homework 3",
+    "primary_concept": "Relational Algebra",
+    "estimated_minutes": null,
+    "actual_minutes": 1,
+    "timestamp": "2026-03-14T21:41:12.778469"
+  },
+  {
+    "id": "1773539152621",
+    "user_id": "2c4f8f2b8c43852745055840ce235193",
+    "email": "albeyuchen@gmail.com",
+    "course": "EECS 484",
+    "assignment_summary": "EECS \u2014 HW 3",
+    "primary_concept": "ER to Relational Mapping",
+    "estimated_minutes": null,
+    "actual_minutes": 1,
+    "timestamp": "2026-03-15T01:45:52.621628"
+  },
+  {
+    "id": "1773539166196",
+    "user_id": "2c4f8f2b8c43852745055840ce235193",
+    "email": "albeyuchen@gmail.com",
+    "course": "STATS 413",
+    "assignment_summary": "STATS \u2014 Problem Set 6",
+    "primary_concept": "Regression inference and prediction",
+    "estimated_minutes": null,
+    "actual_minutes": 1,
+    "timestamp": "2026-03-15T01:46:06.196228"
   }
 ]
