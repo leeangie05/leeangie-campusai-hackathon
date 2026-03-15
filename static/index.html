@@ -1176,31 +1176,51 @@ function renderObAssignments() {
         <textarea placeholder="What is this assignment about?" oninput="obAssignments[${i}].description=this.value">${esc(a.description)}</textarea>
       </div>
 
-      <div>
-        <label>Upload Assignment File</label>
-        <input
-          type="file"
-          accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.md"
-          onchange="obAssignments[${i}].file=this.files[0]"
-        />
+            <div class="grid-2" style="margin-top:10px">
+        <div>
+          <label>Upload Assignment File <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
+          <input
+            type="file"
+            accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.md"
+            onchange="obAssignments[${i}].file=this.files[0]"
+          />
+        </div>
+
+        <div>
+          <label>Manual Time Estimate (hours) <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
+          <input
+            type="text"
+            value="${esc(a.manual_estimate_hours || "")}"
+            placeholder="e.g. 2 or 1.5"
+            oninput="obAssignments[${i}].manual_estimate_hours=this.value"
+          />
+        </div>
       </div>
+
+      <p style="font-size:.75rem;color:#64748b;margin-top:8px">
+        You can upload a file or enter an estimate manually.
+      </p>
+      
     </div>`).join("");
 }
 
 function addCourse() { obCourses.push({course_name:"",course_code:""}); renderObCourses(); renderObAssignments(); }
+
 function addAssignment() {
   obAssignments.push({
-    course_name:"",
-    title:"",
-    due_date:"",
-    description:"",
-    type:"homework",
-    points:100,
-    difficulty:3,
-    file:null
+    course_name: "",
+    title: "",
+    due_date: "",
+    description: "",
+    type: "homework",
+    points: 100,
+    difficulty: 3,
+    file: null,
+    manual_estimate_hours: ""
   });
   renderObAssignments();
 }
+
 async function submitOnboarding() {
   const btn = document.getElementById("ob-submit-btn");
   const msg = document.getElementById("ob-msg");
@@ -1208,12 +1228,15 @@ async function submitOnboarding() {
   if (!validCourses.length) { msg.textContent = "Add at least one course."; return; }
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
 
-  const assignments = obAssignments.filter(a => a.title.trim()).map(a => ({
-    ...a,
-    id: "manual_" + Date.now() + Math.random(),
-    course: a.course_name || "",
-    source: "manual",
-  }));
+    const assignments = obAssignments
+    .filter(a => a.title.trim())
+    .map(a => ({
+      ...a,
+      id: "manual_" + Date.now() + Math.random(),
+      course: a.course_name || "",
+      source: "manual",
+      manual_estimate_hours: a.manual_estimate_hours ? Number(a.manual_estimate_hours) : null
+    }));
 
   try {
     const res = await fetch(`${API}/onboarding`, {method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({courses:validCourses,assignments})});
