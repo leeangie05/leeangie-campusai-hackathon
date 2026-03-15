@@ -433,7 +433,9 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
       <div id="ob-assignments"></div>
 
       <div style="display:flex;justify-content:flex-end;margin-top:24px;gap:12px;align-items:center">
+        <span id="ob-msg" style="font-size:.85rem;color:#64748b"></span>
         <button class="btn btn-secondary btn-lg" onclick="showPage('dashboard')">← Back to Dashboard</button>
+        <button class="btn btn-primary btn-lg" onclick="submitOnboarding()" id="ob-submit-btn">💾 Save Assignments →</button>
       </div>
     </div>
   </div>
@@ -1143,9 +1145,10 @@ function renderObAssignments() {
         </div>
       </div>
 
-      <p style="font-size:.75rem;color:#64748b;margin-top:8px">
-        You can upload a file or enter an estimate manually.
-      </p>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+        <p style="font-size:.75rem;color:#64748b">You can upload a file or enter an estimate manually.</p>
+        <button type="button" class="btn btn-danger btn-sm" onclick="removeObAssignment(${i})">✕ Remove</button>
+      </div>
       
     </div>`).join("");
 }
