@@ -68,7 +68,12 @@ textarea{min-height:90px;resize:vertical}
 /* ── Nav ── */
 nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px}
 .logo-row{display:flex;align-items:center;gap:10px}
-.logo-icon{width:48px;height:48px;background:#d1fae5;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:2rem}
+.logo-icon{
+  width:48px;
+  height:48px;
+  object-fit:contain;
+  display:block;
+}
 .logo-text{font-size:1.4rem;font-weight:800;color:#0f172a}
 .nav-links{display:flex;gap:8px}
 
@@ -340,8 +345,8 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
   <div class="max-2xl" style="padding-top:60px">
     <div class="card fade-up">
       <div class="logo-row" style="margin-bottom:24px">
-        <div class="logo-icon">🥁</div>
-        <span class="logo-text">Tempo</span>
+        	<img src="/logo.png" class="logo-icon" alt="Tempo logo">
+	<span class="logo-text">Tempo</span>
       </div>
       <h1 style="font-size:1.8rem;margin-bottom:6px">Welcome back</h1>
       <p style="margin-bottom:28px">Sign in to your study plan.</p>
@@ -377,8 +382,8 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
     <div class="card fade-up">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px">
         <div class="logo-row">
-          <div class="logo-icon">🥁</div>
-          <span class="logo-text">Tempo</span>
+          	<img src="/logo.png" class="logo-icon" alt="Tempo logo">
+	   <span class="logo-text">Tempo</span>
         </div>
         <button onclick="showPage('dashboard')" style="background:#f1f5f9;border:none;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;color:#64748b;flex-shrink:0" title="Back to dashboard">✕</button>
       </div>
@@ -461,7 +466,7 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
       <!-- ── Nav ── -->
       <nav>
         <div class="logo-row">
-          <div class="logo-icon">🥁</div>
+		<img src="/logo.png" class="logo-icon" alt="Tempo logo">
           <span class="logo-text">Tempo</span>
         </div>
         <div class="nav-links">
@@ -828,8 +833,8 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
     <div class="card fade-up">
       <nav style="margin-bottom:24px">
         <div class="logo-row">
-          <div class="logo-icon">🥁</div>
-          <span class="logo-text">Tempo</span>
+        <img src="/logo.png" class="logo-icon" alt="Tempo logo">
+	<span class="logo-text">Tempo</span>
         </div>
         <button class="btn btn-secondary btn-sm" onclick="showPage('dashboard')">← Dashboard</button>
       </nav>
@@ -3051,8 +3056,8 @@ init();
     <div style="margin-bottom:24px;display:flex;align-items:center;justify-content:space-between">
       <div>
         <div class="logo-row" style="margin-bottom:8px">
-          <div class="logo-icon">🥁</div>
-          <span class="logo-text">Tempo</span>
+        	<img src="/logo.png" class="logo-icon" alt="Tempo logo">  
+	<span class="logo-text">Tempo</span>
         </div>
         <h1 style="font-size:2rem">Social</h1>
         <p style="margin-top:4px">Streaks, friends, and study accountability.</p>
