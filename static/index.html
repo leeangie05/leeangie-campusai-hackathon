@@ -1644,11 +1644,22 @@ function startTimerWithEstimate(minutes, name) {
 
 function timerReset() {
   clearInterval(timerInterval); timerRunning = false; timerElapsed = 0;
-  document.getElementById("timer-display").textContent = "00:00";
-  document.getElementById("timer-display").className = "timer-digits";
-  document.getElementById("timer-bar").style.width = "0%";
-  document.getElementById("timer-bar").className = "timer-bar";
-  document.getElementById("timer-status").textContent = "Ready to start";
+  const disp = document.getElementById("timer-display");
+  const pill = document.getElementById("timer-pill-display");
+  const bar  = document.getElementById("timer-bar");
+  const stat = document.getElementById("timer-status");
+  if (timerEstMinutes) {
+    const totalSec = timerEstMinutes * 60;
+    const initialDisplay = fmtTime(totalSec);
+    if (disp) { disp.textContent = initialDisplay; disp.className = "timer-digits"; }
+    if (pill) pill.textContent = initialDisplay;
+    if (stat) stat.textContent = `Ready to start — ${initialDisplay} estimated`;
+  } else {
+    if (disp) { disp.textContent = "00:00"; disp.className = "timer-digits"; }
+    if (pill) pill.textContent = "00:00";
+    if (stat) stat.textContent = "Ready to start";
+  }
+  if (bar) { bar.style.width = "0%"; bar.className = "timer-bar"; }
   document.getElementById("timer-start-btn").disabled = false;
   document.getElementById("timer-pause-btn").disabled = true;
   document.getElementById("timer-done-btn").disabled = true;
@@ -2030,8 +2041,14 @@ function updatePdfTimerBar() {
     bar.style.display = "flex";
     const disp = document.getElementById("pdf-timer-display");
     const stat = document.getElementById("pdf-timer-status");
-    if (disp) disp.textContent = fmtTime(timerElapsed);
-    if (stat) stat.textContent = timerEstMinutes ? `of ${timerEstMinutes} min` : "Running";
+    if (timerEstMinutes) {
+      const remaining = timerEstMinutes * 60 - timerElapsed;
+      if (disp) disp.textContent = fmtTime(remaining);
+      if (stat) stat.textContent = remaining > 0 ? `${Math.ceil(remaining / 60)} min left` : "Over estimate";
+    } else {
+      if (disp) disp.textContent = fmtTime(timerElapsed);
+      if (stat) stat.textContent = "Running";
+    }
   } else {
     bar.style.display = "none";
   }

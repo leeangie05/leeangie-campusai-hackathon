@@ -320,5 +320,40 @@
       "synced_at": "2026-03-14T17:53:06.191418"
     },
     "onboarded": true
+  },
+  {
+    "id": "05aab27e82e029d7875fcd0600df0ef5",
+    "email": "leeangie@umich.edu",
+    "password": "fa6a6bb81c549a9a470aec2b182ff5fe68982ad4a7353fe89d17debbcbcbbf24",
+    "name": "Angie",
+    "created_at": "2026-03-15T02:20:31.284624",
+    "courses": [
+      {
+        "course_name": "EECS 281",
+        "course_code": "Data Structures"
+      }
+    ],
+    "assignments": [
+      {
+        "courseIndex": 0,
+        "title": "HW3",
+        "due_date": "2026-03-14T22:20",
+        "description": "",
+        "type": "homework",
+        "points": 100,
+        "difficulty": 3,
+        "id": "manual_17735412523400.48431483095173644",
+        "course": "EECS 281",
+        "source": "manual",
+        "estimated_minutes": null,
+        "estimated_hours": 3.0,
+        "primary_concept": "",
+        "matched_notes": [],
+        "matched_topics": [],
+        "ai_reasoning": ""
+      }
+    ],
+    "canvas": {},
+    "onboarded": true
   }
 ]

@@ -1853,9 +1853,10 @@ def suggest_schedule():
     return jsonify({"suggested": suggested})
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8080))
     print("="*50)
     print("  Syllabot server starting...")
     print("  Set: export GEMINI_API_KEY=your_key")
-    print("  Open: http://localhost:8080")
+    print(f"  Open: http://localhost:{port}")
     print("="*50)
-    app.run(debug=True, port=8080)
+    app.run(debug=True, port=port)
