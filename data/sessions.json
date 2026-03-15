@@ -106,5 +106,16 @@
     "estimated_minutes": null,
     "actual_minutes": 1,
     "timestamp": "2026-03-15T01:46:06.196228"
+  },
+  {
+    "id": "1773543388330",
+    "user_id": "05aab27e82e029d7875fcd0600df0ef5",
+    "email": "leeangie@umich.edu",
+    "course": "eecs 281",
+    "assignment_summary": "hw 1",
+    "primary_concept": "Basic Data Structures",
+    "estimated_minutes": null,
+    "actual_minutes": 1,
+    "timestamp": "2026-03-15T02:56:28.330370"
   }
 ]
