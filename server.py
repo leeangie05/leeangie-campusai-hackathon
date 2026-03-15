@@ -1,24 +1,29 @@
 """
 Syllabot — Integrated Flask Backend
-Handles: auth, Canvas sync+caching, material matching, AI estimation,
+Handles: auth, Canvas sync+caching, material matching (RAG), AI estimation,
          scheduling, timer sessions, and file storage.
 
 Install:
-    pip install flask flask-cors google-genai pypdf2 requests
+    pip install flask flask-cors google-genai pypdf2 requests chromadb pypdf
 
 Run:
     export GEMINI_API_KEY=your_key
     python server.py
 """
 
-import os, json, time, re, io, hashlib, tempfile, shutil
+import os, json, time, re, io, hashlib, tempfile, shutil, threading, warnings
 from datetime import datetime, timedelta
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+warnings.filterwarnings("ignore")
 
 from flask import Flask, request, jsonify, session, send_from_directory
 from flask_cors import CORS
 import PyPDF2
 import requests as req
+import chromadb
+from chromadb.config import Settings
 
 # ── App setup ─────────────────────────────────────────────────────────────────
 app = Flask(__name__, static_folder="static", static_url_path="")
@@ -26,6 +31,28 @@ app.secret_key = os.environ.get("SECRET_KEY", "syllabot-dev-secret-2024")
 CORS(app, supports_credentials=True)
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+
+# ── RAG config ────────────────────────────────────────────────────────────────
+CHROMA_DIR       = Path("chroma_db")
+CHROMA_DIR.mkdir(exist_ok=True)
+TOP_K            = 6
+CHUNK_SIZE       = 1500
+CHUNK_OVERLAP    = 200
+EMBED_BATCH_SIZE = 50
+EMBEDDING_MODEL  = "gemini-embedding-001"
+GENERATION_MODEL = "gemini-3.1-flash-lite-preview"
+
+_gemini_client_lock = threading.Lock()
+_gemini_client      = None
+
+def get_gemini():
+    global _gemini_client
+    if _gemini_client is None:
+        with _gemini_client_lock:
+            if _gemini_client is None:
+                from google import genai as _g
+                _gemini_client = _g.Client(api_key=GEMINI_API_KEY)
+    return _gemini_client
 
 # Allow OAuth over plain HTTP for local development
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
@@ -37,25 +64,9 @@ for d in [DATA_DIR, CANVAS_CACHE]:
 
 USERS_FILE      = DATA_DIR / "users.json"
 SESSIONS_FILE   = DATA_DIR / "sessions.json"
-GEMINI_URI_CACHE = DATA_DIR / "gemini_uri_cache.json"
 for f in [USERS_FILE, SESSIONS_FILE]:
     if not f.exists():
         f.write_text("[]")
-if not GEMINI_URI_CACHE.exists():
-    GEMINI_URI_CACHE.write_text("{}")
-
-def load_gemini_cache() -> dict:
-    try: return json.loads(GEMINI_URI_CACHE.read_text())
-    except: return {}
-
-def save_gemini_cache(c: dict):
-    GEMINI_URI_CACHE.write_text(json.dumps(c, indent=2))
-
-def gemini_cache_key(fpath: str) -> str:
-    """Hash of file path + mtime + size — changes when file content changes."""
-    p = Path(fpath)
-    stat = p.stat()
-    return hashlib.md5(f"{fpath}:{stat.st_mtime}:{stat.st_size}".encode()).hexdigest()
 
 ALLOWED_EXTENSIONS = {".pdf", ".pptx", ".ppt", ".docx", ".doc", ".txt", ".md"}
 MIME_MAP = {
@@ -188,214 +199,286 @@ def save_canvas_cache_manifest(user_id, course_id, manifest):
     p = get_canvas_cache_dir(user_id, course_id) / "manifest.json"
     p.write_text(json.dumps(manifest, indent=2))
 
+# ══════════════════════════════════════════════════════════════════════════════
+# RAG — ChromaDB + Gemini embeddings
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _chunk_text(text: str, source: str) -> list[dict]:
+    text  = re.sub(r"\s+", " ", text).strip()
+    safe  = re.sub(r"[^a-zA-Z0-9_\-]", "_", source)
+    chunks, start = [], 0
+    while start < len(text):
+        chunk = text[start : start + CHUNK_SIZE]
+        if chunk.strip():
+            chunks.append({"text": chunk, "source": source,
+                           "chunk_id": f"{safe}_{start}"})
+        start += CHUNK_SIZE - CHUNK_OVERLAP
+    return chunks
+
+
+def _file_fingerprint(path: str) -> str:
+    h = hashlib.md5()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(65536), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def _embed_batch(texts: list[str], task: str) -> list[list[float]]:
+    from google.genai import types as _gt
+    client = get_gemini()
+    for attempt in range(1, 4):
+        try:
+            resp = client.models.embed_content(
+                model=EMBEDDING_MODEL,
+                contents=texts,
+                config=_gt.EmbedContentConfig(task_type=task),
+            )
+            return [e.values for e in resp.embeddings]
+        except Exception as e:
+            if attempt < 3:
+                time.sleep(attempt * 2)
+            else:
+                print(f"  Embedding batch failed: {e}")
+                return [[0.0] * 768] * len(texts)
+
+
+def _embed_texts(texts: list[str]) -> list[list[float]]:
+    results = []
+    for i in range(0, len(texts), EMBED_BATCH_SIZE):
+        results.extend(_embed_batch(texts[i : i + EMBED_BATCH_SIZE], "RETRIEVAL_DOCUMENT"))
+    return results
+
+
+def _embed_query(text: str) -> list[float]:
+    return _embed_batch([text], "RETRIEVAL_QUERY")[0]
+
+
+def _get_chroma_collection(collection_name: str) -> chromadb.Collection:
+    client = chromadb.PersistentClient(
+        path=str(CHROMA_DIR),
+        settings=Settings(anonymized_telemetry=False),
+    )
+    return client.get_or_create_collection(
+        name=collection_name,
+        metadata={"hnsw:space": "cosine"},
+    )
+
+
+def _index_notes(notes: list[dict], collection_name: str) -> chromadb.Collection:
+    """Embed and index note files into a ChromaDB collection (with caching by MD5)."""
+    collection = _get_chroma_collection(collection_name)
+    existing   = collection.get(include=["metadatas"])
+    cached_fps = {m.get("fingerprint") for m in existing["metadatas"] if m and "fingerprint" in m}
+
+    for note in notes:
+        path = note.get("path")
+        fp   = _file_fingerprint(path) if path and Path(path).exists() else hashlib.md5(note.get("text","").encode()).hexdigest()
+        if fp in cached_fps:
+            continue
+
+        text = note.get("text") or ""
+        if not text.strip():
+            continue
+
+        fname  = note["filename"]
+        chunks = _chunk_text(text, fname)
+        if not chunks:
+            continue
+
+        # Remove stale chunks for this source
+        try:
+            stale = collection.get(where={"source": fname})
+            if stale["ids"]:
+                collection.delete(ids=stale["ids"])
+        except Exception:
+            pass
+
+        all_texts  = [c["text"] for c in chunks]
+        all_embeds = _embed_texts(all_texts)
+        collection.add(
+            ids       =[c["chunk_id"] for c in chunks],
+            embeddings=all_embeds,
+            documents =all_texts,
+            metadatas =[{"source": fname, "fingerprint": fp} for c in chunks],
+        )
+        print(f"  [RAG] Indexed {fname} ({len(chunks)} chunks)")
+
+    return collection
+
+
+def _rag_extract_problems(assignment_text: str) -> list[dict]:
+    prompt = f"""You are a study assistant. Below is the text of a student assignment.
+Identify each individual problem or question. For each one, write a short search query
+capturing the key concepts needed to solve it.
+
+Assignment text:
+{assignment_text[:4000]}
+
+Return ONLY valid JSON, no markdown:
+[
+  {{"problem": "Problem N — brief description", "query": "key concepts and topics for this problem"}}
+]"""
+    try:
+        raw = gemini(prompt)
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"): raw = raw[4:]
+        return json.loads(raw.strip())
+    except Exception as e:
+        print(f"  Could not parse problems: {e}")
+        return [{"problem": "General", "query": assignment_text[:500]}]
+
+
+def _rag_synthesize_match(problem: str, chunks: list[dict]) -> dict:
+    by_source: dict[str, list] = {}
+    for c in chunks:
+        by_source.setdefault(c["source"], []).append(c)
+
+    context = "\n\n".join(
+        f"[{src}]\n{' ... '.join(c['text'] for c in cs[:3])[:800]}"
+        for src, cs in by_source.items()
+    )
+
+    prompt = f"""You are a study assistant. A student has this problem:
+
+"{problem}"
+
+Here are the most relevant excerpts from their course materials:
+
+{context}
+
+Based ONLY on the content above, list which files are relevant and why.
+
+Return ONLY valid JSON, no markdown:
+[
+  {{"filename": "exact filename", "reason": "one sentence explaining relevance", "relevance": "high"|"medium"|"low"}}
+]
+Order by relevance descending. Only include files with genuinely relevant content."""
+    try:
+        raw = gemini(prompt)
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"): raw = raw[4:]
+        return {"topic": problem, "matches": json.loads(raw.strip())}
+    except Exception as e:
+        print(f"  Synthesis failed for '{problem}': {e}")
+        return {"topic": problem, "matches": []}
+
+
 # ── Material matcher ──────────────────────────────────────────────────────────
 def match_assignment_to_notes(assignment_text: str, assignment_name: str,
                                notes: list[dict],
-                               assignment_path: str = None) -> dict:
+                               assignment_path: str = None,
+                               collection_name: str = None) -> dict:
     """
-    Upload actual PDF files to Gemini and match assignment to notes.
+    RAG-based material matcher.
     notes: list of {"filename": str, "text": str, "path": str (optional)}
-    assignment_path: local path to the assignment PDF (optional, falls back to text)
+    assignment_path: local path to the assignment file (used for text extraction if provided)
 
     Returns:
       {
-        "topics": [{"topic": "Problem 1a: ...", "matches": [...]}],
+        "topics": [{"topic": "Problem N: ...", "matches": [...]}],
         "files":  [{"filename": "...", "relevance": "...", "reason": "...", "problems": [...]}]
       }
     """
     if not notes:
         return {"topics": [], "files": []}
-
     if not GEMINI_API_KEY:
         return {"topics": [], "files": []}
 
-    # Only use notes that have a local file path (can be uploaded to Gemini)
-    # Fall back to text-only notes for those without paths
-    notes_with_path    = [n for n in notes if n.get("path") and Path(n["path"]).exists()]
-    notes_without_path = [n for n in notes if not (n.get("path") and Path(n["path"]).exists())]
+    # ── Resolve assignment text ──────────────────────────────────────────────
+    if assignment_path and Path(assignment_path).exists():
+        extracted = extract_pdf_text_from_path(assignment_path)
+        if extracted.strip():
+            assignment_text = extracted
 
+    # ── Determine ChromaDB collection name ───────────────────────────────────
+    if not collection_name:
+        # Derive a stable name from the set of note filenames
+        key_str = "|".join(sorted(n["filename"] for n in notes))
+        collection_name = "notes_" + hashlib.md5(key_str.encode()).hexdigest()[:16]
+
+    # ── Index notes into ChromaDB (skips already-cached files) ───────────────
     try:
-        from google import genai as _genai
-        from google.genai import types as _gtypes
-
-        client = _genai.Client(api_key=GEMINI_API_KEY)
-
-        # Upload course files to Gemini — use cached URI when available
-        uploaded_refs   = {}   # filename -> object with .uri and .mime_type
-        file_list_lines = []
-        gcache          = load_gemini_cache()
-        cache_updated   = False
-
-        class _CachedRef:
-            def __init__(self, uri, mime): self.uri = uri; self.mime_type = mime
-
-        for i, n in enumerate(notes_with_path, 1):
-            fname  = n["filename"]
-            fpath  = n["path"]
-            ext    = os.path.splitext(fpath)[1].lower()
-            mime   = MIME_MAP.get(ext, "application/pdf")
-            ckey   = gemini_cache_key(fpath)
-
-            # Use cached URI if available and still valid
-            if ckey in gcache:
-                uri = gcache[ckey]["uri"]
-                try:
-                    # Verify URI is still alive (Gemini files expire after 48h)
-                    existing = client.files.get(name=uri.split("/")[-1])
-                    uploaded_refs[fname] = _CachedRef(existing.uri, existing.mime_type or mime)
-                    file_list_lines.append(f"{i}. {fname}")
-                    print(f"  [cache] {fname}")
-                    continue
-                except Exception:
-                    del gcache[ckey]  # expired, re-upload
-
-            try:
-                ref = client.files.upload(
-                    file=fpath,
-                    config=_gtypes.UploadFileConfig(display_name=fname, mime_type=mime)
-                )
-                uploaded_refs[fname] = ref
-                file_list_lines.append(f"{i}. {fname}")
-                gcache[ckey]   = {"uri": ref.uri, "fname": fname}
-                cache_updated  = True
-                time.sleep(0.3)
-                print(f"  [upload] {fname}")
-            except Exception as e:
-                print(f"  Gemini upload failed for {fname}: {e}")
-
-        if cache_updated:
-            save_gemini_cache(gcache)
-
-        # For notes without paths, we can't upload — include their names in the list
-        # but Gemini won't see their content (handled separately via text fallback)
-        offset = len(file_list_lines)
-        for i, n in enumerate(notes_without_path, offset + 1):
-            file_list_lines.append(f"{i}. {n['filename']} [text only]")
-
-        if not uploaded_refs and not notes_without_path:
-            return {"topics": [], "files": []}
-
-        file_list = "\n".join(file_list_lines)
-
-        # Build prompt (from new.py approach)
-        prompt = f"""You are a study assistant. The first document is a student's assignment.
-The remaining documents are their course lecture/material files.
-
-Course files:
-{file_list}
-
-Instructions:
-- Identify each individual problem or question in the assignment using its exact number/label from the assignment.
-- Do NOT invent, combine, or rename problems — use only what appears in the assignment document.
-- If a problem has sub-parts (a), (b), (c) etc. that require genuinely DIFFERENT course material, create separate entries labeled "Problem 1a", "Problem 1b". If sub-parts use the same material, keep as one entry.
-- Read the actual text of every course file provided.
-- For each problem, list the course files whose content is genuinely relevant to completing that specific problem.
-- EXCLUDE any course file that appears to be the same document as the assignment (contains the same problem statements or questions).
-- Base matches ONLY on actual file content, not file names.
-- "high" = covers the exact topic in depth. "medium" = has meaningful related content. "low" = contains at least one specific relevant concept or formula. Omit files that are only tangentially related.
-- It is better to omit a file than to include a weakly relevant one.
-
-Return ONLY valid JSON, no markdown, no explanation:
-[
-  {{
-    "topic": "Problem N — brief description",
-    "matches": [
-      {{"filename": "exact filename from list", "reason": "one sentence citing specific content from that file", "relevance": "high" | "medium" | "low"}}
-    ]
-  }}
-]
-Order matches by relevance descending. Empty matches array if nothing relevant."""
-
-        # Build content list: assignment first, then course files, then prompt
-        contents = []
-
-        # Add assignment — prefer actual file (with cache), fall back to text
-        if assignment_path and Path(assignment_path).exists():
-            ext    = os.path.splitext(assignment_path)[1].lower()
-            mime   = MIME_MAP.get(ext, "application/pdf")
-            ackey  = gemini_cache_key(assignment_path)
-            gcache = load_gemini_cache()
-            aref   = None
-            if ackey in gcache:
-                try:
-                    existing = client.files.get(name=gcache[ackey]["uri"].split("/")[-1])
-                    aref = existing
-                except Exception:
-                    del gcache[ackey]
-            if not aref:
-                try:
-                    aref = client.files.upload(
-                        file=assignment_path,
-                        config=_gtypes.UploadFileConfig(display_name=assignment_name, mime_type=mime)
-                    )
-                    gcache[ackey] = {"uri": aref.uri, "fname": assignment_name}
-                    save_gemini_cache(gcache)
-                    time.sleep(0.3)
-                except Exception:
-                    aref = None
-            if aref:
-                contents.append(_gtypes.Part.from_uri(file_uri=aref.uri, mime_type=aref.mime_type or mime))
-            else:
-                contents.append(f"Assignment: {assignment_name}\n\n{assignment_text[:3000]}")
-        else:
-            contents.append(f"Assignment: {assignment_name}\n\n{assignment_text[:3000]}")
-
-        # Add uploaded course files
-        for fname, ref in uploaded_refs.items():
-            contents.append(_gtypes.Part.from_uri(
-                file_uri=ref.uri, mime_type=ref.mime_type
-            ))
-
-        # Add text-only notes as inline text
-        for n in notes_without_path:
-            contents.append(f"=== {n['filename']} (text excerpt) ===\n{n.get('text','')[:1500]}")
-
-        contents.append(prompt)
-
-        resp   = client.models.generate_content(model="gemini-2.5-flash-lite", contents=contents)
-        raw    = resp.text.strip()
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"): raw = raw[4:]
-        topics = json.loads(raw.strip())
-        if not isinstance(topics, list):
-            topics = []
-
+        collection = _index_notes(notes, collection_name)
     except Exception as e:
-        print(f"  match_assignment_to_notes error: {e}")
+        print(f"  RAG indexing error: {e}")
         return {"topics": [], "files": [{"error": str(e)}]}
 
-    # Build flat files list sorted by first problem appearance
+    if collection.count() == 0:
+        return {"topics": [], "files": []}
+
+    # ── Extract problems from the assignment ──────────────────────────────────
+    problems = _rag_extract_problems(assignment_text)
+    print(f"  [RAG] {len(problems)} problem(s) identified.")
+
+    # ── Embed all problem queries in one batch ────────────────────────────────
+    queries  = [p["query"] for p in problems]
+    try:
+        q_embeds = _embed_batch(queries, "RETRIEVAL_QUERY") if queries else []
+    except Exception as e:
+        print(f"  RAG query embedding error: {e}")
+        return {"topics": [], "files": []}
+
+    # ── Retrieve + synthesize per problem ─────────────────────────────────────
+    topics = []
+    try:
+        for p, q_embed in zip(problems, q_embeds):
+            n_results = min(TOP_K, collection.count())
+            if n_results == 0:
+                topics.append({"topic": p["problem"], "matches": []})
+                continue
+            results = collection.query(
+                query_embeddings=[q_embed],
+                n_results=n_results,
+                include=["documents", "metadatas", "distances"],
+            )
+            chunks = [
+                {"text": doc, "source": meta.get("source","unknown"),
+                 "score": round(1 - dist, 3)}
+                for doc, meta, dist in zip(
+                    results["documents"][0],
+                    results["metadatas"][0],
+                    results["distances"][0],
+                )
+            ]
+            topics.append(_rag_synthesize_match(p["problem"], chunks))
+    except Exception as e:
+        print(f"  RAG retrieval error: {e}")
+        return {"topics": [], "files": []}
+
+    # ── Build flat files list sorted by first appearance + best relevance ─────
     RANK       = {"high": 0, "medium": 1, "low": 2}
     file_order = {}
     file_best  = {}
 
     for t_idx, t in enumerate(topics):
         for m in t.get("matches", []):
-            fn = m.get("filename","")
+            fn = m.get("filename", "")
             if not fn: continue
             if fn not in file_order:
                 file_order[fn] = t_idx
                 file_best[fn]  = {
                     "filename":  fn,
-                    "relevance": m.get("relevance","low"),
-                    "reason":    m.get("reason",""),
-                    "problems":  [t.get("topic","")]
+                    "relevance": m.get("relevance", "low"),
+                    "reason":    m.get("reason", ""),
+                    "problems":  [t.get("topic", "")]
                 }
             else:
-                if RANK.get(m.get("relevance","low"),2) < RANK.get(file_best[fn]["relevance"],2):
-                    file_best[fn]["relevance"] = m.get("relevance","low")
-                    file_best[fn]["reason"]    = m.get("reason","")
+                if RANK.get(m.get("relevance","low"), 2) < RANK.get(file_best[fn]["relevance"], 2):
+                    file_best[fn]["relevance"] = m.get("relevance", "low")
+                    file_best[fn]["reason"]    = m.get("reason", "")
                 if t.get("topic","") not in file_best[fn]["problems"]:
                     file_best[fn]["problems"].append(t.get("topic",""))
 
     files_sorted = sorted(
         file_best.values(),
-        key=lambda f: (file_order.get(f["filename"],99), RANK.get(f["relevance"],2))
+        key=lambda f: (file_order.get(f["filename"], 99), RANK.get(f["relevance"], 2))
     )
 
-    # Server-side duplicate filter: remove files with >72% word overlap with assignment
-    def is_duplicate(note_text: str) -> bool:
+    # Duplicate filter: remove files with >72% word overlap with the assignment
+    def _is_duplicate(note_text: str) -> bool:
         if not note_text or not assignment_text: return False
         def words(t): return set(re.findall(r"\b[a-zA-Z]{4,}\b", t[:1500].lower()))
         a_w = words(assignment_text); n_w = words(note_text)
@@ -403,7 +486,7 @@ Order matches by relevance descending. Empty matches array if nothing relevant."
         return len(a_w & n_w) / max(len(a_w), 1) > 0.72
 
     notes_text_map = {n["filename"]: n.get("text","") for n in notes}
-    files_sorted   = [f for f in files_sorted if not is_duplicate(notes_text_map.get(f["filename"],""))]
+    files_sorted   = [f for f in files_sorted if not _is_duplicate(notes_text_map.get(f["filename"],""))]
 
     return {"topics": topics, "files": files_sorted}
 
@@ -425,10 +508,16 @@ def ai_estimate(assignment_text: str, assignment_name: str,
     prompt = f"""You are an academic workload estimator for University of Michigan students.
 Estimate how many minutes a prepared student needs to complete this assignment.
 
-Key assumptions:
-- The student has already attended lectures and reviewed notes — do NOT add study time.
-- Only estimate time to actually DO the assignment (reading the prompt, solving problems, writing, coding, etc.).
-- Be concise and realistic. Most homework assignments take 30–180 minutes. Only exceed 3 hours for large projects or exams.
+Key rules — read carefully:
+- Base your estimate ENTIRELY on the actual content shown below. Do NOT apply generic defaults.
+- Only estimate time to DO the assignment (reading the prompt, solving, writing, coding, etc.). Do NOT add study time.
+- Scale strictly to what is asked:
+    • A single trivial question (e.g. "What is 9+10?") = 1–2 minutes.
+    • A few short questions = 5–15 minutes.
+    • A standard problem set (10–20 problems) = 60–120 minutes.
+    • A large project or exam = up to 180 minutes. Only exceed 180 for truly massive work.
+- If the assignment content is empty, very short, or unclear, set confidence to "low" and estimate conservatively (15 minutes).
+- NEVER default to 60 minutes just because you are uncertain — look at the actual number and difficulty of questions.
 
 Course provided: {course if course_known else "NOT PROVIDED — infer from assignment content"}
 Historical timing data: {history_summary}
@@ -446,7 +535,7 @@ Return ONLY valid JSON, no markdown:
   "low_minutes": <integer, fast student>,
   "high_minutes": <integer, slower student>,
   "primary_concept": "<3-5 word topic label>",
-  "reasoning": "<1-2 sentences>",
+  "reasoning": "<1-2 sentences explaining your estimate based on the actual content>",
   "confidence": "low" | "medium" | "high",
   "inferred_course": "<course code e.g. EECS 281, MATH 217 — infer from content if not provided, else repeat the provided course, null if truly unknown>",
   "inferred_course_confidence": "low" | "medium" | "high",
@@ -541,9 +630,19 @@ def run_estimate_for_assignment(user_id: str, assignment: dict) -> dict:
         asgn_path = None
         if asgn_pdf and course_id:
             p = get_canvas_cache_dir(user_id, course_id) / asgn_pdf
-            if p.exists(): asgn_path = str(p)
+            if p.exists():
+                asgn_path = str(p)
+                # Use the actual PDF text for estimation — much richer than description
+                extracted = extract_pdf_text_from_path(asgn_path)
+                if extracted.strip():
+                    assignment_text = f"Assignment: {title}\n\n{extracted}"
 
-        match_result   = match_assignment_to_notes(assignment_text, title, notes, assignment_path=asgn_path)
+        # Use a stable per-user/course collection name so embeddings persist
+        coll_name = f"u{user_id[:8]}_c{str(course_id)}" if course_id else None
+
+        match_result   = match_assignment_to_notes(assignment_text, title, notes,
+                                                   assignment_path=asgn_path,
+                                                   collection_name=coll_name)
         matched_files  = match_result.get("files", [])
         matched_topics = match_result.get("topics", [])
         relevant = "\n\n".join(
@@ -961,6 +1060,21 @@ def clear_canvas_cache():
             if d.is_dir():
                 try: d.rmdir()
                 except: pass
+
+    # Also wipe ChromaDB collections belonging to this user
+    try:
+        chroma_client = chromadb.PersistentClient(
+            path=str(CHROMA_DIR),
+            settings=Settings(anonymized_telemetry=False),
+        )
+        prefix = f"u{u['id'][:8]}_"
+        for col in chroma_client.list_collections():
+            name = col.name if hasattr(col, "name") else str(col)
+            if name.startswith(prefix):
+                try: chroma_client.delete_collection(name)
+                except Exception: pass
+    except Exception as ce:
+        print(f"  ChromaDB cleanup warning: {ce}")
     # Also clear canvas assignments from user profile
     users = load_users()
     for user in users:
@@ -1037,7 +1151,8 @@ def estimate():
         Path(apath).write_bytes(abytes)
 
         # Material matching — pass actual file paths
-        match_result  = match_assignment_to_notes(atext, aname, notes, assignment_path=apath)
+        match_result  = match_assignment_to_notes(atext, aname, notes, assignment_path=apath,
+                                                   collection_name=f"u{u['id'][:8]}_upload")
         matched_files  = match_result.get("files", [])
         matched_topics = match_result.get("topics", [])
 
@@ -1165,7 +1280,8 @@ def estimate_canvas():
     hist_sum = history_summary(course, sessions)
 
     # Match notes to assignment
-    match_result   = match_assignment_to_notes(assignment_text, asgn_title, notes, assignment_path=asgn_path)
+    match_result   = match_assignment_to_notes(assignment_text, asgn_title, notes, assignment_path=asgn_path,
+                                               collection_name=f"u{u['id'][:8]}_c{canvas_cid}")
     matched_notes  = match_result.get("files", [])
     matched_topics = match_result.get("topics", [])
 
