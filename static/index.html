@@ -353,7 +353,12 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
 
       <div class="form-group">
         <label>Email</label>
-        <input type="email" id="auth-email" placeholder="you@umich.edu"/>
+        <input
+          type="email"
+          id="auth-email"
+          placeholder="you@umich.edu"
+          onkeydown="if(event.key==='Enter') handleAuth()"
+        />
       </div>
       <div class="form-group" id="auth-name-row" style="display:none">
         <label>Name</label>
@@ -361,7 +366,12 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
       </div>
       <div class="form-group">
         <label>Password</label>
-        <input type="password" id="auth-password" placeholder="Password"/>
+        <input
+          type="password"
+          id="auth-password"
+          placeholder="Password"
+          onkeydown="if(event.key==='Enter') handleAuth()"
+        />
       </div>
       <button class="btn btn-primary btn-lg" style="width:100%" onclick="handleAuth()" id="auth-btn">
         Sign In

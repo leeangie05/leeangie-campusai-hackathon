@@ -398,32 +398,8 @@
     "password": "8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4",
     "name": "ana",
     "created_at": "2026-03-15T03:01:11.921592",
-    "courses": [
-      {
-        "course_name": "eecs",
-        "course_code": "ds"
-      }
-    ],
-    "assignments": [
-      {
-        "courseIndex": 0,
-        "title": "1",
-        "due_date": "",
-        "description": "1",
-        "type": "homework",
-        "points": 100,
-        "difficulty": 3,
-        "id": "manual_17735442149840.5799723934209424",
-        "course": "eecs",
-        "source": "manual",
-        "estimated_minutes": 45,
-        "estimated_hours": 0.75,
-        "primary_concept": "Basic programming logic",
-        "matched_notes": [],
-        "matched_topics": [],
-        "ai_reasoning": "The assignment involves a single, simple problem likely requiring fundamental programming concepts. The estimated time reflects reading, understanding, and implementing a straightforward solution."
-      }
-    ],
+    "courses": [],
+    "assignments": [],
     "canvas": {},
     "onboarded": true
   },
@@ -454,38 +430,6 @@
         "matched_notes": [],
         "matched_topics": [],
         "ai_reasoning": "The assignment is very brief and appears to be an introductory or placeholder assignment for a course. The estimated time reflects reading and a minimal response."
-      }
-    ],
-    "canvas": {},
-    "onboarded": true
-  },
-  {
-    "id": "0087a2a839ae8a36e3068d4861084914",
-    "email": "ana.yordanova8@gmail.com",
-    "password": "8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4",
-    "name": "ana",
-    "created_at": "2026-03-15T03:43:40.272852",
-    "courses": [],
-    "assignments": [
-      {
-        "course_name": "a",
-        "title": "a",
-        "due_date": "",
-        "description": "a",
-        "type": "homework",
-        "points": 100,
-        "difficulty": 3,
-        "file": null,
-        "manual_estimate_hours": 2,
-        "id": "manual_17735462343940.12390457483317463",
-        "course": "a",
-        "source": "manual",
-        "estimated_minutes": 15,
-        "estimated_hours": 0.25,
-        "primary_concept": "basic assignment completion",
-        "matched_notes": [],
-        "matched_topics": [],
-        "ai_reasoning": "The assignment prompt is extremely minimal and lacks specific instructions, suggesting a very straightforward task or placeholder. The estimated time reflects the minimal effort required to acknowledge and process such a prompt."
       }
     ],
     "canvas": {},
