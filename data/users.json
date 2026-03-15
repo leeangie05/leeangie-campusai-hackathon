@@ -301,24 +301,5 @@
     "friends": [
       "yichengh01@gmail.com"
     ]
-  },
-  {
-    "id": "2f3fbf2e63c970822c4c59ed54f14473",
-    "email": "yichengh01@gmail.com",
-    "password": "189f40034be7a199f1fa9891668ee3ab6049f82d38c68be70f596eab2e1857b7",
-    "name": "yicheng",
-    "created_at": "2026-03-14T17:52:41.332577",
-    "courses": [
-      {
-        "course_name": "EECS 281",
-        "course_code": "Data Structures"
-      }
-    ],
-    "assignments": [],
-    "canvas": {
-      "domain": "canvas.instructure.com",
-      "synced_at": "2026-03-14T17:53:06.191418"
-    },
-    "onboarded": true
   }
 ]

@@ -1,25 +1,29 @@
 """
 Syllabot — Integrated Flask Backend
-Handles: auth, Canvas sync+caching, material matching, AI estimation,
+Handles: auth, Canvas sync+caching, material matching (RAG), AI estimation,
          scheduling, timer sessions, and file storage.
 
 Install:
-    pip install flask flask-cors google-generativeai pypdf2 requests
+    pip install flask flask-cors google-genai pypdf2 requests chromadb pypdf
 
 Run:
     export GEMINI_API_KEY=your_key
     python server.py
 """
 
-import os, json, time, re, io, hashlib, tempfile, shutil, threading, urllib.parse
+import os, json, time, re, io, hashlib, tempfile, shutil, threading, warnings
 from datetime import datetime, timedelta
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+warnings.filterwarnings("ignore")
 
 from flask import Flask, request, jsonify, session, send_from_directory
 from flask_cors import CORS
 import PyPDF2
 import requests as req
+import chromadb
+from chromadb.config import Settings
 
 # ── App setup ─────────────────────────────────────────────────────────────────
 app = Flask(__name__, static_folder="static", static_url_path="")
@@ -27,6 +31,28 @@ app.secret_key = os.environ.get("SECRET_KEY", "syllabot-dev-secret-2024")
 CORS(app, supports_credentials=True)
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+
+# ── RAG config ────────────────────────────────────────────────────────────────
+CHROMA_DIR       = Path("chroma_db")
+CHROMA_DIR.mkdir(exist_ok=True)
+TOP_K            = 6
+CHUNK_SIZE       = 1500
+CHUNK_OVERLAP    = 200
+EMBED_BATCH_SIZE = 50
+EMBEDDING_MODEL  = "gemini-embedding-001"
+GENERATION_MODEL = "gemini-3.1-flash-lite-preview"
+
+_gemini_client_lock = threading.Lock()
+_gemini_client      = None
+
+def get_gemini():
+    global _gemini_client
+    if _gemini_client is None:
+        with _gemini_client_lock:
+            if _gemini_client is None:
+                from google import genai as _g
+                _gemini_client = _g.Client(api_key=GEMINI_API_KEY)
+    return _gemini_client
 
 # Allow OAuth over plain HTTP for local development
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
@@ -38,25 +64,9 @@ for d in [DATA_DIR, CANVAS_CACHE]:
 
 USERS_FILE      = DATA_DIR / "users.json"
 SESSIONS_FILE   = DATA_DIR / "sessions.json"
-GEMINI_URI_CACHE = DATA_DIR / "gemini_uri_cache.json"
 for f in [USERS_FILE, SESSIONS_FILE]:
     if not f.exists():
         f.write_text("[]")
-if not GEMINI_URI_CACHE.exists():
-    GEMINI_URI_CACHE.write_text("{}")
-
-def load_gemini_cache() -> dict:
-    try: return json.loads(GEMINI_URI_CACHE.read_text())
-    except: return {}
-
-def save_gemini_cache(c: dict):
-    GEMINI_URI_CACHE.write_text(json.dumps(c, indent=2))
-
-def gemini_cache_key(fpath: str) -> str:
-    """Hash of file path + mtime + size — changes when file content changes."""
-    p = Path(fpath)
-    stat = p.stat()
-    return hashlib.md5(f"{fpath}:{stat.st_mtime}:{stat.st_size}".encode()).hexdigest()
 
 ALLOWED_EXTENSIONS = {".pdf", ".pptx", ".ppt", ".docx", ".doc", ".txt", ".md"}
 MIME_MAP = {
@@ -116,10 +126,9 @@ def extract_pdf_text_from_path(path: str) -> str:
 def gemini(prompt: str) -> str:
     if not GEMINI_API_KEY:
         raise ValueError("GEMINI_API_KEY not set")
-    import google.generativeai as genai_mod
-    genai_mod.configure(api_key=GEMINI_API_KEY)
-    model = genai_mod.GenerativeModel("gemini-3.1-flash-lite-preview")
-    resp = model.generate_content(prompt)
+    from google import genai
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    resp = client.models.generate_content(model="gemini-2.5-flash-lite", contents=prompt)
     return resp.text.strip()
 
 def gemini_parse_json(prompt: str) -> any:
@@ -190,71 +199,186 @@ def save_canvas_cache_manifest(user_id, course_id, manifest):
     p = get_canvas_cache_dir(user_id, course_id) / "manifest.json"
     p.write_text(json.dumps(manifest, indent=2))
 
-# ── Material matcher ──────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# RAG — ChromaDB + Gemini embeddings
+# ══════════════════════════════════════════════════════════════════════════════
 
-# Thread-local Gemini upload helpers (mirrors better_optimized.py approach)
-_GEMINI_UPLOAD_WORKERS = 6
+def _chunk_text(text: str, source: str) -> list[dict]:
+    text  = re.sub(r"\s+", " ", text).strip()
+    safe  = re.sub(r"[^a-zA-Z0-9_\-]", "_", source)
+    chunks, start = [], 0
+    while start < len(text):
+        chunk = text[start : start + CHUNK_SIZE]
+        if chunk.strip():
+            chunks.append({"text": chunk, "source": source,
+                           "chunk_id": f"{safe}_{start}"})
+        start += CHUNK_SIZE - CHUNK_OVERLAP
+    return chunks
 
-def _upload_one_file_to_gemini(genai_mod, fpath: str, fname: str) -> tuple[str, object] | tuple[str, None]:
-    """Upload a single file to Gemini with retry; return (fname, file_ref) or (fname, None)."""
+
+def _file_fingerprint(path: str) -> str:
+    h = hashlib.md5()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(65536), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def _embed_batch(texts: list[str], task: str) -> list[list[float]]:
+    from google.genai import types as _gt
+    client = get_gemini()
     for attempt in range(1, 4):
         try:
-            ref = genai_mod.upload_file(fpath)
-            print(f"  [upload] {fname}")
-            return fname, ref
+            resp = client.models.embed_content(
+                model=EMBEDDING_MODEL,
+                contents=texts,
+                config=_gt.EmbedContentConfig(task_type=task),
+            )
+            return [e.values for e in resp.embeddings]
         except Exception as e:
             if attempt < 3:
-                wait = attempt * 2
-                print(f"  ⚠️  Upload attempt {attempt} failed for {fname} ({e}), retrying in {wait}s...")
-                time.sleep(wait)
+                time.sleep(attempt * 2)
             else:
-                print(f"  ⚠️  Gemini upload failed for {fname}: {e}")
-    return fname, None
+                print(f"  Embedding batch failed: {e}")
+                return [[0.0] * 768] * len(texts)
 
 
-def _build_match_prompt(lines: list[str]) -> str:
-    return f"""You are a study assistant. The first document is a student's assignment.
-The remaining documents are their course lecture/material files.
+def _embed_texts(texts: list[str]) -> list[list[float]]:
+    results = []
+    for i in range(0, len(texts), EMBED_BATCH_SIZE):
+        results.extend(_embed_batch(texts[i : i + EMBED_BATCH_SIZE], "RETRIEVAL_DOCUMENT"))
+    return results
 
-Course files:
-{chr(10).join(lines)}
 
-Instructions:
-- Identify each individual problem or question in the assignment using its exact number/label from the assignment.
-- Do NOT invent, combine, or rename problems — use only what appears in the assignment document.
-- If a problem has sub-parts (a), (b), (c) etc. that require genuinely DIFFERENT course material, create separate entries labeled "Problem 1a", "Problem 1b". If sub-parts use the same material, keep as one entry.
-- Read the actual text of every course file provided.
-- For each problem, list the course files whose content is genuinely relevant to completing that specific problem.
-- EXCLUDE any course file that appears to be the same document as the assignment (contains the same problem statements or questions).
-- Base matches ONLY on actual file content, not file names.
-- "high" = covers the exact topic in depth. "medium" = has meaningful related content. "low" = contains at least one specific relevant concept or formula. Omit files that are only tangentially related.
-- It is better to omit a file than to include a weakly relevant one.
+def _embed_query(text: str) -> list[float]:
+    return _embed_batch([text], "RETRIEVAL_QUERY")[0]
 
-Return ONLY valid JSON, no markdown, no explanation:
+
+def _get_chroma_collection(collection_name: str) -> chromadb.Collection:
+    client = chromadb.PersistentClient(
+        path=str(CHROMA_DIR),
+        settings=Settings(anonymized_telemetry=False),
+    )
+    return client.get_or_create_collection(
+        name=collection_name,
+        metadata={"hnsw:space": "cosine"},
+    )
+
+
+def _index_notes(notes: list[dict], collection_name: str) -> chromadb.Collection:
+    """Embed and index note files into a ChromaDB collection (with caching by MD5)."""
+    collection = _get_chroma_collection(collection_name)
+    existing   = collection.get(include=["metadatas"])
+    cached_fps = {m.get("fingerprint") for m in existing["metadatas"] if m and "fingerprint" in m}
+
+    for note in notes:
+        path = note.get("path")
+        fp   = _file_fingerprint(path) if path and Path(path).exists() else hashlib.md5(note.get("text","").encode()).hexdigest()
+        if fp in cached_fps:
+            continue
+
+        text = note.get("text") or ""
+        if not text.strip():
+            continue
+
+        fname  = note["filename"]
+        chunks = _chunk_text(text, fname)
+        if not chunks:
+            continue
+
+        # Remove stale chunks for this source
+        try:
+            stale = collection.get(where={"source": fname})
+            if stale["ids"]:
+                collection.delete(ids=stale["ids"])
+        except Exception:
+            pass
+
+        all_texts  = [c["text"] for c in chunks]
+        all_embeds = _embed_texts(all_texts)
+        collection.add(
+            ids       =[c["chunk_id"] for c in chunks],
+            embeddings=all_embeds,
+            documents =all_texts,
+            metadatas =[{"source": fname, "fingerprint": fp} for c in chunks],
+        )
+        print(f"  [RAG] Indexed {fname} ({len(chunks)} chunks)")
+
+    return collection
+
+
+def _rag_extract_problems(assignment_text: str) -> list[dict]:
+    prompt = f"""You are a study assistant. Below is the text of a student assignment.
+Identify each individual problem or question. For each one, write a short search query
+capturing the key concepts needed to solve it.
+
+Assignment text:
+{assignment_text[:4000]}
+
+Return ONLY valid JSON, no markdown:
 [
-  {{
-    "topic": "Problem N — brief description",
-    "matches": [
-      {{"filename": "exact filename from list", "reason": "one sentence citing specific content from that file", "relevance": "high" | "medium" | "low"}}
-    ]
-  }}
+  {{"problem": "Problem N — brief description", "query": "key concepts and topics for this problem"}}
+]"""
+    try:
+        raw = gemini(prompt)
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"): raw = raw[4:]
+        return json.loads(raw.strip())
+    except Exception as e:
+        print(f"  Could not parse problems: {e}")
+        return [{"problem": "General", "query": assignment_text[:500]}]
+
+
+def _rag_synthesize_match(problem: str, chunks: list[dict]) -> dict:
+    by_source: dict[str, list] = {}
+    for c in chunks:
+        by_source.setdefault(c["source"], []).append(c)
+
+    context = "\n\n".join(
+        f"[{src}]\n{' ... '.join(c['text'] for c in cs[:3])[:800]}"
+        for src, cs in by_source.items()
+    )
+
+    prompt = f"""You are a study assistant. A student has this problem:
+
+"{problem}"
+
+Here are the most relevant excerpts from their course materials:
+
+{context}
+
+Based ONLY on the content above, list which files are relevant and why.
+
+Return ONLY valid JSON, no markdown:
+[
+  {{"filename": "exact filename", "reason": "one sentence explaining relevance", "relevance": "high"|"medium"|"low"}}
 ]
-Order matches by relevance descending. Empty matches array if nothing relevant."""
+Order by relevance descending. Only include files with genuinely relevant content."""
+    try:
+        raw = gemini(prompt)
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"): raw = raw[4:]
+        return {"topic": problem, "matches": json.loads(raw.strip())}
+    except Exception as e:
+        print(f"  Synthesis failed for '{problem}': {e}")
+        return {"topic": problem, "matches": []}
 
 
+# ── Material matcher ──────────────────────────────────────────────────────────
 def match_assignment_to_notes(assignment_text: str, assignment_name: str,
                                notes: list[dict],
-                               assignment_path: str = None) -> dict:
+                               assignment_path: str = None,
+                               collection_name: str = None) -> dict:
     """
-    Upload actual files to Gemini in parallel and match assignment to notes.
-    Uses google.generativeai (genai.upload_file) with ThreadPoolExecutor.
-
+    RAG-based material matcher.
     notes: list of {"filename": str, "text": str, "path": str (optional)}
-    assignment_path: local path to the assignment PDF (optional, falls back to text)
+    assignment_path: local path to the assignment file (used for text extraction if provided)
 
     Returns:
       {
-        "topics": [{"topic": "Problem 1a: ...", "matches": [...]}],
+        "topics": [{"topic": "Problem N: ...", "matches": [...]}],
         "files":  [{"filename": "...", "relevance": "...", "reason": "...", "problems": [...]}]
       }
     """
@@ -263,117 +387,68 @@ def match_assignment_to_notes(assignment_text: str, assignment_name: str,
     if not GEMINI_API_KEY:
         return {"topics": [], "files": []}
 
-    notes_with_path    = [n for n in notes if n.get("path") and Path(n["path"]).exists()]
-    notes_without_path = [n for n in notes if not (n.get("path") and Path(n["path"]).exists())]
+    # ── Resolve assignment text ──────────────────────────────────────────────
+    if assignment_path and Path(assignment_path).exists():
+        extracted = extract_pdf_text_from_path(assignment_path)
+        if extracted.strip():
+            assignment_text = extracted
 
+    # ── Determine ChromaDB collection name ───────────────────────────────────
+    if not collection_name:
+        # Derive a stable name from the set of note filenames
+        key_str = "|".join(sorted(n["filename"] for n in notes))
+        collection_name = "notes_" + hashlib.md5(key_str.encode()).hexdigest()[:16]
+
+    # ── Index notes into ChromaDB (skips already-cached files) ───────────────
     try:
-        import google.generativeai as genai_mod
-        genai_mod.configure(api_key=GEMINI_API_KEY)
-        model = genai_mod.GenerativeModel("gemini-2.5-flash-lite")
-
-        # ── Upload course files in parallel (with URI cache) ──────────────────
-        uploaded_refs   = {}   # filename -> genai file ref
-        file_list_lines = []
-        gcache          = load_gemini_cache()
-        cache_updated   = False
-
-        # Separate cached vs needs-upload
-        to_upload = []
-        for n in notes_with_path:
-            fname = n["filename"]
-            fpath = n["path"]
-            ckey  = gemini_cache_key(fpath)
-            if ckey in gcache:
-                try:
-                    existing = genai_mod.get_file(gcache[ckey]["uri"].split("/")[-1])
-                    uploaded_refs[fname] = existing
-                    print(f"  [cache] {fname}")
-                    continue
-                except Exception:
-                    del gcache[ckey]  # expired, re-upload
-            to_upload.append(n)
-
-        # Parallel uploads for files not in cache
-        if to_upload:
-            with ThreadPoolExecutor(max_workers=_GEMINI_UPLOAD_WORKERS) as ex:
-                futures = {
-                    ex.submit(_upload_one_file_to_gemini, genai_mod, n["path"], n["filename"]): n
-                    for n in to_upload
-                }
-                for fut in as_completed(futures):
-                    fname, ref = fut.result()
-                    if ref:
-                        uploaded_refs[fname] = ref
-                        ckey = gemini_cache_key(futures[fut]["path"])
-                        gcache[ckey] = {"uri": ref.uri, "fname": fname}
-                        cache_updated = True
-
-        if cache_updated:
-            save_gemini_cache(gcache)
-
-        # Build numbered file list for prompt
-        for i, fname in enumerate(uploaded_refs.keys(), 1):
-            file_list_lines.append(f"{i}. {fname}")
-        offset = len(file_list_lines)
-        for i, n in enumerate(notes_without_path, offset + 1):
-            file_list_lines.append(f"{i}. {n['filename']} [text only]")
-
-        if not uploaded_refs and not notes_without_path:
-            return {"topics": [], "files": []}
-
-        # ── Upload assignment file (with cache) ───────────────────────────────
-        asgn_ref = None
-        if assignment_path and Path(assignment_path).exists():
-            ackey  = gemini_cache_key(assignment_path)
-            gcache = load_gemini_cache()
-            if ackey in gcache:
-                try:
-                    asgn_ref = genai_mod.get_file(gcache[ackey]["uri"].split("/")[-1])
-                except Exception:
-                    del gcache[ackey]
-            if not asgn_ref:
-                try:
-                    asgn_ref = genai_mod.upload_file(assignment_path)
-                    gcache[ackey] = {"uri": asgn_ref.uri, "fname": assignment_name}
-                    save_gemini_cache(gcache)
-                    time.sleep(0.3)
-                    print(f"  [upload] assignment: {assignment_name}")
-                except Exception as e:
-                    print(f"  Assignment upload failed: {e}")
-
-        # ── Build content list and call Gemini ────────────────────────────────
-        content = []
-
-        # Assignment first
-        if asgn_ref:
-            content.append(asgn_ref)
-        else:
-            content.append(f"Assignment: {assignment_name}\n\n{assignment_text[:3000]}")
-
-        # Course files
-        for ref in uploaded_refs.values():
-            content.append(ref)
-
-        # Text-only fallback notes
-        for n in notes_without_path:
-            content.append(f"=== {n['filename']} (text excerpt) ===\n{n.get('text','')[:1500]}")
-
-        content.append(_build_match_prompt(file_list_lines))
-
-        resp = model.generate_content(content)
-        raw  = resp.text.strip()
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"): raw = raw[4:]
-        topics = json.loads(raw.strip())
-        if not isinstance(topics, list):
-            topics = []
-
+        collection = _index_notes(notes, collection_name)
     except Exception as e:
-        print(f"  match_assignment_to_notes error: {e}")
+        print(f"  RAG indexing error: {e}")
         return {"topics": [], "files": [{"error": str(e)}]}
 
-    # ── Build flat files list sorted by first problem appearance ──────────────
+    if collection.count() == 0:
+        return {"topics": [], "files": []}
+
+    # ── Extract problems from the assignment ──────────────────────────────────
+    problems = _rag_extract_problems(assignment_text)
+    print(f"  [RAG] {len(problems)} problem(s) identified.")
+
+    # ── Embed all problem queries in one batch ────────────────────────────────
+    queries  = [p["query"] for p in problems]
+    try:
+        q_embeds = _embed_batch(queries, "RETRIEVAL_QUERY") if queries else []
+    except Exception as e:
+        print(f"  RAG query embedding error: {e}")
+        return {"topics": [], "files": []}
+
+    # ── Retrieve + synthesize per problem ─────────────────────────────────────
+    topics = []
+    try:
+        for p, q_embed in zip(problems, q_embeds):
+            n_results = min(TOP_K, collection.count())
+            if n_results == 0:
+                topics.append({"topic": p["problem"], "matches": []})
+                continue
+            results = collection.query(
+                query_embeddings=[q_embed],
+                n_results=n_results,
+                include=["documents", "metadatas", "distances"],
+            )
+            chunks = [
+                {"text": doc, "source": meta.get("source","unknown"),
+                 "score": round(1 - dist, 3)}
+                for doc, meta, dist in zip(
+                    results["documents"][0],
+                    results["metadatas"][0],
+                    results["distances"][0],
+                )
+            ]
+            topics.append(_rag_synthesize_match(p["problem"], chunks))
+    except Exception as e:
+        print(f"  RAG retrieval error: {e}")
+        return {"topics": [], "files": []}
+
+    # ── Build flat files list sorted by first appearance + best relevance ─────
     RANK       = {"high": 0, "medium": 1, "low": 2}
     file_order = {}
     file_best  = {}
@@ -391,9 +466,9 @@ def match_assignment_to_notes(assignment_text: str, assignment_name: str,
                     "problems":  [t.get("topic", "")]
                 }
             else:
-                if RANK.get(m.get("relevance","low"),2) < RANK.get(file_best[fn]["relevance"],2):
-                    file_best[fn]["relevance"] = m.get("relevance","low")
-                    file_best[fn]["reason"]    = m.get("reason","")
+                if RANK.get(m.get("relevance","low"), 2) < RANK.get(file_best[fn]["relevance"], 2):
+                    file_best[fn]["relevance"] = m.get("relevance", "low")
+                    file_best[fn]["reason"]    = m.get("reason", "")
                 if t.get("topic","") not in file_best[fn]["problems"]:
                     file_best[fn]["problems"].append(t.get("topic",""))
 
@@ -402,16 +477,16 @@ def match_assignment_to_notes(assignment_text: str, assignment_name: str,
         key=lambda f: (file_order.get(f["filename"], 99), RANK.get(f["relevance"], 2))
     )
 
-    # Server-side duplicate filter: remove files with >72% word overlap with assignment
-    def is_duplicate(note_text: str) -> bool:
+    # Duplicate filter: remove files with >72% word overlap with the assignment
+    def _is_duplicate(note_text: str) -> bool:
         if not note_text or not assignment_text: return False
         def words(t): return set(re.findall(r"\b[a-zA-Z]{4,}\b", t[:1500].lower()))
         a_w = words(assignment_text); n_w = words(note_text)
         if not a_w or not n_w: return False
         return len(a_w & n_w) / max(len(a_w), 1) > 0.72
 
-    notes_text_map = {n["filename"]: n.get("text", "") for n in notes}
-    files_sorted   = [f for f in files_sorted if not is_duplicate(notes_text_map.get(f["filename"],""))]
+    notes_text_map = {n["filename"]: n.get("text","") for n in notes}
+    files_sorted   = [f for f in files_sorted if not _is_duplicate(notes_text_map.get(f["filename"],""))]
 
     return {"topics": topics, "files": files_sorted}
 
@@ -433,10 +508,16 @@ def ai_estimate(assignment_text: str, assignment_name: str,
     prompt = f"""You are an academic workload estimator for University of Michigan students.
 Estimate how many minutes a prepared student needs to complete this assignment.
 
-Key assumptions:
-- The student has already attended lectures and reviewed notes — do NOT add study time.
-- Only estimate time to actually DO the assignment (reading the prompt, solving problems, writing, coding, etc.).
-- Be concise and realistic. Most homework assignments take 30–180 minutes. Only exceed 3 hours for large projects or exams.
+Key rules — read carefully:
+- Base your estimate ENTIRELY on the actual content shown below. Do NOT apply generic defaults.
+- Only estimate time to DO the assignment (reading the prompt, solving, writing, coding, etc.). Do NOT add study time.
+- Scale strictly to what is asked:
+    • A single trivial question (e.g. "What is 9+10?") = 1–2 minutes.
+    • A few short questions = 5–15 minutes.
+    • A standard problem set (10–20 problems) = 60–120 minutes.
+    • A large project or exam = up to 180 minutes. Only exceed 180 for truly massive work.
+- If the assignment content is empty, very short, or unclear, set confidence to "low" and estimate conservatively (15 minutes).
+- NEVER default to 60 minutes just because you are uncertain — look at the actual number and difficulty of questions.
 
 Course provided: {course if course_known else "NOT PROVIDED — infer from assignment content"}
 Historical timing data: {history_summary}
@@ -454,7 +535,7 @@ Return ONLY valid JSON, no markdown:
   "low_minutes": <integer, fast student>,
   "high_minutes": <integer, slower student>,
   "primary_concept": "<3-5 word topic label>",
-  "reasoning": "<1-2 sentences>",
+  "reasoning": "<1-2 sentences explaining your estimate based on the actual content>",
   "confidence": "low" | "medium" | "high",
   "inferred_course": "<course code e.g. EECS 281, MATH 217 — infer from content if not provided, else repeat the provided course, null if truly unknown>",
   "inferred_course_confidence": "low" | "medium" | "high",
@@ -549,9 +630,19 @@ def run_estimate_for_assignment(user_id: str, assignment: dict) -> dict:
         asgn_path = None
         if asgn_pdf and course_id:
             p = get_canvas_cache_dir(user_id, course_id) / asgn_pdf
-            if p.exists(): asgn_path = str(p)
+            if p.exists():
+                asgn_path = str(p)
+                # Use the actual PDF text for estimation — much richer than description
+                extracted = extract_pdf_text_from_path(asgn_path)
+                if extracted.strip():
+                    assignment_text = f"Assignment: {title}\n\n{extracted}"
 
-        match_result   = match_assignment_to_notes(assignment_text, title, notes, assignment_path=asgn_path)
+        # Use a stable per-user/course collection name so embeddings persist
+        coll_name = f"u{user_id[:8]}_c{str(course_id)}" if course_id else None
+
+        match_result   = match_assignment_to_notes(assignment_text, title, notes,
+                                                   assignment_path=asgn_path,
+                                                   collection_name=coll_name)
         matched_files  = match_result.get("files", [])
         matched_topics = match_result.get("topics", [])
         relevant = "\n\n".join(
@@ -969,6 +1060,21 @@ def clear_canvas_cache():
             if d.is_dir():
                 try: d.rmdir()
                 except: pass
+
+    # Also wipe ChromaDB collections belonging to this user
+    try:
+        chroma_client = chromadb.PersistentClient(
+            path=str(CHROMA_DIR),
+            settings=Settings(anonymized_telemetry=False),
+        )
+        prefix = f"u{u['id'][:8]}_"
+        for col in chroma_client.list_collections():
+            name = col.name if hasattr(col, "name") else str(col)
+            if name.startswith(prefix):
+                try: chroma_client.delete_collection(name)
+                except Exception: pass
+    except Exception as ce:
+        print(f"  ChromaDB cleanup warning: {ce}")
     # Also clear canvas assignments from user profile
     users = load_users()
     for user in users:
@@ -1045,7 +1151,8 @@ def estimate():
         Path(apath).write_bytes(abytes)
 
         # Material matching — pass actual file paths
-        match_result  = match_assignment_to_notes(atext, aname, notes, assignment_path=apath)
+        match_result  = match_assignment_to_notes(atext, aname, notes, assignment_path=apath,
+                                                   collection_name=f"u{u['id'][:8]}_upload")
         matched_files  = match_result.get("files", [])
         matched_topics = match_result.get("topics", [])
 
@@ -1173,7 +1280,8 @@ def estimate_canvas():
     hist_sum = history_summary(course, sessions)
 
     # Match notes to assignment
-    match_result   = match_assignment_to_notes(assignment_text, asgn_title, notes, assignment_path=asgn_path)
+    match_result   = match_assignment_to_notes(assignment_text, asgn_title, notes, assignment_path=asgn_path,
+                                               collection_name=f"u{u['id'][:8]}_c{canvas_cid}")
     matched_notes  = match_result.get("files", [])
     matched_topics = match_result.get("topics", [])
 
@@ -1861,9 +1969,10 @@ def suggest_schedule():
     return jsonify({"suggested": suggested})
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8080))
     print("="*50)
     print("  Syllabot server starting...")
     print("  Set: export GEMINI_API_KEY=your_key")
-    print("  Open: http://localhost:8080")
+    print(f"  Open: http://localhost:{port}")
     print("="*50)
-    app.run(debug=True, port=8080)
+    app.run(debug=True, port=port)

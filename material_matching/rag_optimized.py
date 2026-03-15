@@ -36,9 +36,9 @@ from google.genai import types
 from pypdf import PdfReader
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
-CANVAS_API_TOKEN = "7~wraGkmG3kPc92BECTUXvUfKx3FUFKTY47zMXJa9n9LxPEKX4NMyQvfZZKxH8Lumm"
+CANVAS_API_TOKEN = ""
 CANVAS_BASE_URL  = "https://canvas.instructure.com"  # must start with https://
-GEMINI_API_KEY   = "AIzaSyBovGVXBEHCxmsuyOB9i-m8SsbMOcmQTUI"
+GEMINI_API_KEY   = ""
 
 CHROMA_DIR       = "./material_matcher_db"
 TOP_K            = 6

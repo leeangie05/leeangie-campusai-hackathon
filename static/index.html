@@ -68,7 +68,7 @@ textarea{min-height:90px;resize:vertical}
 /* ── Nav ── */
 nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px}
 .logo-row{display:flex;align-items:center;gap:10px}
-.logo-icon{width:40px;height:40px;background:#d1fae5;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem}
+.logo-icon{width:48px;height:48px;background:#d1fae5;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:2rem}
 .logo-text{font-size:1.4rem;font-weight:800;color:#0f172a}
 .nav-links{display:flex;gap:8px}
 
@@ -246,6 +246,7 @@ body.dark .assignment-card h3{color:#f1f5f9}
 body.dark .assignment-card p{color:#94a3b8}
 
 /* ── Schedule / Calendar ── */
+.sched-panel{}
 .cal-day-grid{border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}
 .cal-day-inner{position:relative}
 .cal-hour-row{display:grid;grid-template-columns:52px 1fr;height:60px;border-bottom:1px solid #f1f5f9;pointer-events:none}
@@ -262,7 +263,7 @@ body.dark .assignment-card p{color:#94a3b8}
 .cal-now-line{position:absolute;left:0;right:0;height:2px;background:#ef4444;z-index:2;pointer-events:none}
 .cal-now-line::before{content:'';position:absolute;left:-4px;top:-4px;width:10px;height:10px;border-radius:50%;background:#ef4444}
 /* Week grid */
-.cal-week-grid{display:grid;grid-template-columns:44px repeat(7,1fr);border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}
+.cal-week-grid{display:grid;grid-template-columns:44px repeat(7,1fr);border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;position:relative}
 .cal-week-header{display:contents}
 .cal-week-day-hdr{padding:8px 4px;text-align:center;font-size:.72rem;font-weight:600;border-bottom:1px solid #e2e8f0;border-left:1px solid #f1f5f9;background:#f8fafc}
 .cal-week-day-hdr.today{background:#ecfdf5;color:#059669}
@@ -339,7 +340,7 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
   <div class="max-2xl" style="padding-top:60px">
     <div class="card fade-up">
       <div class="logo-row" style="margin-bottom:24px">
-        <div class="logo-icon">📘</div>
+        <div class="logo-icon">🥁</div>
         <span class="logo-text">Tempo</span>
       </div>
       <h1 style="font-size:1.8rem;margin-bottom:6px">Welcome back</h1>
@@ -374,9 +375,12 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
 <div id="page-onboarding" class="page hidden">
   <div class="max-4xl">
     <div class="card fade-up">
-      <div class="logo-row" style="margin-bottom:8px">
-        <div class="logo-icon">📘</div>
-        <span class="logo-text">Tempo</span>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px">
+        <div class="logo-row">
+          <div class="logo-icon">🥁</div>
+          <span class="logo-text">Tempo</span>
+        </div>
+        <button onclick="showPage('dashboard')" style="background:#f1f5f9;border:none;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;color:#64748b;flex-shrink:0" title="Back to dashboard">✕</button>
       </div>
       <h1 style="margin-bottom:6px">Let's get you set up</h1>
       <p style="margin-bottom:32px">Add your courses and assignments — or sync directly from Canvas.</p>
@@ -404,26 +408,46 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
         <div id="canvas-sync-msg"></div>
       </div>
 
-      <div style="text-align:center;color:#94a3b8;font-size:.85rem;margin-bottom:24px">— or enter manually —</div>
+      <div style="text-align:center;color:#94a3b8;font-size:.85rem;margin-bottom:24px">— or upload assignments manually —</div>
 
-      <!-- Courses -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <h2 style="font-size:1.2rem">Courses</h2>
-        <button class="btn btn-secondary btn-sm" onclick="addCourse()">+ Add Course</button>
-      </div>
-      <div id="ob-courses"></div>
-
-      <!-- Assignments -->
       <hr class="divider"/>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <h2 style="font-size:1.2rem">Assignments</h2>
-        <button class="btn btn-secondary btn-sm" onclick="addAssignment()">+ Add Assignment</button>
+      <h2 style="font-size:1.2rem;margin-bottom:6px">Upload & Estimate</h2>
+      <p style="font-size:.85rem;color:#64748b;margin-bottom:20px">Upload assignments and notes to get AI time estimates with matched materials.</p>
+
+      <div class="form-group">
+        <label>Course</label>
+        <input type="text" id="mat-course" placeholder="e.g. EECS 281"/>
       </div>
-      <div id="ob-assignments"></div>
+
+      <div class="grid-2" style="margin-bottom:20px">
+        <div>
+          <label>Assignment PDFs</label>
+          <div class="upload-zone" id="mat-assign-zone">
+            <input type="file" id="mat-assign-files" accept=".pdf" multiple/>
+            <div style="font-size:1.5rem;margin-bottom:6px">📄</div>
+            <div class="upload-label"><strong>Click or drop</strong> assignment PDFs<br/><span style="font-size:.75rem">Multiple allowed</span></div>
+            <div class="filenames" id="mat-assign-names"></div>
+          </div>
+        </div>
+        <div>
+          <label>Notes / Lecture PDFs <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
+          <div class="upload-zone" id="mat-notes-zone">
+            <input type="file" id="mat-notes-files" accept=".pdf" multiple/>
+            <div style="font-size:1.5rem;margin-bottom:6px">📝</div>
+            <div class="upload-label"><strong>Click or drop</strong> notes PDFs<br/><span style="font-size:.75rem">Multiple allowed</span></div>
+            <div class="filenames" id="mat-notes-names"></div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-lg" onclick="runEstimate()" id="mat-estimate-btn">
+        ✦ Analyze &amp; Estimate
+      </button>
+      <div id="mat-msg"></div>
+      <div id="mat-results" class="hidden" style="margin-top:28px"></div>
 
       <div style="display:flex;justify-content:flex-end;margin-top:24px;gap:12px;align-items:center">
-        <span id="ob-msg" style="font-size:.85rem;color:#64748b"></span>
-        <button class="btn btn-primary btn-lg" onclick="submitOnboarding()" id="ob-submit-btn">Save & Continue →</button>
+        <button class="btn btn-secondary btn-lg" onclick="showPage('dashboard')">← Back to Dashboard</button>
       </div>
     </div>
   </div>
@@ -437,11 +461,10 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
       <!-- ── Nav ── -->
       <nav>
         <div class="logo-row">
-          <div class="logo-icon">📘</div>
+          <div class="logo-icon">🥁</div>
           <span class="logo-text">Tempo</span>
         </div>
         <div class="nav-links">
-          <button class="btn btn-outline btn-sm" onclick="showPage('materials')">📎 Materials</button>
           <button class="btn btn-outline btn-sm" onclick="showPage('social')">👥 Social</button>
           <button class="btn btn-outline btn-sm" onclick="showPage('settings')">⚙ Settings</button>
           <button class="btn btn-secondary btn-sm" onclick="signOut()">Sign out</button>
@@ -493,13 +516,21 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
 
       <!-- ── 3. Today's Plan / Schedule ── -->
       <section style="margin-bottom:36px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
           <h2>Study Schedule</h2>
           <div class="tab-bar" style="width:auto;gap:4px;padding:3px">
             <button class="tab active" id="sched-tab-day"   onclick="switchSchedule('day')">Today</button>
-            <button class="tab"        id="sched-tab-week"  onclick="switchSchedule('week')">This Week</button>
+            <button class="tab"        id="sched-tab-week"  onclick="switchSchedule('week')">Week</button>
             <button class="tab"        id="sched-tab-month" onclick="switchSchedule('month')">Month</button>
           </div>
+        </div>
+
+        <!-- Nav row: prev / label / next -->
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <button class="btn btn-secondary btn-sm" onclick="schedNav(-1)">‹ Prev</button>
+          <span id="sched-nav-label" style="font-size:.88rem;font-weight:600;color:#374151;flex:1;text-align:center"></span>
+          <button class="btn btn-secondary btn-sm" onclick="schedNav(1)">Next ›</button>
+          <button class="btn btn-secondary btn-sm" onclick="schedNavToday()">Today</button>
         </div>
 
         <!-- Legend -->
@@ -523,6 +554,17 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
         <div id="sched-month" class="sched-panel" style="display:none">
           <div class="cal-month-grid" id="cal-month-grid"></div>
         </div>
+
+        <!-- Month overflow modal -->
+        <div id="month-overflow-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:600;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
+          <div style="background:#fff;border-radius:16px;padding:20px;min-width:260px;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <span id="month-overflow-title" style="font-weight:700;font-size:.9rem"></span>
+              <button onclick="document.getElementById('month-overflow-modal').style.display='none'" style="background:#f1f5f9;border:none;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:.9rem">✕</button>
+            </div>
+            <div id="month-overflow-list"></div>
+          </div>
+        </div>
       </section>
 
       <!-- ── 4. Recently Opened ── -->
@@ -540,108 +582,7 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
         <div id="completed-assignments-list" style="display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))"></div>
       </section>
 
-      <!-- ── 6. Upload Assignments ── -->
-      <section>
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap">
-          <div>
-            <h2 style="font-size:1.4rem">Upload Assignments</h2>
-            <p class="muted-text" style="font-size:.85rem;margin-top:4px">Add syllabi, assignment sheets, or lecture slides to improve estimates.</p>
-          </div>
-          <span class="badge badge-emerald">PDF, DOCX, TXT</span>
-        </div>
-        <label class="dash-upload-zone" id="dash-upload-label">
-          <input type="file" id="dash-upload-input" multiple accept=".pdf,.docx,.txt,.md" onchange="handleDashUpload(this)"/>
-          <div style="font-size:2rem;margin-bottom:10px">⬆️</div>
-          <div style="font-weight:600;font-size:1rem">Drag and drop files here</div>
-          <p class="muted-text" style="font-size:.82rem;margin-top:6px;max-width:360px">Upload assignments, lecture slides, or supporting course materials.</p>
-          <span class="upload-choose-btn">Choose Files</span>
-        </label>
-        <div id="dash-upload-msg" style="margin-top:10px"></div>
-        <div id="dash-upload-results" style="margin-top:12px"></div>
-      </section>
 
-    </div>
-  </div>
-</div>
-
-<!-- ══════════════ MATERIALS PAGE ══════════════ -->
-<div id="page-materials" class="page hidden">
-  <div class="max-4xl">
-    <div class="card fade-up">
-      <nav style="margin-bottom:24px">
-        <div class="logo-row">
-          <div class="logo-icon">📘</div>
-          <span class="logo-text">Tempo</span>
-        </div>
-        <button class="btn btn-secondary btn-sm" onclick="showPage('dashboard')">← Dashboard</button>
-      </nav>
-
-      <h1 style="margin-bottom:6px">Upload & Estimate</h1>
-      <p style="margin-bottom:28px">Upload assignments and notes to get AI time estimates with matched materials.</p>
-
-      <div class="form-group">
-        <label>Course</label>
-        <input type="text" id="mat-course" placeholder="e.g. EECS 281"/>
-      </div>
-
-      <!-- Canvas course selector (if synced) -->
-      <div id="mat-canvas-row" class="form-group hidden">
-        <label>Load notes from Canvas course cache <span class="badge badge-emerald">Auto</span></label>
-        <select id="mat-canvas-course">
-          <option value="">— manual notes only —</option>
-        </select>
-      </div>
-
-      <!-- Canvas assignment quick-estimator -->
-      <div id="canvas-assignment-picker" class="hidden" style="margin-bottom:20px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <div>
-            <span style="font-size:.85rem;font-weight:600;color:#0f172a">Canvas Assignments</span>
-            <span class="badge badge-emerald" style="margin-left:8px">Auto</span>
-          </div>
-          <span style="font-size:.75rem;color:#64748b">Uses cached files — no upload needed</span>
-        </div>
-        <div id="canvas-assignment-list" class="files-panel" style="max-height:220px;overflow-y:auto"></div>
-      </div>
-
-
-
-      <div class="grid-2" style="margin-bottom:20px">
-        <div>
-          <label>Assignment PDFs</label>
-          <div class="upload-zone" id="mat-assign-zone">
-            <input type="file" id="mat-assign-files" accept=".pdf" multiple/>
-            <div style="font-size:1.5rem;margin-bottom:6px">📄</div>
-            <div class="upload-label"><strong>Click or drop</strong> assignment PDFs<br/><span style="font-size:.75rem">Multiple allowed</span></div>
-            <div class="filenames" id="mat-assign-names"></div>
-          </div>
-        </div>
-        <div>
-          <label>Notes / Lecture PDFs <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
-          <div class="upload-zone" id="mat-notes-zone">
-            <input type="file" id="mat-notes-files" accept=".pdf" multiple/>
-            <div style="font-size:1.5rem;margin-bottom:6px">📝</div>
-            <div class="upload-label"><strong>Click or drop</strong> notes PDFs<br/><span style="font-size:.75rem">Multiple allowed</span></div>
-            <div class="filenames" id="mat-notes-names"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Canvas files browser -->
-      <div id="canvas-files-panel" class="hidden" style="margin-bottom:20px">
-        <div class="files-panel">
-          <div class="section-title">Canvas Course Files <span class="badge badge-emerald" style="margin-left:4px">Cached</span></div>
-          <div id="canvas-files-list"><p style="font-size:.8rem;color:#94a3b8">Select a course above</p></div>
-        </div>
-      </div>
-
-      <button class="btn btn-primary btn-lg" onclick="runEstimate()" id="mat-estimate-btn">
-        ✦ Analyze &amp; Estimate
-      </button>
-      <div id="mat-msg"></div>
-
-      <!-- Results -->
-      <div id="mat-results" class="hidden" style="margin-top:28px"></div>
     </div>
   </div>
 </div>
@@ -794,6 +735,7 @@ body.dark .assignment-card h3{color:#f1f5f9}
 body.dark .assignment-card p{color:#94a3b8}
 
 /* ── Schedule / Calendar ── */
+.sched-panel{}
 .cal-day-grid{border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}
 .cal-day-inner{position:relative}
 .cal-hour-row{display:grid;grid-template-columns:52px 1fr;height:60px;border-bottom:1px solid #f1f5f9;pointer-events:none}
@@ -810,7 +752,7 @@ body.dark .assignment-card p{color:#94a3b8}
 .cal-now-line{position:absolute;left:0;right:0;height:2px;background:#ef4444;z-index:2;pointer-events:none}
 .cal-now-line::before{content:'';position:absolute;left:-4px;top:-4px;width:10px;height:10px;border-radius:50%;background:#ef4444}
 /* Week grid */
-.cal-week-grid{display:grid;grid-template-columns:44px repeat(7,1fr);border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}
+.cal-week-grid{display:grid;grid-template-columns:44px repeat(7,1fr);border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;position:relative}
 .cal-week-header{display:contents}
 .cal-week-day-hdr{padding:8px 4px;text-align:center;font-size:.72rem;font-weight:600;border-bottom:1px solid #e2e8f0;border-left:1px solid #f1f5f9;background:#f8fafc}
 .cal-week-day-hdr.today{background:#ecfdf5;color:#059669}
@@ -886,7 +828,7 @@ body.dark .problem-tag{background:#1a2535;color:#60a5fa}
     <div class="card fade-up">
       <nav style="margin-bottom:24px">
         <div class="logo-row">
-          <div class="logo-icon">📘</div>
+          <div class="logo-icon">🥁</div>
           <span class="logo-text">Tempo</span>
         </div>
         <button class="btn btn-secondary btn-sm" onclick="showPage('dashboard')">← Dashboard</button>
@@ -994,8 +936,11 @@ function showPage(name) {
   if (pg) pg.classList.remove("hidden");
   if (name === "dashboard") loadDashboard();
   if (name === "settings") loadSettings();
-  if (name === "materials") loadMaterialsPage();
   if (name === "social") loadSocialPage();
+  if (name === "onboarding") {
+    setupUploadZone("mat-assign-zone","mat-assign-files","mat-assign-names");
+    setupUploadZone("mat-notes-zone","mat-notes-files","mat-notes-names");
+  }
 }
 
 function toggleTimerOverlay(show) {
@@ -1118,8 +1063,7 @@ async function signOut() {
 // ══════════════════════════════════════════════════════════════════
 // ONBOARDING
 // ══════════════════════════════════════════════════════════════════
-let obCourses = [{course_name:"", course_code:""}];
-let obAssignments = [{courseIndex:0, title:"", due_date:"", description:"", type:"homework", points:100, difficulty:3}];
+let obAssignments = [];
 
 function initOnboarding() {
   renderObCourses(); renderObAssignments();
@@ -1143,15 +1087,19 @@ function renderObCourses() {
 }
 
 function renderObAssignments() {
+  // Added upload file upon login
   const el = document.getElementById("ob-assignments");
   el.innerHTML = obAssignments.map((a,i) => `
     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:16px;margin-bottom:10px">
       <div class="grid-2" style="margin-bottom:10px">
         <div>
-          <label>Course</label>
-          <select onchange="obAssignments[${i}].courseIndex=+this.value">
-            ${obCourses.map((c,ci) => `<option value="${ci}" ${ci===a.courseIndex?"selected":""}>${c.course_name||"Course "+(ci+1)}</option>`).join("")}
-          </select>
+          <label>Course Name</label>
+          <input
+            type="text"
+            value="${esc(a.course_name || "")}"
+            placeholder="e.g. EECS 281"
+            oninput="obAssignments[${i}].course_name=this.value"
+          />
         </div>
         <div>
           <label>Type</label>
@@ -1160,6 +1108,7 @@ function renderObAssignments() {
           </select>
         </div>
       </div>
+
       <div class="grid-2" style="margin-bottom:10px">
         <div>
           <label>Title</label>
@@ -1170,16 +1119,37 @@ function renderObAssignments() {
           <input type="datetime-local" value="${a.due_date}" oninput="obAssignments[${i}].due_date=this.value"/>
         </div>
       </div>
-      <div>
+
+      <div style="margin-bottom:10px">
         <label>Description</label>
         <textarea placeholder="What is this assignment about?" oninput="obAssignments[${i}].description=this.value">${esc(a.description)}</textarea>
+      </div>
+
+      <div>
+        <label>Upload Assignment File</label>
+        <input
+          type="file"
+          accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.md"
+          onchange="obAssignments[${i}].file=this.files[0]"
+        />
       </div>
     </div>`).join("");
 }
 
 function addCourse() { obCourses.push({course_name:"",course_code:""}); renderObCourses(); renderObAssignments(); }
-function addAssignment() { obAssignments.push({courseIndex:0,title:"",due_date:"",description:"",type:"homework",points:100,difficulty:3}); renderObAssignments(); }
-
+function addAssignment() {
+  obAssignments.push({
+    course_name:"",
+    title:"",
+    due_date:"",
+    description:"",
+    type:"homework",
+    points:100,
+    difficulty:3,
+    file:null
+  });
+  renderObAssignments();
+}
 async function submitOnboarding() {
   const btn = document.getElementById("ob-submit-btn");
   const msg = document.getElementById("ob-msg");
@@ -1190,7 +1160,7 @@ async function submitOnboarding() {
   const assignments = obAssignments.filter(a => a.title.trim()).map(a => ({
     ...a,
     id: "manual_" + Date.now() + Math.random(),
-    course: (obCourses[a.courseIndex] || {}).course_name || "",
+    course: a.course_name || "",
     source: "manual",
   }));
 
@@ -1249,7 +1219,6 @@ async function canvasSync(context) {
     } else {
       renderDashboardAssignments();
       renderStudyPlan();
-      loadMaterialsPage();
     }
   } catch(e) {
     showMsg(msgEl, `❌ ${e.message}`, "error");
@@ -1294,29 +1263,64 @@ function renderDashboardAssignments() {
     const due   = a.due_date ? new Date(a.due_date).toLocaleDateString("en-US",{month:"short",day:"numeric"}) : "—";
     const urgency = a.due_in_days <= 1 ? "badge-rose" : a.due_in_days <= 3 ? "badge-amber" : "badge-emerald";
     const urgencyTxt = a.due_in_days <= 1 ? "Urgent" : a.due_in_days <= 3 ? "Soon" : "Upcoming";
-    const hasEstimate = !a.estimate_pending && a.estimated_hours;
-    const estLabel = hasEstimate
-      ? `<span class="badge badge-emerald">${fmtHours(a.estimated_hours)} · AI est.</span>`
-      : `<span class="badge badge-slate" style="opacity:.6">Estimating...</span>`;
+    const estMins = a.estimated_minutes || (a.estimated_hours ? Math.round(a.estimated_hours * 60) : null);
+    const hasEstimate = !a.estimate_pending && estMins;
+    const estDisplay = hasEstimate ? fmtHours(estMins / 60) : "—";
     return `
     <div class="assignment-card fade-up">
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
         <span class="badge" style="background:${color}22;color:${color}">${a.course || "—"}</span>
         <span class="badge ${urgency}">${urgencyTxt}</span>
-        ${estLabel}
         ${a.primary_concept ? `<span class="badge badge-blue">${esc(a.primary_concept)}</span>` : ""}
       </div>
       <h3>${esc(a.title || "Untitled")}</h3>
       <p style="font-size:.82rem;margin-top:4px;color:#64748b">Due ${due}</p>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <span style="font-size:.78rem;color:#64748b">Est. time:</span>
+        <div style="display:flex;align-items:center;gap:4px">
+          <input
+            type="number" min="1" max="999"
+            id="est-input-${a.id}"
+            value="${estMins || ""}"
+            placeholder="min"
+            style="width:64px;padding:3px 7px;font-size:.8rem;border:1px solid #d1d5db;border-radius:8px;font-family:Inter,sans-serif;color:#0f172a;outline:none"
+            onfocus="this.style.borderColor='#059669'"
+            onblur="this.style.borderColor='#d1d5db'"
+            onkeydown="if(event.key==='Enter')saveEstimate('${a.id}',this.value)"
+          />
+          <span style="font-size:.75rem;color:#94a3b8">min</span>
+          <button class="btn btn-secondary btn-sm" style="padding:3px 10px;font-size:.75rem" onclick="saveEstimate('${a.id}',document.getElementById('est-input-${a.id}').value)">Save</button>
+        </div>
+        ${hasEstimate ? `<span style="font-size:.72rem;color:#94a3b8">AI est: ${estDisplay}</span>` : `<span style="font-size:.72rem;color:#94a3b8;opacity:.6">No estimate yet</span>`}
+      </div>
       ${a.ai_reasoning
         ? `<p style="font-size:.78rem;margin-top:8px;color:#64748b;font-style:italic;border-left:2px solid #d1fae5;padding-left:8px">${esc(a.ai_reasoning.slice(0,160))}${a.ai_reasoning.length>160?"...":""}</p>`
-        : `<p style="font-size:.82rem;margin-top:10px;color:#64748b">${esc((a.description||"").slice(0,100))}${(a.description||"").length>100?"...":""}</p>`}
+        : `<p style="font-size:.82rem;margin-top:8px;color:#64748b">${esc((a.description||"").slice(0,100))}${(a.description||"").length>100?"...":""}</p>`}
       <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" onclick="showMatchedMaterials(${JSON.stringify(a).replace(/"/g,"&quot;")})">📄 Assignment</button>
         ${a.canvas_url ? `<a class="btn btn-outline btn-sm" href="${a.canvas_url}" target="_blank">🔗 Canvas</a>` : ""}
         <button class="btn btn-danger btn-sm" onclick="removeAssignment('${a.id}')">✕ Remove</button>
       </div>
     </div>`; }).join("");
+}
+
+async function saveEstimate(assignmentId, rawValue) {
+  const mins = parseInt(rawValue, 10);
+  if (!mins || mins < 1) return;
+  try {
+    await fetch(`${API}/assignments/${assignmentId}/estimate`, {
+      method: "PATCH", credentials: "include",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({estimated_minutes: mins})
+    });
+    // Update local state so schedule re-renders with new value
+    const a = appAssignments.find(a => a.id === assignmentId);
+    if (a) { a.estimated_minutes = mins; a.estimated_hours = Math.round(mins / 60 * 100) / 100; }
+    renderStudyPlan();
+    // Brief visual confirmation
+    const input = document.getElementById(`est-input-${assignmentId}`);
+    if (input) { input.style.borderColor = "#059669"; setTimeout(() => input.style.borderColor = "#d1d5db", 1200); }
+  } catch(e) { console.error("Could not save estimate", e); }
 }
 
 function renderStudyPlan() {
@@ -1349,113 +1353,6 @@ async function loadCanvasFilesPanel(courseId) {
     }).join("");
   } catch(e) { listEl.innerHTML = '<p style="font-size:.8rem;color:#dc2626">Could not load files.</p>'; }
 }
-async function loadMaterialsPage() {
-  if (!appUser) return;
-  const courses = appUser.courses || [];
-  const sel     = document.getElementById("mat-canvas-course");
-  const row     = document.getElementById("mat-canvas-row");
-  const canvasCourses = courses.filter(c => c.canvas_id);
-
-  if (canvasCourses.length) {
-    row.classList.remove("hidden");
-    sel.innerHTML = '<option value="">— manual notes only —</option>' +
-      canvasCourses.map(c => `<option value="${c.canvas_id}">${esc(c.course_name)}</option>`).join("");
-    sel.onchange = () => loadCanvasFilesPanel(sel.value);
-    loadCanvasFilesPanel(canvasCourses[0].canvas_id);
-
-    // Populate canvas assignment quick-estimator
-    renderCanvasAssignmentPicker(canvasCourses);
-  }
-  setupUploadZone("mat-assign-zone","mat-assign-files","mat-assign-names");
-  setupUploadZone("mat-notes-zone","mat-notes-files","mat-notes-names");
-  setupUploadZone("empty-assign-zone","empty-assign-files","empty-assign-names");
-  setupUploadZone("empty-notes-zone","empty-notes-files","empty-notes-names");
-}
-
-function renderCanvasAssignmentPicker(canvasCourses) {
-  const panel = document.getElementById("canvas-assignment-picker");
-  if (!panel) return;
-  const allAssignments = (appUser?.assignments || []).filter(a => a.source === "canvas");
-  if (!allAssignments.length) { panel.classList.add("hidden"); return; }
-  panel.classList.remove("hidden");
-
-  const listEl = document.getElementById("canvas-assignment-list");
-  listEl.innerHTML = allAssignments.slice(0, 20).map(a => {
-    const due = a.due_date ? new Date(a.due_date).toLocaleDateString("en-US",{month:"short",day:"numeric"}) : "No due date";
-    const color = courseColor(a.course || "");
-    return `<div class="file-item" style="padding:10px 8px">
-      <div style="min-width:0;flex:1">
-        <div style="font-size:.82rem;font-weight:600;color:#0f172a">${esc(a.title)}</div>
-        <div style="font-size:.72rem;color:#64748b;margin-top:2px">
-          <span style="background:${color}22;color:${color};padding:1px 7px;border-radius:999px;font-weight:600">${esc(a.course)}</span>
-          &nbsp;· Due ${due}
-        </div>
-      </div>
-      <button class="btn btn-primary btn-sm" onclick="estimateCanvasAssignment(${JSON.stringify(a).replace(/"/g,"&quot;")})">Estimate</button>
-    </div>`;
-  }).join("");
-}
-
-async function estimateCanvasAssignment(assignment) {
-  const msgEl = document.getElementById("mat-msg");
-  const resEl = document.getElementById("mat-results");
-  const btn   = event.target;
-
-  // Find the canvas course id for this assignment
-  const courseId = assignment.course_id;
-  if (!courseId) { showMsg(msgEl, "No course ID found for this assignment.", "error"); return; }
-
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
-  resEl.classList.add("hidden"); resEl.innerHTML = "";
-  msgEl.innerHTML = "";
-
-  // Set the course field
-  document.getElementById("mat-course").value = assignment.course || "";
-
-  showMsg(msgEl, "⏳ Using cached Canvas files for estimate...", "info");
-
-  try {
-    // Fetch cached files list for this course
-    const filesRes = await fetch(`${API}/canvas/files/${courseId}`, {credentials:"include"});
-    const filesData = await filesRes.json();
-    const cachedFiles = filesData.files || [];
-
-    // Build form — send assignment description as a text blob,
-    // plus canvas_course_id so server loads cached notes automatically
-    const form = new FormData();
-    form.append("course", assignment.course || "");
-    form.append("canvas_course_id", String(courseId));
-    form.append("canvas_assignment_id", String(assignment.id));
-    form.append("canvas_assignment_title", assignment.title || "");
-    form.append("canvas_assignment_desc", assignment.description || "");
-
-    // Also register canvas file URLs for in-browser viewing
-    const uid = appUser?.id || "";
-    for (const f of cachedFiles) {
-      const url = `/api/canvas/file/${uid}/${courseId}/${encodeURIComponent(f.filename)}`;
-      uploadedFileURLs[f.filename] = url;
-    }
-
-    const res  = await fetch(`${API}/estimate/canvas`, {method:"POST",credentials:"include",body:form});
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-
-    lastEstimateResults = data.results || [];
-    renderEstimateResults(lastEstimateResults);
-    msgEl.innerHTML = "";
-    // Refresh dashboard so updated estimates appear immediately
-    const freshRes = await fetch(`${API}/assignments`, {credentials:"include"});
-    const freshData = await freshRes.json();
-    appAssignments = freshData.assignments || [];
-    renderDashboardAssignments();
-    renderStudyPlan();
-  } catch(e) {
-    showMsg(msgEl, `❌ ${e.message}`, "error");
-  } finally {
-    btn.disabled = false; btn.textContent = "Estimate";
-  }
-}
-
 function setupUploadZone(zoneId, inputId, namesId) {
   const zone  = document.getElementById(zoneId);
   const input = document.getElementById(inputId);
@@ -1623,7 +1520,9 @@ function startTimerForTop() {
 const _origUpdateTimerUI = updateTimerUI;
 
 function startTimerFor(assignment) {
-  timerEstMinutes = assignment.estimated_hours ? Math.round(assignment.estimated_hours * 60) : null;
+  timerEstMinutes = assignment.estimated_minutes != null
+    ? assignment.estimated_minutes
+    : (assignment.estimated_hours ? Math.round(assignment.estimated_hours * 60) : null);
   timerCurrentAssignment = assignment;
   document.getElementById("timer-assignment").textContent = (assignment.title||assignment.assignment_name||"") + " · " + (assignment.course||"");
   document.getElementById("timer-materials-panel").style.display = "none";
@@ -1642,11 +1541,15 @@ function startTimerWithEstimate(minutes, name) {
 
 function timerReset() {
   clearInterval(timerInterval); timerRunning = false; timerElapsed = 0;
-  document.getElementById("timer-display").textContent = "00:00";
-  document.getElementById("timer-display").className = "timer-digits";
-  document.getElementById("timer-bar").style.width = "0%";
-  document.getElementById("timer-bar").className = "timer-bar";
-  document.getElementById("timer-status").textContent = "Ready to start";
+  const disp = document.getElementById("timer-display");
+  const bar  = document.getElementById("timer-bar");
+  const stat = document.getElementById("timer-status");
+  const pill = document.getElementById("timer-pill-display");
+  const initialDisplay = timerEstMinutes ? fmtTime(timerEstMinutes * 60) : "00:00";
+  if (disp) { disp.textContent = initialDisplay; disp.className = "timer-digits"; }
+  if (pill) pill.textContent = initialDisplay;
+  if (bar)  { bar.style.width = "0%"; bar.className = "timer-bar"; }
+  if (stat) stat.textContent = timerEstMinutes ? `Ready — ${initialDisplay} estimated` : "Ready to start";
   document.getElementById("timer-start-btn").disabled = false;
   document.getElementById("timer-pause-btn").disabled = true;
   document.getElementById("timer-done-btn").disabled = true;
@@ -1654,42 +1557,41 @@ function timerReset() {
 }
 
 function fmtTime(s) {
-  const neg = s < 0; const abs = Math.abs(s);
-  const h=Math.floor(abs/3600),m=Math.floor((abs%3600)/60),sec=abs%60;
-  const str = h>0 ? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
+  const neg = s < 0;
+  const abs = Math.abs(Math.round(s));
+  const h = Math.floor(abs / 3600);
+  const m = Math.floor((abs % 3600) / 60);
+  const sec = abs % 60;
+  const str = h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
   return neg ? `-${str}` : str;
 }
 function pad(n){return String(n).padStart(2,"0")}
 
 function updateTimerUI() {
-  const pill = document.getElementById("timer-pill-display");
-  const disp = document.getElementById("timer-display");
-  const bar  = document.getElementById("timer-bar");
-  const stat = document.getElementById("timer-status");
+  const disp    = document.getElementById("timer-display");
+  const bar     = document.getElementById("timer-bar");
+  const stat    = document.getElementById("timer-status");
+  const pill    = document.getElementById("timer-pill-display");
+  const pdfDisp = document.getElementById("pdf-timer-display");
+  const pdfBar  = document.getElementById("pdf-timer-bar");
 
-  // Countdown: show time remaining (goes negative)
   if (timerEstMinutes) {
-    const total   = timerEstMinutes * 60;
-    const remaining = total - timerElapsed;  // negative when over
-    if (pill) pill.textContent = fmtTime(remaining);
-    if (disp) disp.textContent = fmtTime(remaining);
-    const pdfDisp = document.getElementById("pdf-timer-display");
-    if (pdfDisp) pdfDisp.textContent = fmtTime(remaining);
-    if (bar) {
-      const pct = Math.min((timerElapsed / total) * 100, 100);
-      bar.style.width = pct + "%";
-      bar.className   = remaining > 0 ? "timer-bar" : "timer-bar over";
-    }
-    if (disp) disp.className = remaining > 0 ? (remaining < 300 ? "timer-digits near" : "timer-digits") : "timer-digits over";
-    if (stat) stat.textContent = remaining > 0 ? `${fmtTime(remaining)} remaining` : `${fmtTime(-remaining)} over estimate`;
+    const total     = timerEstMinutes * 60;
+    const remaining = total - timerElapsed;
+    const display   = fmtTime(remaining);
+    if (disp)    { disp.textContent = display; disp.className = remaining > 0 ? (remaining < 300 ? "timer-digits near" : "timer-digits") : "timer-digits over"; }
+    if (pill)    pill.textContent = display;
+    if (pdfDisp) pdfDisp.textContent = display;
+    if (bar)     { bar.style.width = Math.min((timerElapsed / total) * 100, 100) + "%"; bar.className = remaining > 0 ? "timer-bar" : "timer-bar over"; }
+    if (stat)    stat.textContent = remaining > 0 ? `${display} remaining` : `${fmtTime(-remaining)} over estimate`;
   } else {
     // No estimate — count up
-    if (pill) pill.textContent = fmtTime(timerElapsed);
-    if (disp) { disp.textContent = fmtTime(timerElapsed); disp.className = "timer-digits"; }
-    const pdfDisp = document.getElementById("pdf-timer-display");
-    if (pdfDisp) pdfDisp.textContent = fmtTime(timerElapsed);
+    const display = fmtTime(timerElapsed);
+    if (disp)    { disp.textContent = display; disp.className = "timer-digits"; }
+    if (pill)    pill.textContent = display;
+    if (pdfDisp) pdfDisp.textContent = display;
+    if (stat)    stat.textContent = `${display} elapsed`;
   }
-  const pdfBar = document.getElementById("pdf-timer-bar");
   if (pdfBar) pdfBar.style.display = timerRunning ? "flex" : "none";
 }
 
@@ -1750,6 +1652,7 @@ async function timerDone() {
       renderDashboardAssignments();
       renderStudyPlan();
       renderCompletedAssignments();
+      loadStats();
     }, 2200);
   }
 }
@@ -1808,12 +1711,13 @@ function renderCompletedAssignments() {
 // SETTINGS
 // ══════════════════════════════════════════════════════════════════
 async function loadSettings() {
+  // Session history
   try {
     const res  = await fetch(`${API}/sessions`, {credentials:"include"});
     const data = await res.json();
     const el   = document.getElementById("settings-history");
-    if (!data.length) { el.innerHTML = '<p style="color:#94a3b8;font-size:.85rem">No sessions yet.</p>'; return; }
-    el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:.8rem">
+    if (!data.length) { el.innerHTML = '<p style="color:#94a3b8;font-size:.85rem">No sessions yet.</p>'; }
+    else el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:.8rem">
       <thead><tr>${["Course","Assignment","Est.","Actual","Diff","Date"].map(h=>`<th style="text-align:left;padding:6px 10px;border-bottom:1px solid #f1f5f9;color:#94a3b8;font-weight:500">${h}</th>`).join("")}</tr></thead>
       <tbody>${[...data].reverse().map(s => {
         const diff = s.actual_minutes && s.estimated_minutes ? s.actual_minutes - s.estimated_minutes : null;
@@ -1827,6 +1731,17 @@ async function loadSettings() {
         </tr>`;
       }).join("")}</tbody></table>`;
   } catch(e) { document.getElementById("settings-history").innerHTML = '<p style="color:#dc2626;font-size:.85rem">Could not load history.</p>'; }
+
+  // Everything the wrapper was doing
+  renderRecentlyOpened();
+  checkGCalStatus();
+  const nameInput = document.getElementById("settings-name");
+  if (nameInput && appUser) nameInput.value = appUser.name || appUser.email?.split("@")[0] || "";
+  const isDark = document.body.classList.contains("dark");
+  const track  = document.getElementById("dark-track");
+  const thumb  = document.getElementById("dark-thumb");
+  if (track) track.style.background = isDark ? "#059669" : "#e2e8f0";
+  if (thumb) thumb.style.transform  = isDark ? "translateX(20px)" : "translateX(0)";
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -2028,8 +1943,14 @@ function updatePdfTimerBar() {
     bar.style.display = "flex";
     const disp = document.getElementById("pdf-timer-display");
     const stat = document.getElementById("pdf-timer-status");
-    if (disp) disp.textContent = fmtTime(timerElapsed);
-    if (stat) stat.textContent = timerEstMinutes ? `of ${timerEstMinutes} min` : "Running";
+    if (timerEstMinutes) {
+      const remaining = timerEstMinutes * 60 - timerElapsed;
+      if (disp) disp.textContent = fmtTime(remaining);
+      if (stat) stat.textContent = remaining > 0 ? `${Math.ceil(remaining / 60)} min left` : "Over estimate";
+    } else {
+      if (disp) disp.textContent = fmtTime(timerElapsed);
+      if (stat) stat.textContent = "Running";
+    }
   } else {
     bar.style.display = "none";
   }
@@ -2083,9 +2004,13 @@ async function uploadForView(file) {
 const uploadedFileURLs = {}; // filename -> url
 // ── Show pre-computed matched materials for an assignment ─────────────────────
 function showMatchedMaterials(assignment) {
+  timerEstMinutes = assignment.estimated_minutes != null
+    ? assignment.estimated_minutes
+    : (assignment.estimated_hours ? Math.round(assignment.estimated_hours * 60) : null);
   timerCurrentAssignment = assignment;
   document.getElementById("timer-assignment").textContent = (assignment.title||"") + " · " + (assignment.course||"");
   document.getElementById("timer-label").textContent = "📄 " + (assignment.title || "Assignment");
+  timerReset();
   toggleTimerOverlay(true);
 
   const panel  = document.getElementById("timer-materials-panel");
@@ -2266,7 +2191,10 @@ async function loadGCalEvents() {
     const res  = await fetch(`${API}/gcal/events`, {credentials:"include"});
     const data = await res.json();
     gcalEvents = data.events || [];
-    console.log(`Loaded ${gcalEvents.length} Google Calendar events`);
+    // Record the furthest date we have loaded (now + 90 days from server)
+    const now = new Date();
+    gcalLoadedThrough = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 90);
+    console.log(`Loaded ${gcalEvents.length} Google Calendar events through ${gcalLoadedThrough.toDateString()}`);
   } catch(e) { gcalEvents = []; }
 }
 
@@ -2294,10 +2222,12 @@ async function loadSuggestions() {
 // ══════════════════════════════════════════════════════════════════
 // SCHEDULE CALENDAR
 // ══════════════════════════════════════════════════════════════════
-let scheduleView = "day";
-let gcalEvents    = [];   // [{title, start, end, allDay}]
-let suggestedBlocks = []; // [{assignment_title, course, start, end, hours}]
-let gcalConnected = false;
+let scheduleView   = "day";
+let scheduleDate   = new Date();   // anchor date for current view
+let gcalEvents     = [];
+let gcalLoadedThrough = null;      // furthest date we have GCal data for
+let suggestedBlocks = [];
+let gcalConnected  = false;
 
 const COURSE_PALETTE = [
   {bg:"#dbeafe",text:"#1e40af"},{bg:"#d1fae5",text:"#065f46"},
@@ -2314,59 +2244,100 @@ function getCourseColor(course) {
   return courseColors[course];
 }
 
+// ── Navigation helpers ────────────────────────────────────────────
+function schedNav(dir) {
+  const d = new Date(scheduleDate);
+  if (scheduleView === "day")   d.setDate(d.getDate() + dir);
+  if (scheduleView === "week")  d.setDate(d.getDate() + dir * 7);
+  if (scheduleView === "month") d.setMonth(d.getMonth() + dir);
+  scheduleDate = d;
+  renderSchedule();
+}
+function schedNavToday() { scheduleDate = new Date(); renderSchedule(); }
+
+function _updateNavLabel() {
+  const el = document.getElementById("sched-nav-label");
+  if (!el) return;
+  const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const DAYS_FULL = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  if (scheduleView === "day") {
+    const isToday = scheduleDate.toDateString() === new Date().toDateString();
+    el.textContent = isToday
+      ? `Today — ${DAYS_FULL[scheduleDate.getDay()]}, ${MONTHS[scheduleDate.getMonth()]} ${scheduleDate.getDate()}`
+      : `${DAYS_FULL[scheduleDate.getDay()]}, ${MONTHS[scheduleDate.getMonth()]} ${scheduleDate.getDate()}, ${scheduleDate.getFullYear()}`;
+  } else if (scheduleView === "week") {
+    const dow = scheduleDate.getDay();
+    const ws  = new Date(scheduleDate.getFullYear(), scheduleDate.getMonth(), scheduleDate.getDate() - dow);
+    const we  = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 6);
+    el.textContent = `${MONTHS[ws.getMonth()]} ${ws.getDate()} – ${MONTHS[we.getMonth()]} ${we.getDate()}, ${we.getFullYear()}`;
+  } else {
+    const MONTH_FULL = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    el.textContent = `${MONTH_FULL[scheduleDate.getMonth()]} ${scheduleDate.getFullYear()}`;
+  }
+}
+
 function switchSchedule(view) {
   scheduleView = view;
   ["day","week","month"].forEach(v => {
     document.getElementById(`sched-tab-${v}`)?.classList.toggle("active", v === view);
-    document.getElementById(`sched-${v}`)?.style && (document.getElementById(`sched-${v}`).style.display = v === view ? "block" : "none");
+    const p = document.getElementById(`sched-${v}`);
+    if (p) p.style.display = v === view ? "block" : "none";
   });
   renderSchedule();
 }
 
-function assignmentToEvent(a) {
-  // Place each assignment as a study block on its due date (or today if no due date)
-  // Calculate a start time by spreading assignments through the day
-  const due = a.due_date ? new Date(a.due_date) : null;
-  const hrs  = a.estimated_hours || 1;
-  return { assignment: a, dueDate: due, durationHours: Math.min(hrs, 3) };
-}
-
 function renderSchedule() {
-  if (scheduleView === "day")   renderDayCalendar();
+  _updateNavLabel();
+  // If GCal is connected and we're navigating beyond what's loaded, re-fetch silently
+  if (gcalConnected && gcalLoadedThrough) {
+    let viewEnd = new Date(scheduleDate);
+    if (scheduleView === "week") viewEnd.setDate(viewEnd.getDate() + 7);
+    if (scheduleView === "month") viewEnd = new Date(scheduleDate.getFullYear(), scheduleDate.getMonth() + 1, 1);
+    if (viewEnd > gcalLoadedThrough) {
+      loadGCalEvents().then(() => {
+        if (scheduleView === "day")        renderDayCalendar();
+        else if (scheduleView === "week")  renderWeekCalendar();
+        else                               renderMonthCalendar();
+      });
+      return; // will re-render after fetch completes
+    }
+  }
+  if (scheduleView === "day")        renderDayCalendar();
   else if (scheduleView === "week")  renderWeekCalendar();
-  else                          renderMonthCalendar();
+  else                               renderMonthCalendar();
 }
 
+// ── Shared helpers ────────────────────────────────────────────────
 const PX_PER_HOUR = 60;
 const CAL_START   = 7;
 const CAL_END     = 23;
 
+function _localDateStr(dt) {
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// DAY VIEW — absolute-positioned events at correct times
+// ══════════════════════════════════════════════════════════════════
 function renderDayCalendar() {
   const grid = document.getElementById("cal-day-grid");
   if (!grid) return;
 
-  const today    = new Date();
-  const todayStr = today.toISOString().slice(0,10);
+  const viewStr = _localDateStr(scheduleDate);
+  const today   = new Date();
+  const todayStr = _localDateStr(today);
 
-  // Build hour grid with a single absolute-positioned overlay column
+  // Build hour grid
   let html = `<div class="cal-day-inner">`;
-  // Hour labels + lines
   for (let h = CAL_START; h < CAL_END; h++) {
     const label = h === 12 ? "12 PM" : h < 12 ? `${h} AM` : `${h-12} PM`;
-    html += `<div class="cal-hour-row">
-      <div class="cal-hour-label">${label}</div>
-      <div class="cal-hour-line"></div>
-    </div>`;
+    html += `<div class="cal-hour-row"><div class="cal-hour-label">${label}</div><div class="cal-hour-line"></div></div>`;
   }
-  // Single overlay for all events
-  html += `<div class="cal-events-overlay" id="cal-events-overlay"></div>`;
-  html += `</div>`;
+  html += `<div class="cal-events-overlay" id="cal-events-overlay"></div></div>`;
   grid.innerHTML = html;
 
   const overlay = document.getElementById("cal-events-overlay");
-  const totalH  = CAL_END - CAL_START;
 
-  // Helper: place one event as a single absolute block
   function addEvent(startH, endH, className, bg, color, border, titleHtml, onClick) {
     if (endH <= CAL_START || startH >= CAL_END) return;
     startH = Math.max(startH, CAL_START);
@@ -2381,197 +2352,273 @@ function renderDayCalendar() {
     overlay.appendChild(el);
   }
 
-  // Now-line
-  const nowH = today.getHours() + today.getMinutes()/60;
-  if (nowH >= CAL_START && nowH < CAL_END) {
-    const line = document.createElement("div");
-    line.className = "cal-now-line";
-    line.style.top  = (nowH - CAL_START) * PX_PER_HOUR + "px";
-    line.style.left = "0"; line.style.right = "0"; line.style.position = "absolute";
-    overlay.appendChild(line);
+  // Now-line (only on today)
+  if (viewStr === todayStr) {
+    const nowH = today.getHours() + today.getMinutes()/60;
+    if (nowH >= CAL_START && nowH < CAL_END) {
+      const line = document.createElement("div");
+      line.className = "cal-now-line";
+      line.style.cssText = `top:${(nowH - CAL_START) * PX_PER_HOUR}px;left:0;right:0;position:absolute`;
+      overlay.appendChild(line);
+    }
   }
 
-  // ── Google Calendar events (purple) ──────────────────────────────────────
+  // Google Calendar events — use real start/end times
   gcalEvents.forEach(ev => {
     if (ev.allDay) return;
     try {
-      const s = new Date(ev.start); const e = new Date(ev.end);
-      if (s.toISOString().slice(0,10) !== todayStr) return;
+      const s = new Date(ev.start);
+      const e = new Date(ev.end);
+      if (_localDateStr(s) !== viewStr) return;
       const sH = s.getHours() + s.getMinutes()/60;
       const eH = e.getHours() + e.getMinutes()/60;
       const dur = Math.round((eH - sH) * 60);
       addEvent(sH, eH, "cal-gcal-ev", "#f3e8ff", "#6b21a8", "#a855f7",
         `<div class="ev-title">📅 ${esc(ev.title)}</div><div style="font-size:.65rem;opacity:.7">${dur} min</div>`, null);
-    } catch(e2) {}
+    } catch {}
   });
 
-  // ── Suggested study blocks (dashed green) ────────────────────────────────
+  // Suggested study blocks — use real times
   suggestedBlocks.forEach(b => {
     try {
-      const s = new Date(b.start); const e = new Date(b.end);
-      if (s.toISOString().slice(0,10) !== todayStr) return;
+      const s = new Date(b.start);
+      const e = new Date(b.end);
+      if (_localDateStr(s) !== viewStr) return;
       const sH = s.getHours() + s.getMinutes()/60;
       const eH = e.getHours() + e.getMinutes()/60;
       const col = getCourseColor(b.course||"");
       addEvent(sH, eH, "cal-suggest-ev", "transparent", col.text, col.text,
         `<div class="ev-title">✨ ${esc(b.assignment_title)}</div><div style="font-size:.65rem;opacity:.8">${esc(b.course)} · ${Math.round(b.hours*60)} min</div>`, null);
-    } catch(e2) {}
+    } catch {}
   });
 
-  // ── Tempo study blocks (colored, only if no suggestion covers it) ─────
+  // Fallback Tempo blocks — only show on the assignment's due date
+  // (suggestions take priority; this is just a visual marker if no suggestion exists)
   let nextSlot = 9;
   const sorted = [...appAssignments].sort((a,b) => (a.due_in_days??99) - (b.due_in_days??99));
   sorted.forEach(a => {
-    if ((a.due_in_days??99) > 7) return;
-    const dur = a.estimated_hours || 1;   // full duration, no cap
-    const col = getCourseColor(a.course||"");
-    const alreadySuggested = suggestedBlocks.some(b =>
-      b.assignment_id === a.id && new Date(b.start).toISOString().slice(0,10) === todayStr
-    );
+    if (!a.due_date) return;
+    const dueDate = new Date(a.due_date);
+    const dueDateStr = _localDateStr(new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate()));
+    // Only show on due date (as a reminder marker), and only if no suggestion already covers this assignment on any day
+    if (dueDateStr !== viewStr) return;
+    const alreadySuggested = suggestedBlocks.some(b => b.assignment_id === a.id);
     if (alreadySuggested) return;
-    // Advance nextSlot past any overlapping GCal event
-    for (const ev of gcalEvents) {
-      if (ev.allDay) continue;
-      try {
-        const es = new Date(ev.start).getHours() + new Date(ev.start).getMinutes()/60;
-        const ee = new Date(ev.end).getHours()   + new Date(ev.end).getMinutes()/60;
-        if (nextSlot < ee && nextSlot + dur > es) nextSlot = ee + 0.25;
-      } catch {}
+    const dur = Math.min(a.estimated_hours || 1, 2);
+    const col = getCourseColor(a.course||"");
+    let slot = nextSlot;
+    let moved = true;
+    while (moved) {
+      moved = false;
+      for (const ev of gcalEvents) {
+        if (ev.allDay) continue;
+        try {
+          const es = new Date(ev.start); const ee = new Date(ev.end);
+          if (_localDateStr(es) !== viewStr) continue;
+          const esH = es.getHours() + es.getMinutes()/60;
+          const eeH = ee.getHours() + ee.getMinutes()/60;
+          if (slot < eeH && slot + dur > esH) { slot = eeH + 0.25; moved = true; }
+        } catch {}
+      }
     }
-    if (nextSlot + dur > CAL_END) return;
-    const due = a.due_date ? new Date(a.due_date).toLocaleDateString("en-US",{month:"short",day:"numeric"}) : "";
-    addEvent(nextSlot, nextSlot + dur, "cal-event", col.bg, col.text, col.text,
-      `<div class="ev-title">${esc(a.title||"")}</div><div class="ev-sub">${esc(a.course||"")}${due?" · Due "+due:""}</div>`,
+    if (slot + dur > CAL_END) return;
+    nextSlot = slot + dur + 0.25;
+    const dueStr = dueDate.toLocaleDateString("en-US",{month:"short",day:"numeric"});
+    addEvent(slot, slot + dur, "cal-event", col.bg, col.text, col.text,
+      `<div class="ev-title">${esc(a.title||"")}</div><div class="ev-sub">${esc(a.course||"")} · Due ${dueStr}</div>`,
       () => showMatchedMaterials(a));
-    nextSlot += dur + 0.25;
   });
 
-  if (!sorted.some(a => (a.due_in_days??99) <= 7) && !gcalEvents.length && !suggestedBlocks.length) {
+  if (overlay.children.length === 0) {
     const empty = document.createElement("div");
     empty.style.cssText = "text-align:center;padding:32px;color:#94a3b8;font-size:.85rem";
-    empty.textContent = "No assignments due in the next 7 days 🎉";
+    empty.textContent = "Nothing scheduled for this day 🎉";
     overlay.appendChild(empty);
   }
 }
 
+// ══════════════════════════════════════════════════════════════════
+// WEEK VIEW — absolute-positioned columns per day
+// ══════════════════════════════════════════════════════════════════
 function renderWeekCalendar() {
   const grid = document.getElementById("cal-week-grid");
   if (!grid) return;
 
-  const today      = new Date();
-  const dayOfWk    = today.getDay();
-  const weekStart  = new Date(today.getFullYear(), today.getMonth(), today.getDate() - dayOfWk);
-  const DAYS       = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-  const START_HOUR = 7, END_HOUR = 22;
+  const today     = new Date();
+  const dow       = scheduleDate.getDay();
+  const weekStart = new Date(scheduleDate.getFullYear(), scheduleDate.getMonth(), scheduleDate.getDate() - dow);
+  const DAYS      = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const START_H   = CAL_START, END_H = CAL_END;
+  const HOURS     = END_H - START_H;
 
-  // Helper: get local date index (0=Sun of this week) for a Date object
+  // Collect events per day-index (0=Sun)
+  // Each event: {sH, eH, className, bg, color, border, html, onClick}
+  const dayEvts = Array.from({length:7}, () => []);
+
   function dayIdx(dt) {
     const d = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
     const diff = Math.round((d - weekStart) / 86400000);
     return (diff >= 0 && diff < 7) ? diff : -1;
   }
 
-  // Build per-day event buckets: day index -> array of html strings
-  const dayEvts = Array.from({length:7}, () => []);
-
-  // Assignments (show on study day = due day - 1)
-  appAssignments.forEach(a => {
-    if (!a.due_date) return;
-    const due  = new Date(a.due_date);
-    const idx  = dayIdx(due);
-    if (idx < 0) return;
-    const studyIdx = Math.max(0, idx - 1);
-    const col = getCourseColor(a.course||"");
-    dayEvts[studyIdx].push(
-      `<div class="cal-week-ev" style="background:${col.bg};color:${col.text}"
-        onclick="showMatchedMaterials(${JSON.stringify(a).replace(/"/g,'&quot;')})"
-        title="${esc(a.title)}">${esc(a.title||"")}</div>`
-    );
-  });
-
   // Google Calendar events
   gcalEvents.forEach(ev => {
     if (ev.allDay) return;
     try {
-      const s   = new Date(ev.start);
+      const s = new Date(ev.start); const e = new Date(ev.end);
       const idx = dayIdx(s);
       if (idx < 0) return;
-      const dur = Math.round((new Date(ev.end) - s) / 60000);
-      dayEvts[idx].push(
-        `<div class="cal-week-ev" style="background:#f3e8ff;color:#6b21a8"
-          title="${esc(ev.title)}">📅 ${esc(ev.title)} (${dur}m)</div>`
-      );
+      const sH = s.getHours() + s.getMinutes()/60;
+      const eH = e.getHours() + e.getMinutes()/60;
+      const dur = Math.round((eH - sH) * 60);
+      dayEvts[idx].push({sH, eH, className:"cal-gcal-ev",
+        bg:"#f3e8ff", color:"#6b21a8", border:"#a855f7",
+        html:`<div class="ev-title">📅 ${esc(ev.title)}</div><div style="font-size:.6rem;opacity:.7">${dur}m</div>`});
     } catch {}
   });
 
   // Suggested blocks
   suggestedBlocks.forEach(b => {
     try {
-      const s   = new Date(b.start);
+      const s = new Date(b.start); const e = new Date(b.end);
       const idx = dayIdx(s);
       if (idx < 0) return;
+      const sH = s.getHours() + s.getMinutes()/60;
+      const eH = e.getHours() + e.getMinutes()/60;
       const col = getCourseColor(b.course||"");
-      dayEvts[idx].push(
-        `<div class="cal-week-ev" style="border:2px dashed ${col.text};color:${col.text};background:transparent"
-          title="✨ ${esc(b.assignment_title)}">✨ ${esc(b.assignment_title)}</div>`
-      );
+      dayEvts[idx].push({sH, eH, className:"cal-suggest-ev",
+        bg:"transparent", color:col.text, border:col.text,
+        html:`<div class="ev-title">✨ ${esc(b.assignment_title)}</div><div style="font-size:.6rem;opacity:.8">${Math.round(b.hours*60)}m</div>`});
     } catch {}
   });
 
-  // Build grid HTML
-  // Row 1: header (empty corner + 7 day labels)
-  let html = `<div class="cal-week-corner"></div>`;
+  // Fallback assignment blocks — show on due date column only, if no suggestion exists
+  const sorted = [...appAssignments].sort((a,b)=>(a.due_in_days??99)-(b.due_in_days??99));
+  const fallbackSlots = new Array(7).fill(9); // next free slot per day column
+  sorted.forEach(a => {
+    if (!a.due_date) return;
+    const alreadySuggested = suggestedBlocks.some(b => b.assignment_id === a.id);
+    if (alreadySuggested) return;
+    // Place on the due date column
+    const due = new Date(a.due_date);
+    const d = dayIdx(due);
+    if (d < 0) return;
+    const dur = Math.min(a.estimated_hours || 1, 2);
+    const col = getCourseColor(a.course||"");
+    let slot = fallbackSlots[d];
+    // push past any already-placed events in this column
+    let moved = true;
+    while (moved) {
+      moved = false;
+      for (const ev of dayEvts[d]) {
+        if (slot < ev.eH && slot + dur > ev.sH) { slot = ev.eH + 0.25; moved = true; }
+      }
+    }
+    if (slot + dur > END_H) return;
+    fallbackSlots[d] = slot + dur + 0.25;
+    dayEvts[d].push({sH:slot, eH:slot+dur, className:"cal-event",
+      bg:col.bg, color:col.text, border:col.text,
+      html:`<div class="ev-title">${esc(a.title||"")}</div><div class="ev-sub">${esc(a.course||"")} · due</div>`});
+  });
+
+  // Build HTML: grid is CSS grid with time-label col + 7 day cols
+  // We'll use a fixed-height approach with relative containers per column
+  const PX = PX_PER_HOUR;
+  const totalH = HOURS * PX;
+
+  // Header row
+  let html = `<div class="cal-week-corner" style="grid-row:1;grid-column:1"></div>`;
   for (let d = 0; d < 7; d++) {
-    const dt      = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + d);
+    const dt = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + d);
     const isToday = dt.toDateString() === today.toDateString();
-    html += `<div class="cal-week-day-hdr${isToday?" today":""}">${DAYS[d]}<br/>
-      <span style="font-size:.9rem;font-weight:700">${dt.getDate()}</span></div>`;
+    html += `<div class="cal-week-day-hdr${isToday?" today":""}" style="grid-row:1;grid-column:${d+2}">${DAYS[d]}<br/><span style="font-size:.9rem;font-weight:700">${dt.getDate()}</span></div>`;
   }
 
-  // Rows 2+: one row per hour
-  for (let h = START_HOUR; h < END_HOUR; h++) {
-    const label = h === 12 ? "12p" : h < 12 ? `${h}a` : `${h-12}p`;
-    html += `<div class="cal-week-hour-label">${label}</div>`;
+  // Time-label + hour rows (grid rows 2 to HOURS+1)
+  for (let h = 0; h < HOURS; h++) {
+    const hr    = START_H + h;
+    const label = hr === 12 ? "12p" : hr < 12 ? `${hr}a` : `${hr-12}p`;
+    html += `<div class="cal-week-hour-label" style="grid-row:${h+2};grid-column:1">${label}</div>`;
     for (let d = 0; d < 7; d++) {
-      const dt      = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + d);
+      const dt = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + d);
       const isToday = dt.toDateString() === today.toDateString();
-      // Show all events for this day in the 9am row only (summary style)
-      const evHtml  = h === 9 ? (dayEvts[d].join("")) : "";
-      html += `<div class="cal-week-cell${isToday?" today-col":""}">${evHtml}</div>`;
+      html += `<div class="cal-week-cell${isToday?" today-col":""}" style="grid-row:${h+2};grid-column:${d+2}"></div>`;
     }
   }
 
   grid.innerHTML = html;
+  // grid needs to be a CSS grid spanning hour rows properly
+  grid.style.gridTemplateRows = `auto repeat(${HOURS}, ${PX}px)`;
+
+  // Overlay events absolutely inside each column
+  for (let d = 0; d < 7; d++) {
+    if (!dayEvts[d].length) continue;
+    // Find the cell at the top of this column (grid-row:2, grid-col:d+2)
+    const cells = grid.querySelectorAll(`[style*="grid-column:${d+2}"][style*="grid-row:2"]`);
+    // Actually just create an overlay div positioned over the column
+    const colOverlay = document.createElement("div");
+    colOverlay.style.cssText = `position:relative;grid-row:2/${HOURS+2};grid-column:${d+2};pointer-events:none;z-index:2`;
+    grid.appendChild(colOverlay);
+
+    dayEvts[d].forEach(ev => {
+      const sH = Math.max(ev.sH, START_H);
+      const eH = Math.min(ev.eH, END_H);
+      if (eH <= sH) return;
+      const top    = (sH - START_H) * PX;
+      const height = Math.max((eH - sH) * PX - 2, 18);
+      const el = document.createElement("div");
+      el.className = ev.className;
+      el.style.cssText = `position:absolute;top:${top}px;height:${height}px;left:2px;right:2px;background:${ev.bg};color:${ev.color};border-left-color:${ev.border};pointer-events:all;z-index:3`;
+      el.innerHTML = ev.html;
+      if (ev.onClick) el.onclick = ev.onClick;
+      colOverlay.appendChild(el);
+    });
+  }
+
+  // Now-line on today's column
+  const todayIdx = dayIdx(today);
+  if (todayIdx >= 0) {
+    const nowH = today.getHours() + today.getMinutes()/60;
+    if (nowH >= START_H && nowH < END_H) {
+      const colOverlay = document.createElement("div");
+      colOverlay.style.cssText = `position:relative;grid-row:2/${HOURS+2};grid-column:${todayIdx+2};pointer-events:none;z-index:4`;
+      const line = document.createElement("div");
+      line.className = "cal-now-line";
+      line.style.cssText = `position:absolute;top:${(nowH-START_H)*PX}px;left:0;right:0`;
+      colOverlay.appendChild(line);
+      grid.appendChild(colOverlay);
+    }
+  }
 }
 
+// ══════════════════════════════════════════════════════════════════
+// MONTH VIEW — with click-to-expand overflow
+// ══════════════════════════════════════════════════════════════════
 function renderMonthCalendar() {
   const grid = document.getElementById("cal-month-grid");
   if (!grid) return;
 
   const today      = new Date();
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-  const monthEnd   = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-  const startDow   = monthStart.getDay(); // 0=Sun
+  const viewYear   = scheduleDate.getFullYear();
+  const viewMonth  = scheduleDate.getMonth();
+  const monthStart = new Date(viewYear, viewMonth, 1);
+  const monthEnd   = new Date(viewYear, viewMonth + 1, 0);
+  const startDow   = monthStart.getDay();
   const DAYS       = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
-  // Helper: local date string yyyy-mm-dd
-  function localStr(dt) {
-    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
-  }
-
-  // Build event map: dateStr -> [{html, color}]
+  // Build event map: dateStr -> array of {html, rawTitle, rawAssignment}
   const evMap = {};
-  function addToMap(dateStr, html) {
-    evMap[dateStr] = evMap[dateStr] || [];
-    evMap[dateStr].push(html);
+  function addToMap(ds, htmlStr) {
+    evMap[ds] = evMap[ds] || [];
+    evMap[ds].push(htmlStr);
   }
 
   appAssignments.forEach(a => {
     if (!a.due_date) return;
     const due = new Date(a.due_date);
     const col = getCourseColor(a.course||"");
-    const ds  = localStr(new Date(due.getFullYear(), due.getMonth(), due.getDate()));
-    addToMap(ds, `<div class="cal-month-ev" style="background:${col.bg};color:${col.text}"
+    const ds  = _localDateStr(new Date(due.getFullYear(), due.getMonth(), due.getDate()));
+    addToMap(ds, `<div class="cal-month-ev" style="background:${col.bg};color:${col.text};cursor:pointer"
       onclick="showMatchedMaterials(${JSON.stringify(a).replace(/"/g,'&quot;')})"
       title="${esc(a.title)}">📚 ${esc(a.title||"")}</div>`);
   });
@@ -2580,52 +2627,95 @@ function renderMonthCalendar() {
     if (ev.allDay) return;
     try {
       const s  = new Date(ev.start);
-      const ds = localStr(new Date(s.getFullYear(), s.getMonth(), s.getDate()));
-      addToMap(ds, `<div class="cal-month-ev" style="background:#f3e8ff;color:#6b21a8"
-        title="${esc(ev.title)}">📅 ${esc(ev.title)}</div>`);
+      const ds = _localDateStr(new Date(s.getFullYear(), s.getMonth(), s.getDate()));
+      const timeStr = s.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+      addToMap(ds, `<div class="cal-month-ev" style="background:#f3e8ff;color:#6b21a8;cursor:default"
+        title="${esc(ev.title)}">📅 ${esc(ev.title)} <span style="opacity:.65;font-size:.6rem">${timeStr}</span></div>`);
     } catch {}
   });
 
   suggestedBlocks.forEach(b => {
     try {
       const s   = new Date(b.start);
-      const ds  = localStr(new Date(s.getFullYear(), s.getMonth(), s.getDate()));
+      const ds  = _localDateStr(new Date(s.getFullYear(), s.getMonth(), s.getDate()));
       const col = getCourseColor(b.course||"");
-      addToMap(ds, `<div class="cal-month-ev" style="border:2px dashed ${col.text};color:${col.text};background:transparent"
-        title="✨ ${esc(b.assignment_title)}">✨ ${esc(b.assignment_title)}</div>`);
+      const timeStr = s.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+      addToMap(ds, `<div class="cal-month-ev" style="border:2px dashed ${col.text};color:${col.text};background:transparent;cursor:default"
+        title="✨ ${esc(b.assignment_title)}">✨ ${esc(b.assignment_title)} <span style="opacity:.65;font-size:.6rem">${timeStr}</span></div>`);
     } catch {}
   });
 
-  // Build HTML
-  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   let html = "";
-
-  // Day-of-week headers
   DAYS.forEach(d => { html += `<div class="cal-month-hdr">${d}</div>`; });
-
-  // Leading empty cells
   for (let i = 0; i < startDow; i++) html += `<div class="cal-month-cell cal-month-other"></div>`;
 
-  // Day cells
   for (let day = 1; day <= monthEnd.getDate(); day++) {
-    const dt      = new Date(today.getFullYear(), today.getMonth(), day);
-    const ds      = localStr(dt);
+    const dt      = new Date(viewYear, viewMonth, day);
+    const ds      = _localDateStr(dt);
     const isToday = dt.toDateString() === today.toDateString();
-    const evs     = (evMap[ds] || []).slice(0, 3); // max 3 visible
-    const extra   = (evMap[ds] || []).length - 3;
+    const allEvs  = evMap[ds] || [];
+    const visible = allEvs.slice(0, 3);
+    const extra   = allEvs.length - 3;
+    const allHtml = allEvs.join("").replace(/`/g, "\\`").replace(/\\/g, "\\\\");
     html += `<div class="cal-month-cell${isToday?" cal-month-today":""}">
       <div class="cal-month-day-num${isToday?" today":""}">${day}</div>
-      ${evs.join("")}
-      ${extra > 0 ? `<div class="cal-month-more">+${extra} more</div>` : ""}
+      ${visible.join("")}
+      ${extra > 0 ? `<div class="cal-month-more" style="cursor:pointer;color:#059669;font-weight:600"
+        onclick="showMonthOverflow('${ds}',${day})">+${extra} more</div>` : ""}
     </div>`;
   }
 
-  // Trailing cells
   const totalCells = startDow + monthEnd.getDate();
   const trailing   = (7 - (totalCells % 7)) % 7;
   for (let i = 0; i < trailing; i++) html += `<div class="cal-month-cell cal-month-other"></div>`;
 
   grid.innerHTML = html;
+}
+
+function showMonthOverflow(ds, day) {
+  const modal    = document.getElementById("month-overflow-modal");
+  const titleEl  = document.getElementById("month-overflow-title");
+  const listEl   = document.getElementById("month-overflow-list");
+  if (!modal) return;
+
+  // Rebuild events for this date
+  const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const dt = new Date(scheduleDate.getFullYear(), scheduleDate.getMonth(), day);
+  titleEl.textContent = `${MONTHS[dt.getMonth()]} ${day}`;
+
+  let html = "";
+
+  appAssignments.forEach(a => {
+    if (!a.due_date) return;
+    const due = new Date(a.due_date);
+    if (_localDateStr(new Date(due.getFullYear(), due.getMonth(), due.getDate())) !== ds) return;
+    const col = getCourseColor(a.course||"");
+    html += `<div class="cal-month-ev" style="background:${col.bg};color:${col.text};cursor:pointer;margin-bottom:4px;border-radius:6px;padding:4px 8px"
+      onclick="showMatchedMaterials(${JSON.stringify(a).replace(/"/g,'&quot;')});document.getElementById('month-overflow-modal').style.display='none'"
+      title="${esc(a.title)}">📚 ${esc(a.title||"")}</div>`;
+  });
+  gcalEvents.forEach(ev => {
+    if (ev.allDay) return;
+    try {
+      const s = new Date(ev.start);
+      if (_localDateStr(new Date(s.getFullYear(), s.getMonth(), s.getDate())) !== ds) return;
+      const timeStr = s.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+      html += `<div class="cal-month-ev" style="background:#f3e8ff;color:#6b21a8;margin-bottom:4px;border-radius:6px;padding:4px 8px"
+        title="${esc(ev.title)}">📅 ${esc(ev.title)} · ${timeStr}</div>`;
+    } catch {}
+  });
+  suggestedBlocks.forEach(b => {
+    try {
+      const s = new Date(b.start);
+      if (_localDateStr(new Date(s.getFullYear(), s.getMonth(), s.getDate())) !== ds) return;
+      const col = getCourseColor(b.course||"");
+      const timeStr = s.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+      html += `<div class="cal-month-ev" style="border:2px dashed ${col.text};color:${col.text};background:transparent;margin-bottom:4px;border-radius:6px;padding:4px 8px">✨ ${esc(b.assignment_title)} · ${timeStr}</div>`;
+    } catch {}
+  });
+
+  listEl.innerHTML = html || '<p style="font-size:.8rem;color:#94a3b8">No events.</p>';
+  modal.style.display = "flex";
 }
 
 
@@ -2949,22 +3039,6 @@ function applyStoredDarkMode() {
   }
 }
 
-// Update dark mode toggle UI when settings page opens
-const _origLoadSettings = loadSettings;
-async function loadSettings() {
-  await _origLoadSettings();
-  renderRecentlyOpened();
-  checkGCalStatus();
-  // Pre-fill display name
-  const nameInput = document.getElementById("settings-name");
-  if (nameInput && appUser) nameInput.value = appUser.name || appUser.email?.split("@")[0] || "";
-  const isDark = document.body.classList.contains("dark");
-  const track  = document.getElementById("dark-track");
-  const thumb  = document.getElementById("dark-thumb");
-  if (track) track.style.background = isDark ? "#059669" : "#e2e8f0";
-  if (thumb) thumb.style.transform  = isDark ? "translateX(20px)" : "translateX(0)";
-}
-
 // ── Boot ──
 applyStoredDarkMode();
 init();
@@ -2977,7 +3051,7 @@ init();
     <div style="margin-bottom:24px;display:flex;align-items:center;justify-content:space-between">
       <div>
         <div class="logo-row" style="margin-bottom:8px">
-          <div class="logo-icon">📘</div>
+          <div class="logo-icon">🥁</div>
           <span class="logo-text">Tempo</span>
         </div>
         <h1 style="font-size:2rem">Social</h1>

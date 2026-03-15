@@ -1,0 +1,2004 @@
+"""
+Syllabot — Integrated Flask Backend
+Handles: auth, Canvas sync+caching, material matching (RAG), AI estimation,
+         scheduling, timer sessions, and file storage.
+
+Install:
+    pip install flask flask-cors google-genai pypdf2 requests chromadb pypdf
+
+Run:
+    export GEMINI_API_KEY=your_key
+    python server.py
+"""
+
+import os, json, time, re, io, hashlib, tempfile, shutil, threading, warnings
+from datetime import datetime, timedelta
+from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+warnings.filterwarnings("ignore")
+
+from flask import Flask, request, jsonify, session, send_from_directory
+from flask_cors import CORS
+import PyPDF2
+import requests as req
+import chromadb
+from chromadb.config import Settings
+
+# ── App setup ─────────────────────────────────────────────────────────────────
+app = Flask(__name__, static_folder="static", static_url_path="")
+app.secret_key = os.environ.get("SECRET_KEY", "syllabot-dev-secret-2024")
+CORS(app, supports_credentials=True)
+
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+
+# ── RAG config ────────────────────────────────────────────────────────────────
+CHROMA_DIR       = Path("chroma_db")
+CHROMA_DIR.mkdir(exist_ok=True)
+TOP_K            = 6
+CHUNK_SIZE       = 1500
+CHUNK_OVERLAP    = 200
+EMBED_BATCH_SIZE = 50
+EMBEDDING_MODEL  = "gemini-embedding-001"
+GENERATION_MODEL = "gemini-3.1-flash-lite-preview"
+
+_gemini_client_lock = threading.Lock()
+_gemini_client      = None
+
+def get_gemini():
+    global _gemini_client
+    if _gemini_client is None:
+        with _gemini_client_lock:
+            if _gemini_client is None:
+                from google import genai as _g
+                _gemini_client = _g.Client(api_key=GEMINI_API_KEY)
+    return _gemini_client
+
+# Allow OAuth over plain HTTP for local development
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"]  = "1"
+DATA_DIR        = Path("data")
+CANVAS_CACHE    = Path("canvas_cache")
+for d in [DATA_DIR, CANVAS_CACHE]:
+    d.mkdir(exist_ok=True)
+
+USERS_FILE      = DATA_DIR / "users.json"
+SESSIONS_FILE   = DATA_DIR / "sessions.json"
+for f in [USERS_FILE, SESSIONS_FILE]:
+    if not f.exists():
+        f.write_text("[]")
+
+ALLOWED_EXTENSIONS = {".pdf", ".pptx", ".ppt", ".docx", ".doc", ".txt", ".md"}
+MIME_MAP = {
+    ".pdf":  "application/pdf",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ".ppt":  "application/vnd.ms-powerpoint",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".doc":  "application/msword",
+    ".txt":  "text/plain",
+    ".md":   "text/plain",
+}
+
+# ── Data helpers ──────────────────────────────────────────────────────────────
+def load_json(path): 
+    try: return json.loads(path.read_text())
+    except: return []
+
+def save_json(path, data):
+    path.write_text(json.dumps(data, indent=2))
+
+def load_users(): return load_json(USERS_FILE)
+def save_users(u): save_json(USERS_FILE, u)
+def load_sessions(): return load_json(SESSIONS_FILE)
+def save_sessions(s): save_json(SESSIONS_FILE, s)
+
+def hash_pw(pw): return hashlib.sha256(pw.encode()).hexdigest()
+
+def get_user(email):
+    return next((u for u in load_users() if u["email"] == email), None)
+
+def current_user():
+    uid = session.get("user_id")
+    if not uid: return None
+    return next((u for u in load_users() if u["id"] == uid), None)
+
+def require_auth():
+    u = current_user()
+    if not u: return jsonify({"error": "Not authenticated"}), 401
+    return None
+
+# ── PDF helpers ───────────────────────────────────────────────────────────────
+def extract_pdf_text(file_bytes: bytes) -> str:
+    try:
+        reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
+        return "\n".join(page.extract_text() or "" for page in reader.pages)
+    except Exception as e:
+        return f"[Could not extract PDF: {e}]"
+
+def extract_pdf_text_from_path(path: str) -> str:
+    try:
+        with open(path, "rb") as f:
+            return extract_pdf_text(f.read())
+    except Exception as e:
+        return f"[Could not read {path}: {e}]"
+
+# ── Gemini helper ─────────────────────────────────────────────────────────────
+def gemini(prompt: str) -> str:
+    if not GEMINI_API_KEY:
+        raise ValueError("GEMINI_API_KEY not set")
+    from google import genai
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    resp = client.models.generate_content(model="gemini-2.5-flash-lite", contents=prompt)
+    return resp.text.strip()
+
+def gemini_parse_json(prompt: str) -> any:
+    raw = gemini(prompt)
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"): raw = raw[4:]
+    return json.loads(raw.strip())
+
+# ── Priority: based purely on due date and AI-estimated hours ────────────────
+def calculate_priority(assignment: dict) -> float:
+    """Priority score based only on urgency and AI-estimated workload."""
+    days = assignment.get("due_in_days", 7) or 7
+    hrs  = assignment.get("estimated_hours") or 0
+    priority = 0
+    if days <= 1:   priority += 10
+    elif days <= 3: priority += 7
+    elif days <= 7: priority += 5
+    else:           priority += 2
+    if hrs >= 8:    priority += 4
+    elif hrs >= 5:  priority += 3
+    elif hrs >= 2:  priority += 2
+    elif hrs > 0:   priority += 1
+    return priority
+
+# ── Canvas helpers ────────────────────────────────────────────────────────────
+def canvas_get(domain, token, path, params={}):
+    results = []
+    url = f"https://{domain.rstrip('/')}{path}"
+    headers = {"Authorization": f"Bearer {token}"}
+    while url:
+        resp = req.get(url, headers=headers, params=params, timeout=20)
+        resp.raise_for_status()
+        data = resp.json()
+        if isinstance(data, list):
+            results.extend(data)
+        else:
+            return data
+        url = resp.links.get("next", {}).get("url")
+        params = {}
+    return results
+
+def canvas_download_file(canvas_file, token):
+    """Download a Canvas file and return bytes."""
+    url = canvas_file.get("url", "")
+    if not url: return None
+    headers = {"Authorization": f"Bearer {token}"}
+    resp = req.get(url, headers=headers, allow_redirects=False, timeout=15)
+    real_url = resp.headers.get("Location", url) if resp.status_code in (301,302,303,307,308) else url
+    resp = req.get(real_url, stream=True, timeout=60)
+    if resp.status_code == 403:
+        resp = req.get(real_url, headers=headers, stream=True, timeout=60)
+    if "text/html" in resp.headers.get("Content-Type",""):
+        return None
+    return resp.content
+
+def get_canvas_cache_dir(user_id, course_id):
+    d = CANVAS_CACHE / str(user_id) / str(course_id)
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+def canvas_cache_manifest(user_id, course_id):
+    p = get_canvas_cache_dir(user_id, course_id) / "manifest.json"
+    if p.exists(): return json.loads(p.read_text())
+    return {}
+
+def save_canvas_cache_manifest(user_id, course_id, manifest):
+    p = get_canvas_cache_dir(user_id, course_id) / "manifest.json"
+    p.write_text(json.dumps(manifest, indent=2))
+
+# ══════════════════════════════════════════════════════════════════════════════
+# RAG — ChromaDB + Gemini embeddings
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _chunk_text(text: str, source: str) -> list[dict]:
+    text  = re.sub(r"\s+", " ", text).strip()
+    safe  = re.sub(r"[^a-zA-Z0-9_\-]", "_", source)
+    chunks, start = [], 0
+    while start < len(text):
+        chunk = text[start : start + CHUNK_SIZE]
+        if chunk.strip():
+            chunks.append({"text": chunk, "source": source,
+                           "chunk_id": f"{safe}_{start}"})
+        start += CHUNK_SIZE - CHUNK_OVERLAP
+    return chunks
+
+
+def _file_fingerprint(path: str) -> str:
+    h = hashlib.md5()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(65536), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def _embed_batch(texts: list[str], task: str) -> list[list[float]]:
+    from google.genai import types as _gt
+    client = get_gemini()
+    for attempt in range(1, 4):
+        try:
+            resp = client.models.embed_content(
+                model=EMBEDDING_MODEL,
+                contents=texts,
+                config=_gt.EmbedContentConfig(task_type=task),
+            )
+            return [e.values for e in resp.embeddings]
+        except Exception as e:
+            if attempt < 3:
+                time.sleep(attempt * 2)
+            else:
+                print(f"  Embedding batch failed: {e}")
+                return [[0.0] * 768] * len(texts)
+
+
+def _embed_texts(texts: list[str]) -> list[list[float]]:
+    results = []
+    for i in range(0, len(texts), EMBED_BATCH_SIZE):
+        results.extend(_embed_batch(texts[i : i + EMBED_BATCH_SIZE], "RETRIEVAL_DOCUMENT"))
+    return results
+
+
+def _embed_query(text: str) -> list[float]:
+    return _embed_batch([text], "RETRIEVAL_QUERY")[0]
+
+
+def _get_chroma_collection(collection_name: str) -> chromadb.Collection:
+    client = chromadb.PersistentClient(
+        path=str(CHROMA_DIR),
+        settings=Settings(anonymized_telemetry=False),
+    )
+    return client.get_or_create_collection(
+        name=collection_name,
+        metadata={"hnsw:space": "cosine"},
+    )
+
+
+def _index_notes(notes: list[dict], collection_name: str) -> chromadb.Collection:
+    """Embed and index note files into a ChromaDB collection (with caching by MD5)."""
+    collection = _get_chroma_collection(collection_name)
+    existing   = collection.get(include=["metadatas"])
+    cached_fps = {m.get("fingerprint") for m in existing["metadatas"] if m and "fingerprint" in m}
+
+    for note in notes:
+        path = note.get("path")
+        fp   = _file_fingerprint(path) if path and Path(path).exists() else hashlib.md5(note.get("text","").encode()).hexdigest()
+        if fp in cached_fps:
+            continue
+
+        text = note.get("text") or ""
+        if not text.strip():
+            continue
+
+        fname  = note["filename"]
+        chunks = _chunk_text(text, fname)
+        if not chunks:
+            continue
+
+        # Remove stale chunks for this source
+        try:
+            stale = collection.get(where={"source": fname})
+            if stale["ids"]:
+                collection.delete(ids=stale["ids"])
+        except Exception:
+            pass
+
+        all_texts  = [c["text"] for c in chunks]
+        all_embeds = _embed_texts(all_texts)
+        collection.add(
+            ids       =[c["chunk_id"] for c in chunks],
+            embeddings=all_embeds,
+            documents =all_texts,
+            metadatas =[{"source": fname, "fingerprint": fp} for c in chunks],
+        )
+        print(f"  [RAG] Indexed {fname} ({len(chunks)} chunks)")
+
+    return collection
+
+
+def _rag_extract_problems(assignment_text: str) -> list[dict]:
+    prompt = f"""You are a study assistant. Below is the text of a student assignment.
+Identify each individual problem or question. For each one, write a short search query
+capturing the key concepts needed to solve it.
+
+Assignment text:
+{assignment_text[:4000]}
+
+Return ONLY valid JSON, no markdown:
+[
+  {{"problem": "Problem N — brief description", "query": "key concepts and topics for this problem"}}
+]"""
+    try:
+        raw = gemini(prompt)
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"): raw = raw[4:]
+        return json.loads(raw.strip())
+    except Exception as e:
+        print(f"  Could not parse problems: {e}")
+        return [{"problem": "General", "query": assignment_text[:500]}]
+
+
+def _rag_synthesize_match(problem: str, chunks: list[dict]) -> dict:
+    by_source: dict[str, list] = {}
+    for c in chunks:
+        by_source.setdefault(c["source"], []).append(c)
+
+    context = "\n\n".join(
+        f"[{src}]\n{' ... '.join(c['text'] for c in cs[:3])[:800]}"
+        for src, cs in by_source.items()
+    )
+
+    prompt = f"""You are a study assistant. A student has this problem:
+
+"{problem}"
+
+Here are the most relevant excerpts from their course materials:
+
+{context}
+
+Based ONLY on the content above, list which files are relevant and why.
+
+Return ONLY valid JSON, no markdown:
+[
+  {{"filename": "exact filename", "reason": "one sentence explaining relevance", "relevance": "high"|"medium"|"low"}}
+]
+Order by relevance descending. Only include files with genuinely relevant content."""
+    try:
+        raw = gemini(prompt)
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"): raw = raw[4:]
+        return {"topic": problem, "matches": json.loads(raw.strip())}
+    except Exception as e:
+        print(f"  Synthesis failed for '{problem}': {e}")
+        return {"topic": problem, "matches": []}
+
+
+# ── Material matcher ──────────────────────────────────────────────────────────
+def match_assignment_to_notes(assignment_text: str, assignment_name: str,
+                               notes: list[dict],
+                               assignment_path: str = None,
+                               collection_name: str = None) -> dict:
+    """
+    RAG-based material matcher.
+    notes: list of {"filename": str, "text": str, "path": str (optional)}
+    assignment_path: local path to the assignment file (used for text extraction if provided)
+
+    Returns:
+      {
+        "topics": [{"topic": "Problem N: ...", "matches": [...]}],
+        "files":  [{"filename": "...", "relevance": "...", "reason": "...", "problems": [...]}]
+      }
+    """
+    if not notes:
+        return {"topics": [], "files": []}
+    if not GEMINI_API_KEY:
+        return {"topics": [], "files": []}
+
+    # ── Resolve assignment text ──────────────────────────────────────────────
+    if assignment_path and Path(assignment_path).exists():
+        extracted = extract_pdf_text_from_path(assignment_path)
+        if extracted.strip():
+            assignment_text = extracted
+
+    # ── Determine ChromaDB collection name ───────────────────────────────────
+    if not collection_name:
+        # Derive a stable name from the set of note filenames
+        key_str = "|".join(sorted(n["filename"] for n in notes))
+        collection_name = "notes_" + hashlib.md5(key_str.encode()).hexdigest()[:16]
+
+    # ── Index notes into ChromaDB (skips already-cached files) ───────────────
+    try:
+        collection = _index_notes(notes, collection_name)
+    except Exception as e:
+        print(f"  RAG indexing error: {e}")
+        return {"topics": [], "files": [{"error": str(e)}]}
+
+    if collection.count() == 0:
+        return {"topics": [], "files": []}
+
+    # ── Extract problems from the assignment ──────────────────────────────────
+    problems = _rag_extract_problems(assignment_text)
+    print(f"  [RAG] {len(problems)} problem(s) identified.")
+
+    # ── Embed all problem queries in one batch ────────────────────────────────
+    queries  = [p["query"] for p in problems]
+    try:
+        q_embeds = _embed_batch(queries, "RETRIEVAL_QUERY") if queries else []
+    except Exception as e:
+        print(f"  RAG query embedding error: {e}")
+        return {"topics": [], "files": []}
+
+    # ── Retrieve + synthesize per problem ─────────────────────────────────────
+    topics = []
+    try:
+        for p, q_embed in zip(problems, q_embeds):
+            n_results = min(TOP_K, collection.count())
+            if n_results == 0:
+                topics.append({"topic": p["problem"], "matches": []})
+                continue
+            results = collection.query(
+                query_embeddings=[q_embed],
+                n_results=n_results,
+                include=["documents", "metadatas", "distances"],
+            )
+            chunks = [
+                {"text": doc, "source": meta.get("source","unknown"),
+                 "score": round(1 - dist, 3)}
+                for doc, meta, dist in zip(
+                    results["documents"][0],
+                    results["metadatas"][0],
+                    results["distances"][0],
+                )
+            ]
+            topics.append(_rag_synthesize_match(p["problem"], chunks))
+    except Exception as e:
+        print(f"  RAG retrieval error: {e}")
+        return {"topics": [], "files": []}
+
+    # ── Build flat files list sorted by first appearance + best relevance ─────
+    RANK       = {"high": 0, "medium": 1, "low": 2}
+    file_order = {}
+    file_best  = {}
+
+    for t_idx, t in enumerate(topics):
+        for m in t.get("matches", []):
+            fn = m.get("filename", "")
+            if not fn: continue
+            if fn not in file_order:
+                file_order[fn] = t_idx
+                file_best[fn]  = {
+                    "filename":  fn,
+                    "relevance": m.get("relevance", "low"),
+                    "reason":    m.get("reason", ""),
+                    "problems":  [t.get("topic", "")]
+                }
+            else:
+                if RANK.get(m.get("relevance","low"), 2) < RANK.get(file_best[fn]["relevance"], 2):
+                    file_best[fn]["relevance"] = m.get("relevance", "low")
+                    file_best[fn]["reason"]    = m.get("reason", "")
+                if t.get("topic","") not in file_best[fn]["problems"]:
+                    file_best[fn]["problems"].append(t.get("topic",""))
+
+    files_sorted = sorted(
+        file_best.values(),
+        key=lambda f: (file_order.get(f["filename"], 99), RANK.get(f["relevance"], 2))
+    )
+
+    # Duplicate filter: remove files with >72% word overlap with the assignment
+    def _is_duplicate(note_text: str) -> bool:
+        if not note_text or not assignment_text: return False
+        def words(t): return set(re.findall(r"\b[a-zA-Z]{4,}\b", t[:1500].lower()))
+        a_w = words(assignment_text); n_w = words(note_text)
+        if not a_w or not n_w: return False
+        return len(a_w & n_w) / max(len(a_w), 1) > 0.72
+
+    notes_text_map = {n["filename"]: n.get("text","") for n in notes}
+    files_sorted   = [f for f in files_sorted if not _is_duplicate(notes_text_map.get(f["filename"],""))]
+
+    return {"topics": topics, "files": files_sorted}
+
+# ── AI time estimator ─────────────────────────────────────────────────────────
+def ai_estimate(assignment_text: str, assignment_name: str,
+                course: str, notes_text: str, history_summary: str) -> dict:
+
+    # Detect if the assignment name is generic/nondescript
+    generic_patterns = [
+        "homework", "hw", "assignment", "problem set", "pset",
+        "lab", "quiz", "exam", "project", "worksheet", "exercise"
+    ]
+    name_lower = assignment_name.lower().replace("_"," ").replace("-"," ")
+    is_generic = any(name_lower.strip().startswith(p) or name_lower.strip() == p
+                     for p in generic_patterns)
+
+    course_known = bool(course and course.strip() and course.strip().lower() not in ("unknown",""))
+
+    prompt = f"""You are an academic workload estimator for University of Michigan students.
+Estimate how many minutes a prepared student needs to complete this assignment.
+
+Key rules — read carefully:
+- Base your estimate ENTIRELY on the actual content shown below. Do NOT apply generic defaults.
+- Only estimate time to DO the assignment (reading the prompt, solving, writing, coding, etc.). Do NOT add study time.
+- Scale strictly to what is asked:
+    • A single trivial question (e.g. "What is 9+10?") = 1–2 minutes.
+    • A few short questions = 5–15 minutes.
+    • A standard problem set (10–20 problems) = 60–120 minutes.
+    • A large project or exam = up to 180 minutes. Only exceed 180 for truly massive work.
+- If the assignment content is empty, very short, or unclear, set confidence to "low" and estimate conservatively (15 minutes).
+- NEVER default to 60 minutes just because you are uncertain — look at the actual number and difficulty of questions.
+
+Course provided: {course if course_known else "NOT PROVIDED — infer from assignment content"}
+Historical timing data: {history_summary}
+
+Assignment filename: {assignment_name}
+Assignment content:
+{assignment_text[:2000]}
+
+Relevant notes summary (for context only):
+{notes_text[:1000] if notes_text else "None provided."}
+
+Return ONLY valid JSON, no markdown:
+{{
+  "estimated_minutes": <integer>,
+  "low_minutes": <integer, fast student>,
+  "high_minutes": <integer, slower student>,
+  "primary_concept": "<3-5 word topic label>",
+  "reasoning": "<1-2 sentences explaining your estimate based on the actual content>",
+  "confidence": "low" | "medium" | "high",
+  "inferred_course": "<course code e.g. EECS 281, MATH 217 — infer from content if not provided, else repeat the provided course, null if truly unknown>",
+  "inferred_course_confidence": "low" | "medium" | "high",
+  "display_title": "<friendly display title: if assignment name is generic like Homework 3 or HW2, prefix with inferred course code, e.g. EECS 281 — Homework 3; if name is already descriptive keep it as-is>"
+}}"""
+    try:
+        result = gemini_parse_json(prompt)
+        # If course wasn't provided and AI is confident, use the inferred one
+        if not course_known:
+            ic   = result.get("inferred_course") or ""
+            icc  = result.get("inferred_course_confidence","low")
+            if ic and icc in ("medium","high"):
+                result["course"] = ic
+        else:
+            result["course"] = course
+        # Always ensure display_title is set
+        if not result.get("display_title"):
+            result["display_title"] = assignment_name
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+def history_summary(course: str, sessions: list, user_id: str = "") -> str:
+    """
+    Build history context from ALL users' sessions (for crowd-sourced estimates)
+    plus this specific user's own sessions (for personalization).
+    """
+    course_upper = course.upper()
+    all_course   = [s for s in sessions if s.get("course","").upper() == course_upper and s.get("actual_minutes")]
+    user_course  = [s for s in all_course if s.get("user_id") == user_id] if user_id else []
+    all_done     = [s for s in sessions if s.get("actual_minutes")]
+
+    lines = []
+
+    # All users' data for this course
+    if all_course:
+        times = [s["actual_minutes"] for s in all_course]
+        avg   = sum(times) // len(times)
+        lines.append(f"All students — {len(all_course)} recorded session(s) for {course}: avg {avg} min, range {min(times)}–{max(times)} min.")
+        for s in all_course[-5:]:
+            lines.append(f"  - {s.get('assignment_summary','?')}: {s['actual_minutes']} min")
+    else:
+        lines.append(f"No sessions recorded yet for {course} by any student.")
+
+    # This user's personal history
+    if user_course:
+        utimes = [s["actual_minutes"] for s in user_course]
+        uavg   = sum(utimes) // len(utimes)
+        lines.append(f"This student specifically — {len(user_course)} session(s) for {course}: avg {uavg} min.")
+
+    # Cross-course context
+    if all_done:
+        avg_all = sum(s["actual_minutes"] for s in all_done) // len(all_done)
+        lines.append(f"Overall across all courses ({len(all_done)} sessions): avg {avg_all} min.")
+
+    return "\n".join(lines)
+
+
+def run_estimate_for_assignment(user_id: str, assignment: dict) -> dict:
+    """
+    Run AI estimate + material matching for a single assignment.
+    Uses cached canvas files for the course if available.
+    Returns estimate fields to merge into the assignment dict.
+    """
+    course      = assignment.get("course", "")
+    title       = assignment.get("title", "")
+    description = assignment.get("description", "")
+    course_id   = assignment.get("course_id", "")
+
+    assignment_text = f"Assignment: {title}\n\n{description}"
+
+    # Load cached notes for this course — include path so Gemini can upload them
+    notes = []
+    if course_id:
+        cache_dir = get_canvas_cache_dir(user_id, course_id)
+        manifest  = canvas_cache_manifest(user_id, course_id)
+        for fid, meta in manifest.items():
+            fpath = cache_dir / meta["filename"]
+            if fpath.exists() and os.path.splitext(meta["filename"])[1].lower() in ALLOWED_EXTENSIONS:
+                notes.append({
+                    "filename": meta["filename"],
+                    "text":     extract_pdf_text_from_path(str(fpath)),
+                    "path":     str(fpath),
+                })
+
+    sessions = load_sessions()
+    hist     = history_summary(course, sessions, user_id)
+
+    try:
+        # Try to find a cached assignment PDF to pass as file
+        asgn_pdf = assignment.get("assignment_pdf")
+        asgn_path = None
+        if asgn_pdf and course_id:
+            p = get_canvas_cache_dir(user_id, course_id) / asgn_pdf
+            if p.exists():
+                asgn_path = str(p)
+                # Use the actual PDF text for estimation — much richer than description
+                extracted = extract_pdf_text_from_path(asgn_path)
+                if extracted.strip():
+                    assignment_text = f"Assignment: {title}\n\n{extracted}"
+
+        # Use a stable per-user/course collection name so embeddings persist
+        coll_name = f"u{user_id[:8]}_c{str(course_id)}" if course_id else None
+
+        match_result   = match_assignment_to_notes(assignment_text, title, notes,
+                                                   assignment_path=asgn_path,
+                                                   collection_name=coll_name)
+        matched_files  = match_result.get("files", [])
+        matched_topics = match_result.get("topics", [])
+        relevant = "\n\n".join(
+            f"=== {n['filename']} ===\n{n['text'][:1500]}"
+            for n in notes
+            if any(f.get("filename") == n["filename"] and
+                   f.get("relevance") in ("high","medium") for f in matched_files)
+        )
+        result = ai_estimate(assignment_text, title, course, relevant, hist)
+        result["matched_notes"]  = matched_files
+        result["matched_topics"] = matched_topics
+        return result
+    except Exception as e:
+        print(f"  Auto-estimate failed for '{title}': {e}")
+        return {}
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ROUTES
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route("/")
+def index():
+    return app.send_static_file("index.html")
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
+@app.route("/api/auth/signup", methods=["POST"])
+def signup():
+    d = request.get_json()
+    email, pw = d.get("email","").strip(), d.get("password","")
+    if not email or not pw:
+        return jsonify({"error": "Email and password required"}), 400
+    users = load_users()
+    if any(u["email"] == email for u in users):
+        return jsonify({"error": "Email already registered"}), 409
+    user = {
+        "id": hashlib.md5(email.encode()).hexdigest(),
+        "email": email,
+        "password": hash_pw(pw),
+        "name": d.get("name", email.split("@")[0]),
+        "created_at": datetime.utcnow().isoformat(),
+        "courses": [],
+        "assignments": [],
+        "canvas": {},
+        "onboarded": False,
+    }
+    users.append(user)
+    save_users(users)
+    session["user_id"] = user["id"]
+    return jsonify({"ok": True, "user": {k:v for k,v in user.items() if k!="password"}})
+
+@app.route("/api/auth/signin", methods=["POST"])
+def signin():
+    d = request.get_json()
+    email, pw = d.get("email","").strip(), d.get("password","")
+    user = get_user(email)
+    if not user or user["password"] != hash_pw(pw):
+        return jsonify({"error": "Invalid email or password"}), 401
+    session["user_id"] = user["id"]
+    return jsonify({"ok": True, "user": {k:v for k,v in user.items() if k!="password"},
+                    "onboarded": user.get("onboarded", False)})
+
+@app.route("/api/auth/signout", methods=["POST"])
+def signout():
+    session.clear()
+    return jsonify({"ok": True})
+
+@app.route("/api/auth/me")
+def me():
+    u = current_user()
+    if not u: return jsonify({"user": None})
+    return jsonify({"user": {k:v for k,v in u.items() if k!="password"}})
+
+# ── Onboarding: save courses + assignments ────────────────────────────────────
+@app.route("/api/onboarding", methods=["POST"])
+def onboarding():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    d = request.get_json()
+
+    new_assignments = d.get("assignments", [])
+
+    # Run AI estimate for each assignment in the background
+    print(f"Auto-estimating {len(new_assignments)} assignment(s)...")
+    for a in new_assignments:
+        est = run_estimate_for_assignment(u["id"], a)
+        if est:
+            a["estimated_minutes"] = est.get("estimated_minutes")
+            a["estimated_hours"]   = round(est.get("estimated_minutes", 180) / 60, 2)
+            a["primary_concept"]   = est.get("primary_concept", "")
+            a["matched_notes"]     = est.get("matched_notes", [])
+            a["matched_topics"]    = est.get("matched_topics", [])
+            a["ai_reasoning"]      = est.get("reasoning", "")
+            print(f"  ✓ {a['title']}: {est.get('estimated_minutes')} min")
+
+    users = load_users()
+    for user in users:
+        if user["id"] == u["id"]:
+            user["courses"]     = d.get("courses", [])
+            user["assignments"] = new_assignments
+            user["onboarded"]   = True
+            break
+    save_users(users)
+    return jsonify({"ok": True})
+
+# ── Get user's assignments + study plan ───────────────────────────────────────
+@app.route("/api/assignments")
+def get_assignments():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    assignments = u.get("assignments", [])
+
+    out = []
+    for a in assignments:
+        due_date = a.get("due_date", "")
+        try:
+            due_dt   = datetime.fromisoformat(due_date.replace("Z",""))
+            due_days = max((due_dt - datetime.utcnow()).days, 0)
+        except:
+            due_days = 7
+
+        est_mins = a.get("estimated_minutes")  # set by AI, or None
+        est_hrs  = round(est_mins / 60, 2) if est_mins else None
+
+        entry = {
+            "id":              a.get("id", ""),
+            "course":          a.get("course", ""),
+            "title":           a.get("title", ""),
+            "description":     a.get("description", ""),
+            "due_date":        due_date,
+            "due_in_days":     due_days,
+            "source":          a.get("source", "manual"),
+            "canvas_url":      a.get("canvas_url", ""),
+            "course_id":       a.get("course_id", ""),
+            "points":          a.get("points", 100),
+            # AI estimate fields — None if not yet computed
+            "estimated_minutes": est_mins,
+            "estimated_hours":   est_hrs,
+            "primary_concept":   a.get("primary_concept"),
+            "matched_notes":     a.get("matched_notes", []),
+            "ai_reasoning":      a.get("ai_reasoning"),
+            "estimate_pending":  est_mins is None,
+            "assignment_pdf":    a.get("assignment_pdf"),
+        }
+        entry["priority"] = calculate_priority(entry)
+        out.append(entry)
+
+    out.sort(key=lambda x: x["priority"], reverse=True)
+    return jsonify({"assignments": out})
+
+# ── Canvas: sync (server proxies all Canvas API calls) ───────────────────────
+@app.route("/api/canvas/sync", methods=["POST"])
+def canvas_sync():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    d = request.get_json()
+
+    domain = d.get("domain","").strip().replace("https://","").replace("http://","").rstrip("/")
+    token  = d.get("token","").strip()
+    if not domain or not token:
+        return jsonify({"error": "Canvas domain and token required"}), 400
+
+    base    = f"https://{domain}"
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # ── Step 1: fetch courses ─────────────────────────────────────────────────
+    raw_courses = []
+    debug_errors = []
+    for params in [
+        {"per_page": 50, "enrollment_type": "student"},
+        {"per_page": 50, "enrollment_state": "active"},
+        {"per_page": 50},
+    ]:
+        try:
+            raw_courses = canvas_get(domain, token, "/api/v1/courses", params)
+            if raw_courses:
+                print(f"Canvas: got {len(raw_courses)} courses")
+                break
+            debug_errors.append(f"{params}: 0 courses returned")
+        except Exception as e:
+            debug_errors.append(f"{params}: {e}")
+
+    if not raw_courses:
+        # Try a raw test to give a clearer error
+        try:
+            test = req.get(f"{base}/api/v1/users/self", headers=headers, timeout=10)
+            if test.status_code == 401:
+                return jsonify({"error": "Invalid token — Canvas returned 401 Unauthorized. Check your access token."}), 400
+            elif test.status_code == 200:
+                return jsonify({"error": f"Token is valid but no courses found. You may not be enrolled in any active courses. Debug: {' | '.join(debug_errors)}"}), 400
+            else:
+                return jsonify({"error": f"Canvas returned {test.status_code}: {test.text[:200]}"}), 400
+        except Exception as e:
+            return jsonify({"error": f"Could not reach Canvas at {base}: {e}"}), 400
+
+    # ── Step 2: for each course, fetch assignments + files ────────────────────
+    courses_out    = []
+    all_assignments = []
+    total_files    = 0
+
+    for course in raw_courses:
+        if not course.get("name") or course.get("workflow_state") == "deleted":
+            continue
+        cid   = course["id"]
+        cname = course["name"]
+        ccode = course.get("course_code", "")
+
+        # Assignments — request with submission details to get attachments
+        try:
+            canvas_assignments = canvas_get(domain, token,
+                f"/api/v1/courses/{cid}/assignments",
+                {"per_page": 50, "order_by": "due_at",
+                 "include[]": ["submission", "overrides"]})
+        except Exception as e:
+            print(f"  Could not fetch assignments for {cname}: {e}")
+            canvas_assignments = []
+
+        def download_and_cache_file(file_info: dict, cid: int, label: str = "") -> str | None:
+            """Download a Canvas file dict and cache it. Returns filename or None."""
+            fname = file_info.get("filename") or file_info.get("display_name", "")
+            if not fname: return None
+            ext = os.path.splitext(fname)[1].lower()
+            if ext not in ALLOWED_EXTENSIONS: return None
+            cache_dir_a = get_canvas_cache_dir(u["id"], cid)
+            dest = cache_dir_a / fname
+            if dest.exists():
+                return fname
+            print(f"  Downloading {label or fname}...")
+            file_bytes = canvas_download_file(file_info, token)
+            if not file_bytes: return None
+            dest.write_bytes(file_bytes)
+            manifest_a = canvas_cache_manifest(u["id"], cid)
+            manifest_a[str(file_info.get("id", "f_" + fname))] = {
+                "filename":     fname,
+                "cached_at":    datetime.utcnow().isoformat(),
+                "size":         len(file_bytes),
+                "content_type": MIME_MAP.get(ext, "application/octet-stream"),
+            }
+            save_canvas_cache_manifest(u["id"], cid, manifest_a)
+            nonlocal total_files
+            total_files += 1
+            return fname
+
+        def extract_embedded_file_ids(html: str) -> list[str]:
+            """Extract Canvas file IDs from embedded links/iframes in assignment HTML."""
+            ids = []
+            # data-api-endpoint="/api/v1/files/12345"
+            ids += re.findall(r'data-api-endpoint="[^"]*?/files/(\d+)"', html)
+            # href="/courses/X/files/Y" or href="/files/Y"
+            ids += re.findall(r'href="[^"]*?/files/(\d+)"', html)
+            # src= iframes
+            ids += re.findall(r'src="[^"]*?/files/(\d+)', html)
+            # canvas file preview URLs
+            ids += re.findall(r'/api/v1/files/(\d+)', html)
+            return list(dict.fromkeys(ids))  # deduplicate, preserve order
+
+        for a in canvas_assignments:
+            raw_desc = a.get("description") or ""
+            desc     = re.sub(r"<[^>]+>", " ", raw_desc).strip()
+
+            assignment_pdf_filename = None
+
+            # ── Source 1: direct attachments on assignment object ─────────────
+            attachments = a.get("attachments") or []
+            for att in attachments:
+                fname = download_and_cache_file(att, cid, att.get("display_name","attachment"))
+                if fname:
+                    assignment_pdf_filename = fname
+                    break
+
+            # ── Source 2: embedded Canvas file links in description HTML ──────
+            if not assignment_pdf_filename and raw_desc:
+                embedded_ids = extract_embedded_file_ids(raw_desc)
+                for fid in embedded_ids:
+                    try:
+                        file_meta = canvas_get(domain, token, f"/api/v1/files/{fid}")
+                        if isinstance(file_meta, dict):
+                            fname = download_and_cache_file(file_meta, cid, file_meta.get("display_name",""))
+                            if fname:
+                                assignment_pdf_filename = fname
+                                break
+                    except Exception as fe:
+                        print(f"  Could not fetch embedded file {fid}: {fe}")
+
+            # ── Source 3: submission attachments ─────────────────────────────
+            if not assignment_pdf_filename:
+                submission = a.get("submission") or {}
+                for att in (submission.get("attachments") or []):
+                    fname = download_and_cache_file(att, cid, att.get("display_name","sub_attachment"))
+                    if fname:
+                        assignment_pdf_filename = fname
+                        break
+
+            raw_title = a.get("name", "Unnamed")
+            # Build display title: prefix course code if name is generic
+            generic_words = ("homework","hw","assignment","problem set","pset","lab","quiz","exam","project","worksheet")
+            title_lower   = raw_title.lower().strip()
+            course_code   = (ccode or cname or "").split()[0] if (ccode or cname) else ""
+            is_generic    = any(title_lower.startswith(w) or title_lower == w for w in generic_words)
+            display_title = f"{course_code} — {raw_title}" if (is_generic and course_code and not raw_title.lower().startswith(course_code.lower())) else raw_title
+
+            all_assignments.append({
+                "id":                     f"canvas_{a['id']}",
+                "title":                  display_title,
+                "course":                 cname,
+                "course_id":              cid,
+                "description":            desc,
+                "due_date":               a.get("due_at", ""),
+                "points":                 a.get("points_possible", 100) or 100,
+                "type":                   "homework",
+                "difficulty":             3,
+                "source":                 "canvas",
+                "canvas_url":             a.get("html_url", ""),
+                "assignment_pdf":         assignment_pdf_filename,
+            })
+
+        # Files — download and cache
+        cache_dir = get_canvas_cache_dir(u["id"], cid)
+        manifest  = canvas_cache_manifest(u["id"], cid)
+        try:
+            files = canvas_get(domain, token, f"/api/v1/courses/{cid}/files", {"per_page": 100})
+        except Exception as e:
+            print(f"  Could not fetch files for {cname}: {e}")
+            files = []
+
+        cached_files = []
+        for cf in files:
+            fname = cf.get("filename") or cf.get("display_name", "unknown")
+            ext   = os.path.splitext(fname)[1].lower()
+            if ext not in ALLOWED_EXTENSIONS:
+                continue
+            file_id = str(cf.get("id", ""))
+            dest    = cache_dir / fname
+            # Use cache if already downloaded
+            if file_id in manifest and dest.exists():
+                cached_files.append(fname)
+                continue
+            print(f"  Downloading {fname}...")
+            file_bytes = canvas_download_file(cf, token)
+            if file_bytes:
+                dest.write_bytes(file_bytes)
+                manifest[file_id] = {
+                    "filename":     fname,
+                    "cached_at":    datetime.utcnow().isoformat(),
+                    "size":         len(file_bytes),
+                    "content_type": MIME_MAP.get(ext, "application/octet-stream"),
+                }
+                cached_files.append(fname)
+                total_files += 1
+
+        save_canvas_cache_manifest(u["id"], cid, manifest)
+        courses_out.append({
+            "course_name": cname,
+            "course_code": ccode,
+            "canvas_id":   cid,
+            "files":       cached_files,
+        })
+
+    # ── Step 3: run AI estimates for new assignments ─────────────────────────
+    print(f"Auto-estimating {len(all_assignments)} Canvas assignment(s)...")
+    for a in all_assignments:
+        est = run_estimate_for_assignment(u["id"], a)
+        if est:
+            a["estimated_minutes"] = est.get("estimated_minutes")
+            a["estimated_hours"]   = round(est.get("estimated_minutes", 180) / 60, 2)
+            a["primary_concept"]   = est.get("primary_concept", "")
+            a["matched_notes"]     = est.get("matched_notes", [])
+            a["matched_topics"]    = est.get("matched_topics", [])
+            a["ai_reasoning"]      = est.get("reasoning", "")
+            print(f"  ✓ {a['title']}: {est.get('estimated_minutes')} min")
+
+    # ── Step 4: save token for on-demand PDF fetching ────────────────────────
+    token_file = DATA_DIR / f"canvas_token_{u['id']}.txt"
+    token_file.write_text(token)
+
+    # ── Step 5: save to user profile ─────────────────────────────────────────
+    users = load_users()
+    for user in users:
+        if user["id"] == u["id"]:
+            user["canvas"]  = {"domain": domain, "synced_at": datetime.utcnow().isoformat()}
+            user["courses"] = [{k:v for k,v in c.items() if k != "files"} for c in courses_out]
+            # Replace all canvas assignments with fresh data, keep manual ones
+            manual = [a for a in user.get("assignments", []) if a.get("source") != "canvas"]
+            user["assignments"] = manual + all_assignments
+            user["onboarded"] = True
+            break
+    save_users(users)
+
+    return jsonify({
+        "ok":                   True,
+        "courses":              len(courses_out),
+        "assignments_imported": len(all_assignments),
+        "files_cached":         total_files,
+    })
+
+
+
+# ── Clear all cached Canvas files for this user ──────────────────────────────
+@app.route("/api/canvas/cache/clear", methods=["POST"])
+def clear_canvas_cache():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    user_cache = CANVAS_CACHE / u["id"]
+    deleted_files = 0
+    if user_cache.exists():
+        for f in user_cache.rglob("*"):
+            if f.is_file():
+                f.unlink()
+                deleted_files += 1
+        # Remove empty dirs
+        for d in sorted(user_cache.rglob("*"), reverse=True):
+            if d.is_dir():
+                try: d.rmdir()
+                except: pass
+
+    # Also wipe ChromaDB collections belonging to this user
+    try:
+        chroma_client = chromadb.PersistentClient(
+            path=str(CHROMA_DIR),
+            settings=Settings(anonymized_telemetry=False),
+        )
+        prefix = f"u{u['id'][:8]}_"
+        for col in chroma_client.list_collections():
+            name = col.name if hasattr(col, "name") else str(col)
+            if name.startswith(prefix):
+                try: chroma_client.delete_collection(name)
+                except Exception: pass
+    except Exception as ce:
+        print(f"  ChromaDB cleanup warning: {ce}")
+    # Also clear canvas assignments from user profile
+    users = load_users()
+    for user in users:
+        if user["id"] == u["id"]:
+            user["assignments"] = [a for a in user.get("assignments", []) if a.get("source") != "canvas"]
+            user["courses"] = []
+            user["canvas"] = {}
+            break
+    save_users(users)
+    return jsonify({"ok": True, "deleted_files": deleted_files})
+
+# ── Get cached files for a course ────────────────────────────────────────────
+@app.route("/api/canvas/files/<int:course_id>")
+def canvas_files(course_id):
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    cache_dir = get_canvas_cache_dir(u["id"], course_id)
+    manifest  = canvas_cache_manifest(u["id"], course_id)
+    files = [{"filename": v["filename"], "id": k} for k, v in manifest.items()]
+    return jsonify({"files": files})
+
+# ── Estimate: multi-assignment with material matching ─────────────────────────
+@app.route("/api/estimate", methods=["POST"])
+def estimate():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+
+    course        = request.form.get("course","").strip()
+    canvas_cid    = request.form.get("canvas_course_id","").strip()
+    assignment_files = request.files.getlist("assignments")
+    notes_files      = request.files.getlist("notes")
+
+    if not assignment_files:
+        return jsonify({"error": "At least one assignment PDF is required"}), 400
+
+    # Build notes list from uploaded files — save to temp dir so Gemini can upload them
+    upload_tmp = DATA_DIR / "uploads" / u["id"]
+    upload_tmp.mkdir(parents=True, exist_ok=True)
+    notes = []
+    for nf in notes_files:
+        raw   = nf.read()
+        sname = re.sub(r"[^a-zA-Z0-9._-]", "_", nf.filename)
+        tmp_p = upload_tmp / sname
+        tmp_p.write_bytes(raw)
+        notes.append({"filename": nf.filename, "text": extract_pdf_text(raw), "path": str(tmp_p)})
+
+    # Also load cached canvas files if a canvas_course_id was provided
+    if canvas_cid:
+        cache_dir = get_canvas_cache_dir(u["id"], canvas_cid)
+        manifest  = canvas_cache_manifest(u["id"], canvas_cid)
+        for fid, meta in manifest.items():
+            fpath = cache_dir / meta["filename"]
+            if fpath.exists() and os.path.splitext(meta["filename"])[1].lower() in ALLOWED_EXTENSIONS:
+                notes.append({
+                    "filename": meta["filename"],
+                    "text":     extract_pdf_text_from_path(str(fpath)),
+                    "path":     str(fpath),
+                })
+
+    sessions  = load_sessions()
+    hist_sum  = history_summary(course, sessions, u["id"])
+    results   = []
+
+    for af in assignment_files:
+        aname  = af.filename
+        abytes = af.read()
+        atext  = extract_pdf_text(abytes)
+
+        # Save assignment to temp file so Gemini can upload it
+        asname  = re.sub(r"[^a-zA-Z0-9._-]", "_", aname)
+        apath   = str(upload_tmp / asname)
+        Path(apath).write_bytes(abytes)
+
+        # Material matching — pass actual file paths
+        match_result  = match_assignment_to_notes(atext, aname, notes, assignment_path=apath,
+                                                   collection_name=f"u{u['id'][:8]}_upload")
+        matched_files  = match_result.get("files", [])
+        matched_topics = match_result.get("topics", [])
+
+        # AI time estimate — use only the high/medium matched notes
+        relevant_notes_text = "\n\n".join(
+            f"=== {n['filename']} ===\n{n['text'][:1500]}"
+            for n in notes
+            if any(f.get("filename") == n["filename"] and
+                   f.get("relevance") in ("high","medium") for f in matched_files)
+        )
+
+        estimate_result = ai_estimate(atext, aname, course, relevant_notes_text, hist_sum)
+        estimate_result["assignment"]    = aname
+        estimate_result["matched_notes"] = matched_files   # flat list for backwards compat
+        estimate_result["matched_topics"] = matched_topics # per-problem breakdown
+        results.append(estimate_result)
+
+    # Save estimates back — update existing or CREATE new assignment
+    if results:
+        users = load_users()
+        for user in users:
+            if user["id"] == u["id"]:
+                for r in results:
+                    if r.get("error"): continue
+
+                    aname_base = os.path.splitext(r["assignment"])[0].lower().replace("_"," ").replace("-"," ")
+
+                    # Try to find an existing assignment that matches
+                    matched_existing = None
+                    for a in user.get("assignments", []):
+                        atitle = a.get("title","").lower().strip()
+                        if aname_base in atitle or atitle in aname_base:
+                            matched_existing = a
+                            break
+
+                    # Use AI-inferred course if user didn't provide one
+                    effective_course = r.get("course") or course or ""
+                    # Use AI display_title (may prefix course to generic names)
+                    display_title = r.get("display_title") or                         os.path.splitext(r["assignment"])[0].replace("_"," ").replace("-"," ").strip()
+
+                    estimate_fields = {
+                        "estimated_minutes": r.get("estimated_minutes"),
+                        "estimated_hours":   round((r.get("estimated_minutes") or 180) / 60, 2),
+                        "primary_concept":   r.get("primary_concept", ""),
+                        "matched_notes":     r.get("matched_notes", []),
+                        "matched_topics":    r.get("matched_topics", []),
+                        "ai_reasoning":      r.get("reasoning", ""),
+                        "course":            effective_course,
+                    }
+
+                    if matched_existing:
+                        # Update title if it was generic and we now have a better one
+                        old_title = matched_existing.get("title","")
+                        if display_title and display_title != old_title and len(display_title) > len(old_title):
+                            matched_existing["title"] = display_title
+                        if effective_course and not matched_existing.get("course"):
+                            matched_existing["course"] = effective_course
+                        matched_existing.update(estimate_fields)
+                    else:
+                        # Create a new manual assignment from the uploaded PDF
+                        new_assignment = {
+                            "id":       f"manual_{int(time.time()*1000)}_{r['assignment']}",
+                            "title":    display_title,
+                            "course":   effective_course,
+                            "source":   "manual",
+                            "due_date": "",
+                            "points":   100,
+                            **estimate_fields,
+                        }
+                        user.setdefault("assignments", []).append(new_assignment)
+                        r["assignment_id"] = new_assignment["id"]
+                        r["display_title"] = display_title
+                        r["course"]        = effective_course
+                break
+        save_users(users)
+
+    return jsonify({"results": results})
+
+
+# ── Estimate using cached Canvas files (no upload needed) ────────────────────
+@app.route("/api/estimate/canvas", methods=["POST"])
+def estimate_canvas():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+
+    course      = request.form.get("course", "").strip()
+    canvas_cid  = request.form.get("canvas_course_id", "").strip()
+    asgn_title  = request.form.get("canvas_assignment_title", "").strip()
+    asgn_desc   = request.form.get("canvas_assignment_desc", "").strip()
+
+    if not canvas_cid:
+        return jsonify({"error": "canvas_course_id required"}), 400
+
+    # Load all cached notes for this course
+    cache_dir = get_canvas_cache_dir(u["id"], canvas_cid)
+    manifest  = canvas_cache_manifest(u["id"], canvas_cid)
+
+    notes = []
+    assignment_text = f"Assignment: {asgn_title}\n\n{asgn_desc}"
+
+    # Also try to get the actual assignment PDF
+    asgn_id_str = request.form.get("canvas_assignment_id","").replace("canvas_","")
+    asgn_pdf    = next((a.get("assignment_pdf") for a in u.get("assignments",[])
+                        if str(a.get("id","")).replace("canvas_","") == asgn_id_str), None)
+    asgn_path   = None
+    if asgn_pdf:
+        p = cache_dir / asgn_pdf
+        if p.exists(): asgn_path = str(p)
+
+    for fid, meta in manifest.items():
+        fpath = cache_dir / meta["filename"]
+        if not fpath.exists():
+            continue
+        ext = os.path.splitext(meta["filename"])[1].lower()
+        if ext not in ALLOWED_EXTENSIONS:
+            continue
+        text = extract_pdf_text_from_path(str(fpath))
+        notes.append({"filename": meta["filename"], "text": text, "path": str(fpath)})
+
+    if not notes:
+        return jsonify({"error": f"No cached files found for this course. Try syncing Canvas again."}), 400
+
+    sessions = load_sessions()
+    hist_sum = history_summary(course, sessions)
+
+    # Match notes to assignment
+    match_result   = match_assignment_to_notes(assignment_text, asgn_title, notes, assignment_path=asgn_path,
+                                               collection_name=f"u{u['id'][:8]}_c{canvas_cid}")
+    matched_notes  = match_result.get("files", [])
+    matched_topics = match_result.get("topics", [])
+
+    relevant_notes_text = "\n\n".join(
+        f"=== {n['filename']} ===\n{n['text'][:1500]}"
+        for n in notes
+        if any(f.get("filename") == n["filename"] and
+               f.get("relevance") in ("high", "medium") for f in matched_notes)
+    )
+
+    estimate_result = ai_estimate(assignment_text, asgn_title, course, relevant_notes_text, hist_sum)
+    estimate_result["assignment"]     = asgn_title
+    estimate_result["matched_notes"]  = matched_notes
+    estimate_result["matched_topics"] = matched_topics
+
+    # Save back to assignment in users.json
+    asgn_id = request.form.get("canvas_assignment_id", "")
+    users = load_users()
+    for user in users:
+        if user["id"] == u["id"]:
+            for a in user.get("assignments", []):
+                if a.get("id") == asgn_id or a.get("title","").lower() == asgn_title.lower():
+                    a["estimated_minutes"] = estimate_result.get("estimated_minutes")
+                    a["estimated_hours"]   = round((estimate_result.get("estimated_minutes") or 180) / 60, 2)
+                    a["primary_concept"]   = estimate_result.get("primary_concept", "")
+                    a["matched_notes"]     = estimate_result.get("matched_notes", [])
+                    a["ai_reasoning"]      = estimate_result.get("reasoning", "")
+            break
+    save_users(users)
+
+    return jsonify({"results": [estimate_result]})
+
+# ── Save completed timer session ──────────────────────────────────────────────
+
+
+# ── Update assignment estimate ────────────────────────────────────────────────
+@app.route("/api/assignments/<assignment_id>/estimate", methods=["PATCH"])
+def patch_assignment_estimate(assignment_id):
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    d = request.get_json()
+    users = load_users()
+    updated = False
+    for user in users:
+        if user["id"] == u["id"]:
+            for a in user.get("assignments", []):
+                if a.get("id") == assignment_id:
+                    a["estimated_minutes"] = d.get("estimated_minutes", a.get("estimated_minutes"))
+                    a["estimated_hours"]   = round((d.get("estimated_minutes") or 180) / 60, 2)
+                    a["primary_concept"]   = d.get("primary_concept", a.get("primary_concept",""))
+                    a["matched_notes"]     = d.get("matched_notes", a.get("matched_notes",[]))
+                    a["ai_reasoning"]      = d.get("reasoning", a.get("ai_reasoning",""))
+                    updated = True
+            break
+    save_users(users)
+    return jsonify({"ok": updated})
+
+
+
+# ── Update profile (name) ─────────────────────────────────────────────────────
+@app.route("/api/auth/profile", methods=["PATCH"])
+def update_profile():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    d = request.get_json() or {}
+    users = load_users()
+    for user in users:
+        if user["id"] == u["id"]:
+            if d.get("name"): user["name"] = d["name"].strip()
+            break
+    save_users(users)
+    return jsonify({"ok": True})
+
+# ── Delete account ────────────────────────────────────────────────────────────
+@app.route("/api/auth/delete", methods=["DELETE"])
+def delete_account():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    users = load_users()
+    users = [x for x in users if x["id"] != u["id"]]
+    save_users(users)
+    # Clean up sessions
+    sessions = [s for s in load_sessions() if s.get("user_id") != u["id"]]
+    save_sessions(sessions)
+    # Clean up GCal token
+    gcal_token_path(u["id"]).unlink(missing_ok=True)
+    session.clear()
+    return jsonify({"ok": True})
+
+# ── Remove friend ─────────────────────────────────────────────────────────────
+@app.route("/api/social/friends", methods=["DELETE"])
+def remove_friend():
+    err = require_auth()
+    if err: return err
+    u     = current_user()
+    d     = request.get_json() or {}
+    email = d.get("email","").strip().lower()
+    if not email:
+        return jsonify({"error": "Email required"}), 400
+    users = load_users()
+    for user in users:
+        if user["id"] == u["id"]:
+            user["friends"] = [f for f in user.get("friends",[]) if f != email]
+        elif user["email"] == email:
+            user["friends"] = [f for f in user.get("friends",[]) if f != u["email"]]
+    save_users(users)
+    return jsonify({"ok": True})
+
+# ── Delete ALL assignments ────────────────────────────────────────────────────
+@app.route("/api/assignments/all", methods=["DELETE"])
+def delete_all_assignments():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    users = load_users()
+    count = 0
+    for user in users:
+        if user["id"] == u["id"]:
+            count = len(user.get("assignments", []))
+            user["assignments"] = []
+            break
+    save_users(users)
+    return jsonify({"ok": True, "removed": count})
+
+# ── Fetch assignment PDF from Canvas on demand ────────────────────────────────
+@app.route("/api/assignments/<assignment_id>/fetch_pdf", methods=["POST"])
+def fetch_assignment_pdf(assignment_id):
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    d = request.get_json() or {}
+    course_id = str(d.get("course_id",""))
+
+    # Find assignment in user profile
+    assignment = next((a for a in u.get("assignments",[]) if a.get("id") == assignment_id), None)
+    if not assignment:
+        return jsonify({"error": "Assignment not found"}), 404
+
+    canvas_info = u.get("canvas", {})
+    domain      = canvas_info.get("domain","")
+    # Get canvas token from session-stored canvas data
+    # We need the token — look it up from a canvas_token file if stored
+    token_file  = DATA_DIR / f"canvas_token_{u['id']}.txt"
+    if not token_file.exists():
+        return jsonify({"error": "Canvas token not available. Re-sync Canvas to enable PDF fetching."}), 400
+    token = token_file.read_text().strip()
+
+    if not domain or not token:
+        return jsonify({"error": "Canvas not connected"}), 400
+
+    try:
+        # Fetch assignment details to get attachments
+        canvas_id = assignment_id.replace("canvas_","")
+        asgn_data = canvas_get(domain, token, f"/api/v1/courses/{course_id}/assignments/{canvas_id}")
+        attachments = asgn_data.get("attachments", []) if isinstance(asgn_data, dict) else []
+
+        if not attachments:
+            return jsonify({"error": "No PDF attachments found on this assignment in Canvas."}), 404
+
+        for att in attachments:
+            fname = att.get("filename") or att.get("display_name","file.pdf")
+            ext   = os.path.splitext(fname)[1].lower()
+            if ext not in ALLOWED_EXTENSIONS:
+                continue
+            cache_dir = get_canvas_cache_dir(u["id"], course_id)
+            dest      = cache_dir / fname
+            file_bytes = canvas_download_file(att, token)
+            if file_bytes:
+                dest.write_bytes(file_bytes)
+                manifest = canvas_cache_manifest(u["id"], course_id)
+                manifest[str(att.get("id","att_"+fname))] = {
+                    "filename":     fname,
+                    "cached_at":    datetime.utcnow().isoformat(),
+                    "size":         len(file_bytes),
+                    "content_type": MIME_MAP.get(ext,"application/octet-stream"),
+                }
+                save_canvas_cache_manifest(u["id"], course_id, manifest)
+                # Update assignment record
+                users = load_users()
+                for user in users:
+                    if user["id"] == u["id"]:
+                        for a in user.get("assignments",[]):
+                            if a.get("id") == assignment_id:
+                                a["assignment_pdf"] = fname
+                        break
+                save_users(users)
+                return jsonify({
+                    "ok":       True,
+                    "filename": fname,
+                    "url":      f"/api/canvas/file/{u['id']}/{course_id}/{fname}",
+                })
+
+        return jsonify({"error": "No supported file attachments found."}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ── Delete an assignment ──────────────────────────────────────────────────────
+@app.route("/api/assignments/<assignment_id>", methods=["DELETE"])
+def delete_assignment(assignment_id):
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    users = load_users()
+    for user in users:
+        if user["id"] == u["id"]:
+            before = len(user.get("assignments", []))
+            user["assignments"] = [a for a in user.get("assignments", []) if a.get("id") != assignment_id]
+            after = len(user["assignments"])
+            break
+    save_users(users)
+    return jsonify({"ok": True, "removed": before - after})
+
+@app.route("/api/sessions", methods=["POST"])
+def save_session():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    d = request.get_json()
+    sessions = load_sessions()
+    sessions.append({
+        "id":                str(int(time.time()*1000)),
+        "user_id":           u["id"],
+        "email":             u["email"],
+        "course":            d.get("course",""),
+        "assignment_summary":d.get("assignment_summary",""),
+        "primary_concept":   d.get("primary_concept",""),
+        "estimated_minutes": d.get("estimated_minutes"),
+        "actual_minutes":    d.get("actual_minutes"),
+        "timestamp":         datetime.utcnow().isoformat(),
+    })
+    save_sessions(sessions)
+    return jsonify({"ok": True})
+
+@app.route("/api/sessions")
+def get_sessions_route():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    sessions = [s for s in load_sessions() if s.get("user_id") == u["id"]]
+    return jsonify(sessions[-50:])
+
+# ── Serve cached canvas files directly (for PDF viewer) ──────────────────────
+@app.route("/api/canvas/file/<user_id>/<course_id>/<path:filename>")
+def serve_canvas_file(user_id, course_id, filename):
+    u = current_user()
+    if not u or u["id"] != user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    cache_dir = get_canvas_cache_dir(user_id, course_id)
+    ext = os.path.splitext(filename)[1].lower()
+    mime = MIME_MAP.get(ext, "application/octet-stream")
+    from flask import send_file
+    fpath = Path(cache_dir) / filename
+    if not fpath.exists():
+        return jsonify({"error": "File not found"}), 404
+    return send_file(str(fpath), mimetype=mime, as_attachment=False)
+
+@app.route("/api/uploaded/file", methods=["POST"])
+def serve_uploaded_file():
+    """Temporarily store an uploaded file and return a view URL."""
+    err = require_auth()
+    if err: return err
+    f = request.files.get("file")
+    if not f: return jsonify({"error": "No file"}), 400
+    u = current_user()
+    upload_dir = DATA_DIR / "uploads" / u["id"]
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    safe_name = re.sub(r"[^a-zA-Z0-9._-]", "_", f.filename)
+    dest = upload_dir / safe_name
+    f.save(str(dest))
+    return jsonify({"url": f"/api/uploaded/view/{u['id']}/{safe_name}"})
+
+@app.route("/api/uploaded/view/<user_id>/<path:filename>")
+def view_uploaded_file(user_id, filename):
+    u = current_user()
+    if not u or u["id"] != user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    upload_dir = DATA_DIR / "uploads" / user_id
+    ext = os.path.splitext(filename)[1].lower()
+    mime = MIME_MAP.get(ext, "application/octet-stream")
+    from flask import send_file
+    fpath = upload_dir / filename
+    if not fpath.exists():
+        return jsonify({"error": "File not found"}), 404
+    return send_file(str(fpath), mimetype=mime, as_attachment=False)
+
+
+
+# ══════════════════════════════════════════════════════════════════
+# SOCIAL
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/social/leaderboard")
+def social_leaderboard():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+
+    friends_emails = u.get("friends", [])
+    all_sessions   = load_sessions()
+    all_users      = load_users()
+
+    # Include self + friends
+    participants = [u["email"]] + friends_emails
+    leaderboard  = []
+
+    for email in participants:
+        user_obj  = next((x for x in all_users if x["email"] == email), None)
+        user_sess = [s for s in all_sessions if s.get("email") == email and s.get("actual_minutes")]
+        streak    = _calc_streak(user_sess)
+        week_ago  = datetime.utcnow() - timedelta(days=7)
+        sess_week = len([s for s in user_sess if s.get("timestamp") and
+                         datetime.fromisoformat(s["timestamp"]) >= week_ago])
+        total_hrs = round(sum(s["actual_minutes"] for s in user_sess) / 60, 1)
+        last_sess = user_sess[-1].get("timestamp","") if user_sess else ""
+
+        # Status
+        if user_sess and last_sess:
+            try:
+                last_dt = datetime.fromisoformat(last_sess)
+                mins_ago = (datetime.utcnow() - last_dt).total_seconds() / 60
+                if mins_ago < 30:   status = "Studying now 🟢"
+                elif mins_ago < 120: status = "Just finished"
+                else:
+                    status = f"Last active {last_dt.strftime('%b %d')}"
+            except:
+                status = ""
+        else:
+            status = "No sessions yet"
+
+        leaderboard.append({
+            "email":         email,
+            "name":          (user_obj or {}).get("name", email.split("@")[0]),
+            "streak":        streak,
+            "sessions_week": sess_week,
+            "total_hours":   total_hrs,
+            "status":        status,
+            "is_self":       email == u["email"],
+        })
+
+    leaderboard.sort(key=lambda x: (-x["streak"], -x["sessions_week"]))
+    return jsonify({"friends": leaderboard})
+
+
+@app.route("/api/social/friends", methods=["POST"])
+def add_friend():
+    err = require_auth()
+    if err: return err
+    u    = current_user()
+    d    = request.get_json()
+    email = d.get("email","").strip().lower()
+
+    if not email:
+        return jsonify({"error": "Email required"}), 400
+    if email == u["email"]:
+        return jsonify({"error": "You can't add yourself"}), 400
+
+    # Check if user exists
+    all_users = load_users()
+    if not any(x["email"] == email for x in all_users):
+        return jsonify({"error": f"No Syllabot account found for {email}"}), 404
+
+    users = load_users()
+    already = False
+    for user in users:
+        if user["id"] == u["id"]:
+            friends = user.setdefault("friends", [])
+            if email in friends:
+                already = True
+                break
+            friends.append(email)
+        # Also add reverse so the other user sees this user
+        elif user["email"] == email:
+            their_friends = user.setdefault("friends", [])
+            if u["email"] not in their_friends:
+                their_friends.append(u["email"])
+    if already:
+        return jsonify({"error": "Already friends"}), 409
+    save_users(users)
+    return jsonify({"ok": True})
+
+
+def _calc_streak(sessions: list) -> int:
+    if not sessions: return 0
+    days = set()
+    for s in sessions:
+        ts = s.get("timestamp","")
+        if ts: days.add(ts[:10])
+    streak = 0
+    cur    = datetime.utcnow().date()
+    while str(cur) in days:
+        streak += 1
+        cur = cur - timedelta(days=1)
+    return streak
+
+# ── Canvas debug endpoint ─────────────────────────────────────────────────────
+@app.route("/api/canvas/debug", methods=["POST"])
+def canvas_debug():
+    d      = request.get_json()
+    domain = d.get("domain","").strip().rstrip("/").replace("https://","").replace("http://","")
+    token  = d.get("token","").strip()
+    if not domain or not token:
+        return jsonify({"error": "domain and token required"}), 400
+    results = {}
+    # Try multiple enrollment params
+    for params in [
+        {"per_page": 50},
+        {"per_page": 50, "enrollment_type": "student"},
+        {"per_page": 50, "enrollment_state": "active"},
+        {"per_page": 50, "state[]": "available"},
+    ]:
+        try:
+            courses = canvas_get(domain, token, "/api/v1/courses", params)
+            key = str(params)
+            results[key] = [{"id": c.get("id"), "name": c.get("name"), "workflow": c.get("workflow_state")} for c in courses[:10]]
+        except Exception as e:
+            results[str(params)] = f"ERROR: {e}"
+    return jsonify(results)
+
+
+# ══════════════════════════════════════════════════════════════════
+# GOOGLE CALENDAR
+# ══════════════════════════════════════════════════════════════════
+import math
+from zoneinfo import ZoneInfo
+
+GCAL_SCOPES     = ["https://www.googleapis.com/auth/calendar.readonly"]
+# Look for credentials.json next to server.py first, then CWD
+_script_dir     = Path(__file__).parent
+GCAL_CREDS_FILE = (_script_dir / "credentials.json") if (_script_dir / "credentials.json").exists() else Path("credentials.json")
+GCAL_TOKENS_DIR = DATA_DIR / "gcal_tokens"
+GCAL_TOKENS_DIR.mkdir(exist_ok=True)
+WORK_START      = int(os.environ.get("WORK_START_HOUR", 9))
+WORK_END        = int(os.environ.get("WORK_END_HOUR", 22))
+TZ_STR          = os.environ.get("TIMEZONE", "America/Detroit")
+APP_BASE_URL    = os.environ.get("APP_BASE_URL", "http://localhost:8080")
+
+def gcal_token_path(user_id: str) -> Path:
+    return GCAL_TOKENS_DIR / f"{user_id}.json"
+
+def gcal_get_creds(user_id: str):
+    """Return valid Google credentials for user, or None if not connected."""
+    try:
+        from google.oauth2.credentials import Credentials
+        from google.auth.transport.requests import Request as GRequest
+    except ImportError:
+        return None
+    tp = gcal_token_path(user_id)
+    if not tp.exists():
+        return None
+    creds = Credentials.from_authorized_user_file(str(tp), GCAL_SCOPES)
+    if creds and creds.expired and creds.refresh_token:
+        try:
+            creds.refresh(GRequest())
+            tp.write_text(creds.to_json())
+        except Exception:
+            tp.unlink(missing_ok=True)
+            return None
+    return creds if creds and creds.valid else None
+
+@app.route("/api/gcal/status")
+def gcal_status():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    creds = gcal_get_creds(u["id"])
+    return jsonify({"connected": creds is not None})
+
+@app.route("/api/gcal/connect")
+def gcal_connect():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    if not GCAL_CREDS_FILE.exists():
+        return jsonify({"error": "credentials.json not found on server"}), 500
+    try:
+        from google_auth_oauthlib.flow import Flow
+        redirect_uri = f"{APP_BASE_URL}/api/gcal/callback"
+        flow = Flow.from_client_secrets_file(
+            str(GCAL_CREDS_FILE), scopes=GCAL_SCOPES,
+            redirect_uri=redirect_uri
+        )
+        # Suppress PKCE entirely — not needed for confidential server-side clients
+        flow.oauth2session._client.code_challenge_method = None
+        flow.oauth2session.code_challenge_method = None
+        auth_url, state = flow.authorization_url(
+            access_type="offline",
+            prompt="consent",
+            include_granted_scopes="true",
+        )
+        # Strip any code_challenge params the library may have injected
+        from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+        parsed = urlparse(auth_url)
+        params = {k: v for k, v in parse_qs(parsed.query, keep_blank_values=True).items()
+                  if k not in ("code_challenge", "code_challenge_method")}
+        clean_url = urlunparse(parsed._replace(query=urlencode(params, doseq=True)))
+        session["gcal_state"]   = state
+        session["gcal_user_id"] = u["id"]
+        return jsonify({"auth_url": clean_url})
+    except ImportError:
+        return jsonify({"error": "google-auth-oauthlib not installed. Run: pip install google-auth-oauthlib google-api-python-client"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/gcal/callback")
+def gcal_callback():
+    state   = session.get("gcal_state")
+    user_id = session.get("gcal_user_id")
+    if not state or not user_id:
+        return "Session expired. Please try connecting again.", 400
+    try:
+        from google_auth_oauthlib.flow import Flow
+        redirect_uri = f"{APP_BASE_URL}/api/gcal/callback"
+        flow = Flow.from_client_secrets_file(
+            str(GCAL_CREDS_FILE), scopes=GCAL_SCOPES,
+            state=state, redirect_uri=redirect_uri
+        )
+        flow.fetch_token(authorization_response=request.url)
+        gcal_token_path(user_id).write_text(flow.credentials.to_json())
+        return """<script>
+          if (window.opener) { window.opener.postMessage('gcal_connected', '*'); window.close(); }
+          else { document.write('<p>Connected! You can close this tab and return to Syllabot.</p>'); }
+        </script>"""
+    except Exception as e:
+        return f"Error: {e} — Please close this tab and try again.", 500
+
+@app.route("/api/gcal/disconnect", methods=["POST"])
+def gcal_disconnect():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    tp = gcal_token_path(u["id"])
+    tp.unlink(missing_ok=True)
+    return jsonify({"ok": True})
+
+@app.route("/api/gcal/events")
+def gcal_events():
+    err = require_auth()
+    if err: return err
+    u = current_user()
+    creds = gcal_get_creds(u["id"])
+    if not creds:
+        return jsonify({"error": "Not connected", "events": []}), 200
+    try:
+        from googleapiclient.discovery import build as gbuild
+        import datetime as dt
+        service = gbuild("calendar", "v3", credentials=creds)
+        now     = dt.datetime.now(tz=dt.timezone.utc)
+        cutoff  = now + dt.timedelta(days=90)
+        items   = service.events().list(
+            calendarId="primary",
+            timeMin=now.isoformat(),
+            timeMax=cutoff.isoformat(),
+            singleEvents=True,
+            orderBy="startTime",
+            maxResults=2500,
+        ).execute().get("items", [])
+
+        events = []
+        for ev in items:
+            start_raw = ev.get("start",{}).get("dateTime") or ev.get("start",{}).get("date","")
+            end_raw   = ev.get("end",{}).get("dateTime")   or ev.get("end",{}).get("date","")
+            events.append({
+                "id":      ev.get("id",""),
+                "title":   ev.get("summary","(no title)"),
+                "start":   start_raw,
+                "end":     end_raw,
+                "allDay":  "T" not in start_raw,
+                "color":   ev.get("colorId",""),
+            })
+        return jsonify({"events": events})
+    except Exception as e:
+        return jsonify({"error": str(e), "events": []}), 200
+
+@app.route("/api/schedule/suggest", methods=["POST"])
+def suggest_schedule():
+    """
+    Given existing Google Calendar events and assignments,
+    suggest optimal study blocks in free time slots.
+    """
+    err = require_auth()
+    if err: return err
+    u = current_user()
+
+    import datetime as dt
+    try:
+        TZ = ZoneInfo(TZ_STR)
+    except Exception:
+        TZ = ZoneInfo("America/Detroit")
+
+    d           = request.get_json() or {}
+    gcal_events = d.get("gcal_events", [])   # [{start, end, title}]
+    assignments = u.get("assignments", [])
+
+    now      = dt.datetime.now(tz=TZ)
+    today    = now.date()
+    cutoff   = today + dt.timedelta(days=14)
+
+    # Build busy intervals per day from Google Calendar
+    busy: dict[dt.date, list[tuple]] = {}
+    for ev in gcal_events:
+        if ev.get("allDay"): continue
+        try:
+            s = dt.datetime.fromisoformat(ev["start"]).astimezone(TZ)
+            e = dt.datetime.fromisoformat(ev["end"]).astimezone(TZ)
+            d_key = s.date()
+            busy.setdefault(d_key, []).append((s.hour + s.minute/60, e.hour + e.minute/60))
+        except Exception:
+            continue
+
+    def free_slots(date: dt.date, duration_h: float) -> list[tuple]:
+        """Return (start_h, end_h) free slots of at least duration_h on date."""
+        day_busy = sorted(busy.get(date, []))
+        # Add implicit boundaries
+        windows = []
+        prev_end = WORK_START
+        for (bs, be) in day_busy:
+            bs = max(bs, WORK_START)
+            if bs > prev_end + 0.25:
+                windows.append((prev_end, bs))
+            prev_end = max(prev_end, be)
+        if prev_end < WORK_END:
+            windows.append((prev_end, WORK_END))
+        return [(s, e) for (s, e) in windows if e - s >= duration_h]
+
+    # Build suggested blocks
+    MAX_BLOCK    = 1.5   # max 1.5h per session — keeps blocks manageable
+    MAX_PER_DAY  = 3.0   # max total study hours per day across all assignments
+    suggested    = []
+    day_used: dict[dt.date, float] = {}
+
+    # Sort by urgency (soonest due first)
+    pending = []
+    for a in assignments:
+        if not a.get("due_date"): continue
+        try:
+            due_dt = dt.datetime.fromisoformat(a["due_date"].replace("Z","")).astimezone(TZ)
+        except Exception:
+            continue
+        if due_dt.date() < today: continue
+        hrs = a.get("estimated_hours") or 1.5
+        pending.append({"a": a, "due": due_dt, "remaining_h": hrs})
+    pending.sort(key=lambda x: x["due"])
+
+    for item in pending:
+        a         = item["a"]
+        due_date  = item["due"].date()
+        remaining = item["remaining_h"]
+
+        # How many 1.5h sessions are needed?
+        import math
+        sessions_needed = max(1, math.ceil(remaining / MAX_BLOCK))
+
+        # We want sessions spread with at least 1 day gap where possible.
+        # Ideal start: sessions_needed days before due (so there's one session/day).
+        # But always start at least 2 days before due even for short assignments,
+        # so we never suggest working the day before unless truly necessary.
+        ideal_lead = max(sessions_needed, 2)   # aim for 2+ days of lead time
+        ideal_start = due_date - dt.timedelta(days=ideal_lead)
+        start_day = max(today, ideal_start)
+
+        # Build forward range from start_day up to (but not including) due_date
+        days_range = []
+        d_iter = start_day
+        while d_iter < due_date and len(days_range) < 14:
+            days_range.append(d_iter)
+            d_iter += dt.timedelta(days=1)
+        if not days_range:
+            # Due date is today or in the past — schedule for today
+            days_range = [today]
+
+        for date in days_range:
+            if remaining <= 0: break
+            if date < today: continue
+            block_h   = min(remaining, MAX_BLOCK)
+            # Limit hours per day across all assignments
+            used      = day_used.get(date, 0)
+            available = min(block_h, MAX_PER_DAY - used)
+            if available < 0.5: continue
+            slots = free_slots(date, available)
+            if not slots:
+                # Try a shorter block if no slot fits the full duration
+                for try_h in [1.0, 0.75, 0.5]:
+                    if try_h <= available:
+                        slots = free_slots(date, try_h)
+                        if slots:
+                            available = try_h
+                            break
+            if not slots: continue
+            # Pick earliest slot
+            s_h, e_h = slots[0]
+            actual_h = min(available, e_h - s_h)
+            start_dt = dt.datetime(date.year, date.month, date.day,
+                                   int(s_h), int((s_h % 1)*60), tzinfo=TZ)
+            end_dt   = start_dt + dt.timedelta(hours=actual_h)
+            suggested.append({
+                "assignment_id":    a.get("id",""),
+                "assignment_title": a.get("title",""),
+                "course":           a.get("course",""),
+                "due_date":         item["due"].isoformat(),
+                "start":            start_dt.isoformat(),
+                "end":              end_dt.isoformat(),
+                "hours":            round(actual_h, 2),
+                "type":             "study_block",
+            })
+            day_used[date] = used + actual_h
+            remaining      -= actual_h
+
+    return jsonify({"suggested": suggested})
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8080))
+    print("="*50)
+    print("  Syllabot server starting...")
+    print("  Set: export GEMINI_API_KEY=your_key")
+    print(f"  Open: http://localhost:{port}")
+    print("="*50)
+    app.run(debug=True, port=port)
