@@ -106,5 +106,49 @@
     "estimated_minutes": null,
     "actual_minutes": 1,
     "timestamp": "2026-03-15T01:46:06.196228"
+  },
+  {
+    "id": "1773543510556",
+    "user_id": "05aab27e82e029d7875fcd0600df0ef5",
+    "email": "leeangie@umich.edu",
+    "course": "EECS 484",
+    "assignment_summary": "EECS 484 - Homework 3",
+    "primary_concept": "Relational Algebra Queries",
+    "estimated_minutes": null,
+    "actual_minutes": 1,
+    "timestamp": "2026-03-15T02:58:30.556150"
+  },
+  {
+    "id": "1773543596524",
+    "user_id": "05aab27e82e029d7875fcd0600df0ef5",
+    "email": "leeangie@umich.edu",
+    "course": "",
+    "assignment_summary": "Renters Insurance Policy Review",
+    "primary_concept": "Insurance policy review",
+    "estimated_minutes": null,
+    "actual_minutes": 1,
+    "timestamp": "2026-03-15T02:59:56.524601"
+  },
+  {
+    "id": "1773543947100",
+    "user_id": "05aab27e82e029d7875fcd0600df0ef5",
+    "email": "leeangie@umich.edu",
+    "course": "",
+    "assignment_summary": "fake_hw.pdf",
+    "primary_concept": "Basic Arithmetic",
+    "estimated_minutes": 1,
+    "actual_minutes": 1,
+    "timestamp": "2026-03-15T03:05:47.100169"
+  },
+  {
+    "id": "1773544224635",
+    "user_id": "05aab27e82e029d7875fcd0600df0ef5",
+    "email": "leeangie@umich.edu",
+    "course": "",
+    "assignment_summary": "fake_hw.pdf",
+    "primary_concept": "Basic Arithmetic",
+    "estimated_minutes": 2,
+    "actual_minutes": 1,
+    "timestamp": "2026-03-15T03:10:24.635081"
   }
 ]

@@ -1625,7 +1625,9 @@ function startTimerForTop() {
 const _origUpdateTimerUI = updateTimerUI;
 
 function startTimerFor(assignment) {
-  timerEstMinutes = assignment.estimated_hours ? Math.round(assignment.estimated_hours * 60) : null;
+  timerEstMinutes = assignment.estimated_minutes != null
+    ? assignment.estimated_minutes
+    : (assignment.estimated_hours ? Math.round(assignment.estimated_hours * 60) : null);
   timerCurrentAssignment = assignment;
   document.getElementById("timer-assignment").textContent = (assignment.title||assignment.assignment_name||"") + " · " + (assignment.course||"");
   document.getElementById("timer-materials-panel").style.display = "none";
@@ -1645,21 +1647,14 @@ function startTimerWithEstimate(minutes, name) {
 function timerReset() {
   clearInterval(timerInterval); timerRunning = false; timerElapsed = 0;
   const disp = document.getElementById("timer-display");
-  const pill = document.getElementById("timer-pill-display");
   const bar  = document.getElementById("timer-bar");
   const stat = document.getElementById("timer-status");
-  if (timerEstMinutes) {
-    const totalSec = timerEstMinutes * 60;
-    const initialDisplay = fmtTime(totalSec);
-    if (disp) { disp.textContent = initialDisplay; disp.className = "timer-digits"; }
-    if (pill) pill.textContent = initialDisplay;
-    if (stat) stat.textContent = `Ready to start — ${initialDisplay} estimated`;
-  } else {
-    if (disp) { disp.textContent = "00:00"; disp.className = "timer-digits"; }
-    if (pill) pill.textContent = "00:00";
-    if (stat) stat.textContent = "Ready to start";
-  }
-  if (bar) { bar.style.width = "0%"; bar.className = "timer-bar"; }
+  const pill = document.getElementById("timer-pill-display");
+  const initialDisplay = timerEstMinutes ? fmtTime(timerEstMinutes * 60) : "00:00";
+  if (disp) { disp.textContent = initialDisplay; disp.className = "timer-digits"; }
+  if (pill) pill.textContent = initialDisplay;
+  if (bar)  { bar.style.width = "0%"; bar.className = "timer-bar"; }
+  if (stat) stat.textContent = timerEstMinutes ? `Ready — ${initialDisplay} estimated` : "Ready to start";
   document.getElementById("timer-start-btn").disabled = false;
   document.getElementById("timer-pause-btn").disabled = true;
   document.getElementById("timer-done-btn").disabled = true;
@@ -1667,42 +1662,41 @@ function timerReset() {
 }
 
 function fmtTime(s) {
-  const neg = s < 0; const abs = Math.abs(s);
-  const h=Math.floor(abs/3600),m=Math.floor((abs%3600)/60),sec=abs%60;
-  const str = h>0 ? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
+  const neg = s < 0;
+  const abs = Math.abs(Math.round(s));
+  const h = Math.floor(abs / 3600);
+  const m = Math.floor((abs % 3600) / 60);
+  const sec = abs % 60;
+  const str = h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
   return neg ? `-${str}` : str;
 }
 function pad(n){return String(n).padStart(2,"0")}
 
 function updateTimerUI() {
-  const pill = document.getElementById("timer-pill-display");
-  const disp = document.getElementById("timer-display");
-  const bar  = document.getElementById("timer-bar");
-  const stat = document.getElementById("timer-status");
+  const disp    = document.getElementById("timer-display");
+  const bar     = document.getElementById("timer-bar");
+  const stat    = document.getElementById("timer-status");
+  const pill    = document.getElementById("timer-pill-display");
+  const pdfDisp = document.getElementById("pdf-timer-display");
+  const pdfBar  = document.getElementById("pdf-timer-bar");
 
-  // Countdown: show time remaining (goes negative)
   if (timerEstMinutes) {
-    const total   = timerEstMinutes * 60;
-    const remaining = total - timerElapsed;  // negative when over
-    if (pill) pill.textContent = fmtTime(remaining);
-    if (disp) disp.textContent = fmtTime(remaining);
-    const pdfDisp = document.getElementById("pdf-timer-display");
-    if (pdfDisp) pdfDisp.textContent = fmtTime(remaining);
-    if (bar) {
-      const pct = Math.min((timerElapsed / total) * 100, 100);
-      bar.style.width = pct + "%";
-      bar.className   = remaining > 0 ? "timer-bar" : "timer-bar over";
-    }
-    if (disp) disp.className = remaining > 0 ? (remaining < 300 ? "timer-digits near" : "timer-digits") : "timer-digits over";
-    if (stat) stat.textContent = remaining > 0 ? `${fmtTime(remaining)} remaining` : `${fmtTime(-remaining)} over estimate`;
+    const total     = timerEstMinutes * 60;
+    const remaining = total - timerElapsed;
+    const display   = fmtTime(remaining);
+    if (disp)    { disp.textContent = display; disp.className = remaining > 0 ? (remaining < 300 ? "timer-digits near" : "timer-digits") : "timer-digits over"; }
+    if (pill)    pill.textContent = display;
+    if (pdfDisp) pdfDisp.textContent = display;
+    if (bar)     { bar.style.width = Math.min((timerElapsed / total) * 100, 100) + "%"; bar.className = remaining > 0 ? "timer-bar" : "timer-bar over"; }
+    if (stat)    stat.textContent = remaining > 0 ? `${display} remaining` : `${fmtTime(-remaining)} over estimate`;
   } else {
     // No estimate — count up
-    if (pill) pill.textContent = fmtTime(timerElapsed);
-    if (disp) { disp.textContent = fmtTime(timerElapsed); disp.className = "timer-digits"; }
-    const pdfDisp = document.getElementById("pdf-timer-display");
-    if (pdfDisp) pdfDisp.textContent = fmtTime(timerElapsed);
+    const display = fmtTime(timerElapsed);
+    if (disp)    { disp.textContent = display; disp.className = "timer-digits"; }
+    if (pill)    pill.textContent = display;
+    if (pdfDisp) pdfDisp.textContent = display;
+    if (stat)    stat.textContent = `${display} elapsed`;
   }
-  const pdfBar = document.getElementById("pdf-timer-bar");
   if (pdfBar) pdfBar.style.display = timerRunning ? "flex" : "none";
 }
 
@@ -1821,12 +1815,13 @@ function renderCompletedAssignments() {
 // SETTINGS
 // ══════════════════════════════════════════════════════════════════
 async function loadSettings() {
+  // Session history
   try {
     const res  = await fetch(`${API}/sessions`, {credentials:"include"});
     const data = await res.json();
     const el   = document.getElementById("settings-history");
-    if (!data.length) { el.innerHTML = '<p style="color:#94a3b8;font-size:.85rem">No sessions yet.</p>'; return; }
-    el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:.8rem">
+    if (!data.length) { el.innerHTML = '<p style="color:#94a3b8;font-size:.85rem">No sessions yet.</p>'; }
+    else el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:.8rem">
       <thead><tr>${["Course","Assignment","Est.","Actual","Diff","Date"].map(h=>`<th style="text-align:left;padding:6px 10px;border-bottom:1px solid #f1f5f9;color:#94a3b8;font-weight:500">${h}</th>`).join("")}</tr></thead>
       <tbody>${[...data].reverse().map(s => {
         const diff = s.actual_minutes && s.estimated_minutes ? s.actual_minutes - s.estimated_minutes : null;
@@ -1840,6 +1835,17 @@ async function loadSettings() {
         </tr>`;
       }).join("")}</tbody></table>`;
   } catch(e) { document.getElementById("settings-history").innerHTML = '<p style="color:#dc2626;font-size:.85rem">Could not load history.</p>'; }
+
+  // Everything the wrapper was doing
+  renderRecentlyOpened();
+  checkGCalStatus();
+  const nameInput = document.getElementById("settings-name");
+  if (nameInput && appUser) nameInput.value = appUser.name || appUser.email?.split("@")[0] || "";
+  const isDark = document.body.classList.contains("dark");
+  const track  = document.getElementById("dark-track");
+  const thumb  = document.getElementById("dark-thumb");
+  if (track) track.style.background = isDark ? "#059669" : "#e2e8f0";
+  if (thumb) thumb.style.transform  = isDark ? "translateX(20px)" : "translateX(0)";
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -2102,9 +2108,13 @@ async function uploadForView(file) {
 const uploadedFileURLs = {}; // filename -> url
 // ── Show pre-computed matched materials for an assignment ─────────────────────
 function showMatchedMaterials(assignment) {
+  timerEstMinutes = assignment.estimated_minutes != null
+    ? assignment.estimated_minutes
+    : (assignment.estimated_hours ? Math.round(assignment.estimated_hours * 60) : null);
   timerCurrentAssignment = assignment;
   document.getElementById("timer-assignment").textContent = (assignment.title||"") + " · " + (assignment.course||"");
   document.getElementById("timer-label").textContent = "📄 " + (assignment.title || "Assignment");
+  timerReset();
   toggleTimerOverlay(true);
 
   const panel  = document.getElementById("timer-materials-panel");
@@ -2966,22 +2976,6 @@ function applyStoredDarkMode() {
   if (localStorage.getItem("darkMode") === "1") {
     document.body.classList.add("dark");
   }
-}
-
-// Update dark mode toggle UI when settings page opens
-const _origLoadSettings = loadSettings;
-async function loadSettings() {
-  await _origLoadSettings();
-  renderRecentlyOpened();
-  checkGCalStatus();
-  // Pre-fill display name
-  const nameInput = document.getElementById("settings-name");
-  if (nameInput && appUser) nameInput.value = appUser.name || appUser.email?.split("@")[0] || "";
-  const isDark = document.body.classList.contains("dark");
-  const track  = document.getElementById("dark-track");
-  const thumb  = document.getElementById("dark-thumb");
-  if (track) track.style.background = isDark ? "#059669" : "#e2e8f0";
-  if (thumb) thumb.style.transform  = isDark ? "translateX(20px)" : "translateX(0)";
 }
 
 // ── Boot ──
