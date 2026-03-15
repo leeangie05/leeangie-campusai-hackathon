@@ -426,5 +426,16 @@
     ],
     "canvas": {},
     "onboarded": true
+  },
+  {
+    "id": "f8291f34e045a6631483c8558e7a0f8f",
+    "email": "anayordanova9@gmail.com",
+    "password": "8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4",
+    "name": "ana",
+    "created_at": "2026-03-15T03:27:42.706731",
+    "courses": [],
+    "assignments": [],
+    "canvas": {},
+    "onboarded": false
   }
 ]
